@@ -1,0 +1,144 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-stc-bg: #f8f9fc;
+  --color-stc-bg-2: #f0f1f7;
+  --color-stc-bg-3: #e8e9f0;
+  --color-stc-surface: #ffffff;
+  --color-stc-border: #e5e7ef;
+  --color-stc-border-strong: #d1d3de;
+  --color-stc-text: #1a1a2e;
+  --color-stc-text-soft: #555570;
+  --color-stc-text-faint: #9898ad;
+  --color-stc-pink: #f45b8d;
+  --color-stc-pink-soft: #fef2f5;
+  --color-stc-error: #ef4444;
+  --color-stc-error-soft: #fef2f2;
+  --color-stc-success: #10b981;
+  --color-stc-success-soft: #ecfdf5;
+  --color-stc-warning: #f59e0b;
+  --color-stc-warning-soft: #fffbeb;
+  --color-stc-blue: #3b82f6;
+  --color-stc-blue-soft: #eff6ff;
+  /* Legacy aliases */
+  --color-stc-green: var(--color-stc-success);
+  --color-stc-orange: var(--color-stc-warning);
+  --shadow-stc-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
+  --shadow-stc-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+  --shadow-stc-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
+  --animate-indeterminate-progress: indeterminate-progress 1.4s ease-in-out infinite;
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/Poppins-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/Poppins-Medium.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/Poppins-SemiBold.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/Poppins-Bold.woff2') format('woff2');
+}
+
+:root {
+  --font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --min-tap-target: 44px;
+  /* Type scale (1.25 ratio) */
+  --text-caption: 0.6875rem;    /* 11px */
+  --text-small: 0.75rem;        /* 12px */
+  --text-body: 0.875rem;        /* 14px */
+  --text-subheading: 1rem;      /* 16px */
+  --text-heading: 1.125rem;     /* 18px */
+  --text-display: 1.5rem;       /* 24px */
+  /* Weight roles */
+  --weight-body: 500;
+  --weight-label: 600;
+  --weight-heading: 700;
+  --weight-display: 900;
+  /* Line heights */
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+  --leading-relaxed: 1.7;
+  /* Tracking */
+  --tracking-label: 0.16em;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  font-family: var(--font-family);
+  font-size: 16px;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  font-kerning: normal;
+  background: var(--color-stc-bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--color-stc-bg);
+  color: var(--color-stc-text);
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-stc-pink);
+  outline-offset: 3px;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  min-height: var(--min-tap-target);
+}
+
+@keyframes indeterminate-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.animate-indeterminate-progress {
+  animation: indeterminate-progress 1.4s ease-in-out infinite;
+}

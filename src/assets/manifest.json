@@ -1,0 +1,78 @@
+{
+  "version": "1.0.0",
+  "assets": [
+    {
+      "id": "frame-classic-light",
+      "type": "frame",
+      "name": "Classic Light",
+      "path": "/assets/frames/classic-light.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    },
+    {
+      "id": "frame-classic-cream",
+      "type": "frame",
+      "name": "Classic Cream",
+      "path": "/assets/frames/classic-cream.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    },
+    {
+      "id": "frame-youth-pink",
+      "type": "frame",
+      "name": "Youth Pink",
+      "path": "/assets/frames/youth-pink.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    },
+    {
+      "id": "frame-youth-blue",
+      "type": "frame",
+      "name": "Youth Blue",
+      "path": "/assets/frames/youth-blue.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    },
+    {
+      "id": "frame-mono-light",
+      "type": "frame",
+      "name": "Mono Light",
+      "path": "/assets/frames/mono-light.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    },
+    {
+      "id": "frame-mono-dark",
+      "type": "frame",
+      "name": "Mono Dark",
+      "path": "/assets/frames/mono-dark.png",
+      "packId": "frames-v1",
+      "version": "1.0.0",
+      "checksum": "",
+      "license": "internal"
+    }
+  ],
+  "stickers": {
+    "packId": "starter-v1",
+    "name": "Starter Pack",
+    "categories": [
+      { "id": "shapes", "name": "Shapes", "count": 4 },
+      { "id": "stars", "name": "Stars & Sparkles", "count": 4 },
+      { "id": "hearts", "name": "Hearts", "count": 2 },
+      { "id": "flowers", "name": "Flowers", "count": 2 },
+      { "id": "speech", "name": "Speech & Doodles", "count": 2 },
+      { "id": "celebration", "name": "Celebration", "count": 2 }
+    ],
+    "totalCount": 16
+  }
+}

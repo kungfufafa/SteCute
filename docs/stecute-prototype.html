@@ -1,0 +1,3780 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stecute - Prototype v4</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --white: #ffffff;
+      --bg: #f8f9fc;
+      --bg2: #f0f1f7;
+      --bg3: #e8e9f0;
+      --surface: #ffffff;
+      --card: #ffffff;
+      --border: #e5e7ef;
+      --border2: #d1d3de;
+      --text: #1a1a2e;
+      --text2: #555570;
+      --text3: #9898ad;
+      --pink: #F45B8D;
+      --pink-light: #FDE8F0;
+      --pink-bg: #FEF2F5;
+      --purple: #8b5cf6;
+      --purple-light: #ede9fe;
+      --blue: #3b82f6;
+      --blue-light: #dbeafe;
+      --green: #10b981;
+      --green-light: #d1fae5;
+      --orange: #f59e0b;
+      --orange-light: #fef3c7;
+      --red: #ef4444;
+      --red-light: #fee2e2;
+      --teal: #14b8a6;
+      --teal-light: #ccfbf1;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.08);
+      --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.12);
+      --radius: 24px;
+      --radius2: 16px;
+      --radius3: 10px;
+      --radius4: 8px;
+      --radius5: 6px;
+    }
+
+    body {
+      font-family: 'Poppins', system-ui, sans-serif;
+      background: #f0f1f7;
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+      font-family: 'Poppins', system-ui, sans-serif;
+    }
+
+    /* ===== PROTO HEADER ===== */
+    .proto-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .proto-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .proto-logo .pl-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius3);
+      background: var(--pink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .proto-logo h1 {
+      font-size: 15px;
+      font-weight: 700;
+      font-family: 'Poppins', system-ui, sans-serif;
+    }
+
+    .proto-logo .pl-badge {
+      font-size: 9px;
+      background: var(--pink-light);
+      color: var(--pink);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    .flow-nav {
+      display: flex;
+      gap: 3px;
+      background: var(--bg2);
+      border-radius: var(--radius3);
+      padding: 3px;
+    }
+
+    .flow-nav button {
+      background: none;
+      border: none;
+      color: var(--text3);
+      padding: 6px 14px;
+      border-radius: var(--radius5);
+      cursor: pointer;
+      font-size: 12px;
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-weight: 500;
+      transition: all .2s;
+    }
+
+    .flow-nav button:hover {
+      color: var(--text2);
+    }
+
+    .flow-nav button.active {
+      background: var(--pink);
+      color: white;
+    }
+
+    /* ===== LAYOUT ===== */
+    .main-layout {
+      display: flex;
+      min-height: calc(100vh - 52px);
+    }
+
+    .flow-sidebar {
+      width: 250px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px 10px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .flow-sidebar h3 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text3);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius3);
+      cursor: pointer;
+      transition: all .15s;
+      margin-bottom: 1px;
+    }
+
+    .flow-step:hover {
+      background: var(--bg2);
+    }
+
+    .flow-step.active {
+      background: var(--pink-light);
+      border: 1px solid rgba(255, 107, 157, 0.2);
+    }
+
+    .flow-step .fs-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border2);
+      flex-shrink: 0;
+    }
+
+    .flow-step.active .fs-dot {
+      background: var(--pink);
+      box-shadow: 0 0 6px rgba(255, 107, 157, 0.4);
+    }
+
+    .flow-step .fs-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text2);
+    }
+
+    .flow-step.active .fs-label {
+      color: var(--pink);
+      font-weight: 600;
+    }
+
+    .flow-connector {
+      width: 1px;
+      height: 6px;
+      background: var(--border);
+      margin-left: 13px;
+    }
+
+    .preview-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 30px;
+      background: linear-gradient(135deg, #f0f1f7 0%, #e8e9f0 100%);
+    }
+
+    /* ===== PHONE ===== */
+    .phone-frame {
+      width: 390px;
+      height: 780px;
+      background: #1a1a2e;
+      border-radius: 44px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      border-radius: 36px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .phone-notch {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 28px;
+      background: #1a1a2e;
+      border-radius: 0 0 18px 18px;
+      z-index: 20;
+    }
+
+    .phone-notch::after {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 10px;
+      height: 10px;
+      background: #2d2d44;
+      border-radius: 50%;
+    }
+
+    .phone-indicator {
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 134px;
+      height: 5px;
+      background: rgba(0, 0, 0, 0.15);
+      border-radius: 3px;
+      z-index: 20;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+      overflow-y: auto;
+      overflow-x: hidden;
+      background: var(--bg);
+    }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .screen::-webkit-scrollbar {
+      width: 0;
+    }
+
+    /* ===== COMMON ===== */
+    .btn {
+      padding: 14px 28px;
+      border-radius: var(--radius2);
+      border: none;
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: var(--pink);
+      color: white;
+      box-shadow: 0 4px 16px rgba(255, 107, 157, 0.25);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 24px rgba(255, 107, 157, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg2);
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: white;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+
+    .btn-full {
+      width: 100%;
+    }
+
+    .btn-sm {
+      padding: 10px 18px;
+      font-size: 12px;
+      border-radius: var(--radius3);
+    }
+
+    .btn-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text2);
+      cursor: pointer;
+      font-size: 16px;
+      transition: all .15s;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-icon:hover {
+      background: var(--bg2);
+      color: var(--text);
+    }
+
+    /* ===== LANDING ===== */
+    .landing-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #fff5f9 0%, var(--bg) 30%);
+    }
+
+    .landing-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 48px 24px 0;
+    }
+
+    .landing-nav .ln-logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .landing-nav .ln-logo-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius3);
+      background: var(--pink);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: white;
+    }
+
+    .landing-nav .ln-logo-text {
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--text);
+    }
+
+    .landing-layout-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 24px 24px;
+    }
+
+    .landing-main-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .landing-hero {
+      text-align: center;
+      padding: 24px 0 16px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .landing-hero h1 {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.2;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .landing-hero h1 span {
+      color: var(--pink);
+    }
+
+    .landing-hero p {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.6;
+    }
+
+    .landing-cta {
+      width: 100%;
+      margin-bottom: 32px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .btn-pill-lg {
+      border-radius: 100px;
+      padding: 18px 36px;
+      font-size: 18px;
+      font-weight: 800;
+      background: var(--pink);
+      color: white;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(244, 91, 141, 0.3);
+      width: 100%;
+      max-width: 320px;
+      height: 60px;
+      transition: all .2s;
+    }
+
+    .btn-pill-lg:active {
+      transform: scale(0.96);
+    }
+
+    .btn-pill-lg:hover {
+      box-shadow: 0 12px 32px rgba(244, 91, 141, 0.4);
+      transform: translateY(-2px);
+    }
+
+    .landing-hero-image {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 32px;
+      position: relative;
+      height: 220px;
+    }
+
+    .landing-strip-preview {
+      width: 160px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+      transition: all .3s;
+      position: absolute;
+    }
+
+    .landing-strip-preview.lsp-center {
+      transform: rotate(0deg);
+      z-index: 2;
+    }
+
+    .landing-strip-preview.lsp-left {
+      transform: rotate(-6deg) translateX(-50px) translateY(10px);
+      z-index: 1;
+      opacity: 0.7;
+      border-color: #ec4899;
+      border-width: 2px;
+    }
+
+    .landing-strip-preview.lsp-right {
+      transform: rotate(6deg) translateX(50px) translateY(10px);
+      z-index: 1;
+      opacity: 0.7;
+      border-color: #1a1a2e;
+      border-width: 2px;
+      background: #1a1a2e;
+    }
+
+    .landing-strip-preview.lsp-center:hover {
+      transform: scale(1.08);
+    }
+
+    .landing-strip-preview.lsp-left:hover,
+    .landing-strip-preview.lsp-right:hover {
+      opacity: 1;
+      z-index: 3;
+    }
+
+    .landing-strip-preview.lsp-left:hover {
+      transform: rotate(-3deg) translateX(-40px) translateY(5px);
+    }
+
+    .landing-strip-preview.lsp-right:hover {
+      transform: rotate(3deg) translateX(40px) translateY(5px);
+    }
+
+    .lsp-header {
+      padding: 10px 12px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .lsp-header span {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .lsp-header .lsp-badge {
+      background: var(--pink-light);
+      color: var(--pink);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .lsp-photos {
+      padding: 8px;
+      background: var(--bg2);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .lsp-photo {
+      height: 56px;
+      background: var(--bg3);
+      border-radius: var(--radius5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 500;
+    }
+
+    .lsp-footer {
+      padding: 8px 12px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .lsp-footer span {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .landing-side-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .promo-box {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+    }
+
+    .promo-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--pink-light);
+      color: var(--pink);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto;
+    }
+
+    .promo-text h4 {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .promo-text p {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    .promo-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .promo-actions .btn {
+      flex: 1;
+    }
+
+    .landing-features {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .landing-feature {
+      text-align: center;
+      background: transparent;
+      padding: 10px 16px;
+    }
+
+    .landing-feature .lf-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .landing-feature .lf-label {
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    /* ===== CAMERA ===== */
+    .camera-screen {
+      background: #f0f1f5;
+    }
+
+    .cam-full {
+      flex: 1;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .cam-top-bar {
+      padding: 48px 16px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cam-badges {
+      display: flex;
+      gap: 6px;
+    }
+
+    .cam-badge {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(10px);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      color: var(--text2);
+      font-weight: 600;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .cam-viewfinder {
+      flex: 1;
+      margin: 0 16px;
+      background: var(--bg3);
+      border-radius: var(--radius);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border: 2px solid var(--border);
+    }
+
+    .cam-vf-placeholder {
+      text-align: center;
+      color: var(--text3);
+      padding: 20px;
+    }
+
+    .cam-vf-placeholder .cvf-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+      opacity: 0.4;
+    }
+
+    .cam-vf-placeholder p {
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .cam-vf-corner {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border: 3px solid var(--pink);
+    }
+
+    .cam-vf-corner.tl {
+      top: 16px;
+      left: 16px;
+      border-right: none;
+      border-bottom: none;
+      border-radius: var(--radius5) 0 0 0;
+    }
+
+    .cam-vf-corner.tr {
+      top: 16px;
+      right: 16px;
+      border-left: none;
+      border-bottom: none;
+      border-radius: 0 var(--radius5) 0 0;
+    }
+
+    .cam-vf-corner.bl {
+      bottom: 16px;
+      left: 16px;
+      border-right: none;
+      border-top: none;
+      border-radius: 0 0 0 var(--radius5);
+    }
+
+    .cam-vf-corner.br {
+      bottom: 16px;
+      right: 16px;
+      border-left: none;
+      border-top: none;
+      border-radius: 0 0 var(--radius5) 0;
+    }
+
+    .cam-bottom {
+      padding: 16px 16px 28px;
+    }
+
+    .cam-filter-bar {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 14px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .cam-filter-chip {
+      padding: 5px 12px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface);
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text3);
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap;
+      font-family: 'Poppins', sans-serif;
+      box-shadow: var(--shadow);
+    }
+
+    .cam-filter-chip:hover {
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+
+    .cam-filter-chip.active {
+      background: var(--pink-light);
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+
+    .cam-thumbs {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .cam-thumb {
+      width: 52px;
+      height: 68px;
+      border-radius: var(--radius4);
+      border: 2px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 600;
+      transition: all .2s;
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .cam-thumb.current {
+      border-color: var(--pink);
+      background: var(--pink-light);
+      color: var(--pink);
+      animation: pulseT 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseT {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 107, 157, 0.2);
+      }
+
+      50% {
+        box-shadow: 0 0 0 6px rgba(255, 107, 157, 0);
+      }
+    }
+
+    .cam-thumb.done {
+      border-color: transparent;
+    }
+
+    .cam-thumb-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .cam-thumb.done:hover .cam-thumb-overlay {
+      opacity: 1;
+    }
+
+    .cam-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .cam-ctrl {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--text2);
+      box-shadow: var(--shadow);
+      transition: all .15s;
+    }
+
+    .cam-ctrl:hover {
+      background: var(--bg2);
+    }
+
+    .shutter {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      border: 4px solid var(--pink);
+      background: transparent;
+      cursor: pointer;
+      position: relative;
+      transition: all .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 16px rgba(255, 107, 157, 0.2);
+    }
+
+    .shutter::after {
+      content: '';
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: var(--pink);
+      transition: all .15s;
+    }
+
+    .shutter:hover::after {
+      background: var(--pink);
+      filter: brightness(1.1);
+    }
+
+    .shutter:active {
+      transform: scale(0.92);
+    }
+
+    .shutter:active::after {
+      transform: scale(0.85);
+    }
+
+    /* ===== CONFIG ===== */
+    .config-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 20px 16px;
+    }
+
+    .config-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .config-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px;
+    }
+
+    .config-group {
+      margin-bottom: 24px;
+    }
+
+    .config-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 10px;
+    }
+
+    .layout-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .layout-card {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius3);
+      padding: 10px 6px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      box-shadow: var(--shadow);
+    }
+
+    .layout-card:hover {
+      border-color: var(--pink);
+      transform: translateY(-2px);
+    }
+
+    .layout-card.selected {
+      border-color: var(--pink);
+      background: var(--pink-light);
+    }
+
+    .layout-card .lc-preview {
+      width: 100%;
+      height: 48px;
+      border-radius: var(--radius5);
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg2);
+    }
+
+    .layout-card .lc-slot {
+      flex: 1;
+      width: 100%;
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    .layout-card.selected .lc-slot {
+      background: var(--pink);
+    }
+
+    .layout-card .lc-name {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .layout-card.selected .lc-name {
+      color: var(--pink);
+    }
+
+    .template-scroll {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .template-card {
+      min-width: 90px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius3);
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      flex-shrink: 0;
+      box-shadow: var(--shadow);
+    }
+
+    .template-card:hover {
+      border-color: var(--pink);
+    }
+
+    .template-card.selected {
+      border-color: var(--pink);
+      background: var(--pink-light);
+    }
+
+    .template-card .tc-preview {
+      width: 56px;
+      height: 72px;
+      border-radius: var(--radius3);
+      margin: 0 auto 6px;
+      border: 1px solid var(--border);
+    }
+
+    .template-card .tc-name {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .template-card.selected .tc-name {
+      color: var(--pink);
+    }
+
+    .countdown-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .cd-opt {
+      flex: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius3);
+      padding: 14px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .15s;
+      box-shadow: var(--shadow);
+    }
+
+    .cd-opt:hover {
+      border-color: var(--pink);
+    }
+
+    .cd-opt.selected {
+      border-color: var(--pink);
+      background: var(--pink-light);
+    }
+
+    .cd-opt .cd-val {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: 'Poppins', system-ui, sans-serif;
+      color: var(--text);
+    }
+
+    .cd-opt .cd-lbl {
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    .cd-opt.selected .cd-val {
+      color: var(--pink);
+    }
+
+    .config-footer {
+      padding: 16px 20px 28px;
+    }
+
+    /* ===== COUNTDOWN ===== */
+    .countdown-screen {
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .cd-full {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .cd-number {
+      font-family: 'Poppins', system-ui, sans-serif;
+      font-size: 140px;
+      font-weight: 800;
+      color: var(--pink);
+      animation: cdPop .7s cubic-bezier(.34, 1.56, .64, 1);
+    }
+
+    @keyframes cdPop {
+      0% {
+        transform: scale(0.3);
+        opacity: 0;
+      }
+
+      60% {
+        transform: scale(1.1);
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .cd-shot-label {
+      margin-top: 16px;
+      font-size: 15px;
+      color: var(--text3);
+    }
+
+    .cd-shot-label b {
+      color: var(--pink);
+    }
+
+    .cd-dots {
+      display: flex;
+      gap: 10px;
+      margin-top: 28px;
+    }
+
+    .cd-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all .3s;
+    }
+
+    .cd-dot.done {
+      background: var(--green);
+    }
+
+    .cd-dot.now {
+      background: var(--pink);
+      transform: scale(1.4);
+      box-shadow: 0 0 10px rgba(255, 107, 157, 0.4);
+    }
+
+    .cd-cancel {
+      position: absolute;
+      bottom: 40px;
+      background: none;
+      border: none;
+      color: var(--text3);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 500;
+    }
+
+    .cd-cancel:hover {
+      color: var(--text);
+    }
+
+    /* ===== FLASH ===== */
+    .flash-screen {
+      background: white;
+      animation: flashAnim .3s ease-out forwards;
+    }
+
+    @keyframes flashAnim {
+      0% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0;
+      }
+    }
+
+    /* ===== REVIEW ===== */
+    .review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 48px 20px 12px;
+    }
+
+    .review-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .review-badge {
+      font-size: 12px;
+      background: var(--pink-light);
+      color: var(--pink);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+    }
+
+    .review-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .review-strip {
+      width: 240px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    .review-strip-top {
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .review-strip-top span {
+      font-size: 11px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .review-strip-top .rst-count {
+      color: var(--pink);
+      font-weight: 700;
+    }
+
+    .review-strip-photos {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      background: var(--bg2);
+    }
+
+    .rsp-photo {
+      height: 80px;
+      background: var(--bg3);
+      border-radius: var(--radius5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text3);
+      font-size: 11px;
+      position: relative;
+      font-weight: 500;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .rsp-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .2s;
+      font-weight: 600;
+    }
+
+    .rsp-photo:hover .rsp-overlay {
+      opacity: 1;
+    }
+
+    .rsp-photo .rsp-num {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-size: 9px;
+      background: rgba(0, 0, 0, 0.05);
+      padding: 1px 6px;
+      border-radius: 8px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .review-strip-bottom {
+      padding: 8px 14px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .review-strip-bottom span {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .review-footer {
+      padding: 16px 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ===== CUSTOMIZE ===== */
+    .customize-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 20px 12px;
+    }
+
+    .customize-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .customize-preview {
+      padding: 0 20px;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .customize-strip-mini {
+      width: 120px;
+      border-radius: var(--radius3);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .csm-photos {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 4px;
+      background: var(--bg2);
+    }
+
+    .csm-photo {
+      height: 36px;
+      background: var(--bg3);
+      border-radius: var(--radius5);
+    }
+
+    .customize-tabs {
+      display: flex;
+      gap: 4px;
+      padding: 0 20px;
+      margin-bottom: 12px;
+    }
+
+    .ctab {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      border-radius: var(--radius3);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text3);
+      transition: all .15s;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .ctab:hover {
+      color: var(--text2);
+    }
+
+    .ctab.active {
+      background: var(--pink);
+      color: white;
+      border-color: var(--pink);
+    }
+
+    .ctab .ctab-icon {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+
+    .cust-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px;
+    }
+
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .filter-card {
+      aspect-ratio: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius3);
+      overflow: hidden;
+      cursor: pointer;
+      transition: all .15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: var(--shadow);
+    }
+
+    .filter-card:hover {
+      border-color: var(--pink);
+      transform: translateY(-2px);
+    }
+
+    .filter-card.selected {
+      border-color: var(--pink);
+      background: var(--pink-light);
+    }
+
+    .filter-card .fc-preview {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      border-radius: var(--radius3) var(--radius3) 0 0;
+    }
+
+    .filter-card .fc-label {
+      font-size: 10px;
+      color: var(--text3);
+      padding: 6px 0;
+      font-weight: 600;
+    }
+
+    .filter-card.selected .fc-label {
+      color: var(--pink);
+    }
+
+    .color-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .color-picker-wrap {
+      position: relative;
+      width: 40px;
+      height: 40px;
+    }
+
+    .color-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all .15s;
+      border: 3px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .color-circle:hover {
+      transform: scale(1.1);
+    }
+
+    .color-circle.selected {
+      border-color: var(--text);
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text);
+    }
+
+    .sticker-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+    }
+
+    .sticker-category-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin: 14px 0 6px;
+    }
+
+    .sticker-category-label:first-child {
+      margin-top: 0;
+    }
+
+    .sticker-cell {
+      aspect-ratio: 1;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: var(--radius3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      cursor: pointer;
+      transition: all .15s;
+      box-shadow: var(--shadow);
+    }
+
+    .sticker-cell:hover {
+      border-color: var(--pink);
+      transform: scale(1.05);
+    }
+
+    .sticker-cell.selected {
+      border-color: var(--pink);
+      background: var(--pink-light);
+    }
+
+    .text-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tp-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tp-row:last-child {
+      border-bottom: none;
+    }
+
+    .tp-label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .tp-desc {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .tp-toggle {
+      width: 44px;
+      height: 24px;
+      background: var(--border2);
+      border-radius: 12px;
+      position: relative;
+      cursor: pointer;
+      transition: background .2s;
+    }
+
+    .tp-toggle.on {
+      background: var(--pink);
+    }
+
+    .tp-toggle::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+    }
+
+    .tp-toggle.on::after {
+      transform: translateX(20px);
+    }
+
+    .tp-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius3);
+      color: var(--text);
+      font-family: 'Poppins', sans-serif;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .tp-input:focus {
+      border-color: var(--pink);
+      box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.1);
+    }
+
+    .customize-footer {
+      padding: 16px 20px 28px;
+    }
+
+    /* ===== RENDERING ===== */
+    .rendering-screen {
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .render-spinner {
+      width: 56px;
+      height: 56px;
+      border: 4px solid var(--border);
+      border-top-color: var(--pink);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .rendering-screen h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .rendering-screen p {
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    .render-bar {
+      width: 200px;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+
+    .render-bar-fill {
+      height: 100%;
+      background: var(--pink);
+      border-radius: 2px;
+      animation: renderProg 1.5s ease-in-out infinite;
+    }
+
+    @keyframes renderProg {
+      0% {
+        width: 15%;
+      }
+
+      50% {
+        width: 85%;
+      }
+
+      100% {
+        width: 60%;
+      }
+    }
+
+    /* ===== RESULT ===== */
+    .result-screen {
+      background: var(--bg);
+    }
+
+    .result-header {
+      text-align: center;
+      padding: 48px 20px 12px;
+    }
+
+    .result-header .rh-check {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: var(--green-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 10px;
+      font-size: 24px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    .result-header h3 {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .result-header p {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 4px;
+    }
+
+    .result-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    .result-strip {
+      width: 220px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    .rs-inner {
+      background: var(--surface);
+    }
+
+    .rs-inner .rs-top {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .rs-inner .rs-top span {
+      font-size: 10px;
+      color: var(--text3);
+      font-weight: 600;
+    }
+
+    .rs-frame-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .rs-inner .rs-photos {
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .rs-inner .rs-photo {
+      height: 70px;
+      border-radius: var(--radius5);
+    }
+
+    .rs-inner .rs-photo:nth-child(1) {
+      background: var(--pink-light);
+    }
+
+    .rs-inner .rs-photo:nth-child(2) {
+      background: var(--orange-light);
+    }
+
+    .rs-inner .rs-photo:nth-child(3) {
+      background: var(--blue-light);
+    }
+
+    .rs-inner .rs-photo:nth-child(4) {
+      background: var(--teal-light);
+    }
+
+    .rs-inner .rs-bottom {
+      padding: 6px 12px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .rs-inner .rs-bottom span {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+
+    .result-format {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      padding: 12px 20px;
+    }
+
+    .rf-btn {
+      padding: 6px 20px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text3);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+      transition: all .15s;
+    }
+
+    .rf-btn.active {
+      background: var(--pink);
+      color: white;
+      border-color: var(--pink);
+    }
+
+    .result-actions {
+      padding: 0 20px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .result-actions-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .result-actions-row .btn {
+      flex: 1;
+    }
+
+    .result-secondary-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .result-secondary-row .btn {
+      flex: 1;
+      padding: 12px;
+      font-size: 12px;
+    }
+
+    /* ===== GALLERY ===== */
+    .gallery-screen {
+      background: var(--bg);
+    }
+
+    .gallery-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 48px 20px 12px;
+    }
+
+    .gallery-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .gallery-header .gh-count {
+      font-size: 12px;
+      color: var(--text3);
+      background: var(--surface);
+      padding: 4px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .gallery-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px;
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      padding-bottom: 12px;
+    }
+
+    .gallery-item {
+      aspect-ratio: 2/3;
+      border-radius: var(--radius3);
+      overflow: hidden;
+      position: relative;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: all .15s;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .gallery-item:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .gi-inner {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .gi-strip-mini {
+      flex: 1;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg2);
+    }
+
+    .gsm-photo {
+      flex: 1;
+      width: 80%;
+      background: var(--bg3);
+      border-radius: 3px;
+    }
+
+    .gi-date {
+      padding: 6px 10px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text3);
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .gi-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 50%, rgba(0, 0, 0, 0.5));
+      opacity: 0;
+      transition: opacity .15s;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 12px;
+      gap: 8px;
+    }
+
+    .gallery-item:hover .gi-overlay {
+      opacity: 1;
+    }
+
+    .gi-overlay button {
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: none;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .gi-overlay .gio-dl {
+      background: white;
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+
+    .gi-overlay .gio-del {
+      background: var(--red);
+      color: white;
+    }
+
+    .gallery-footer {
+      padding: 12px 20px 28px;
+    }
+
+    /* ===== UPLOAD ===== */
+    .upload-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 20px 16px;
+    }
+
+    .upload-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .upload-body {
+      flex: 1;
+      padding: 0 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .upload-hint {
+      font-size: 13px;
+      color: var(--text2);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .upload-hint b {
+      color: var(--pink);
+    }
+
+    .upload-zone {
+      flex: 1;
+      border: 2px dashed var(--border2);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 16px;
+      background: var(--surface);
+    }
+
+    .upload-zone:hover {
+      border-color: var(--pink);
+      background: var(--pink-bg);
+    }
+
+    .upload-zone .uz-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: var(--radius3);
+      background: var(--pink-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .upload-zone h4 {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .upload-zone p {
+      font-size: 12px;
+      color: var(--text3);
+    }
+
+    .upload-thumbs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .upload-thumb {
+      width: 56px;
+      height: 72px;
+      border-radius: var(--radius4);
+      background: var(--surface);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--text3);
+      flex-shrink: 0;
+      position: relative;
+      box-shadow: var(--shadow);
+    }
+
+    .upload-thumb .ut-rm {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 18px;
+      height: 18px;
+      background: var(--red);
+      color: white;
+      border-radius: 50%;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 2px solid var(--bg);
+    }
+
+    .upload-thumb.add {
+      border-style: dashed;
+      border-color: var(--pink);
+      color: var(--pink);
+    }
+
+    .upload-footer {
+      padding: 0 20px 28px;
+    }
+
+    /* ===== SETTINGS ===== */
+    .settings-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 48px 20px 16px;
+    }
+
+    .settings-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .settings-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px;
+    }
+
+    .settings-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius2);
+      padding: 4px 16px;
+      margin-bottom: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .sc-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text3);
+      padding: 12px 0 4px;
+      font-weight: 600;
+    }
+
+    .sc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sc-row:last-child {
+      border-bottom: none;
+    }
+
+    .sc-label {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .sc-desc {
+      font-size: 11px;
+      color: var(--text3);
+      margin-top: 2px;
+    }
+
+    .sc-value {
+      font-size: 13px;
+      color: var(--pink);
+      font-weight: 600;
+    }
+
+    .settings-footer {
+      padding: 16px 20px 28px;
+    }
+
+    /* ===== ERRORS ===== */
+    .error-screen {
+      background: var(--bg);
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+    }
+
+    .error-icon {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 20px;
+    }
+
+    .error-icon.cam {
+      background: var(--red-light);
+    }
+
+    .error-icon.nocam {
+      background: var(--orange-light);
+    }
+
+    .error-icon.offline {
+      background: var(--blue-light);
+    }
+
+    .error-screen h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .error-screen p {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .error-steps-list {
+      text-align: left;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+
+    .error-step {
+      display: flex;
+      gap: 10px;
+      padding: 8px 0;
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .error-step .es-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--bg2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text3);
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+
+    .error-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width:900px) {
+      .flow-sidebar {
+        display: none;
+      }
+
+      .preview-area {
+        padding: 20px;
+      }
+    }
+
+    /* ===== TABLET VIEW (501px - 1024px) ===== */
+    @media(min-width: 501px) and (max-width: 1024px) {
+      .phone-frame {
+        width: 92%;
+        max-width: 840px;
+        height: 85vh;
+        min-height: 640px;
+        padding: 0;
+        background: var(--surface);
+        border-radius: 32px;
+        box-shadow: var(--shadow-lg);
+      }
+
+      .phone-notch,
+      .phone-indicator {
+        display: none;
+      }
+
+      .phone-screen {
+        border-radius: 32px;
+      }
+
+      /* Landing Tablet View */
+      .landing-content {
+        padding: 0;
+      }
+
+      .landing-nav {
+        padding: 40px 40px 20px;
+      }
+
+      .landing-layout-wrapper {
+        flex-direction: column;
+        padding: 20px 40px 40px;
+        align-items: center;
+      }
+
+      .landing-main-col {
+        max-width: 600px;
+        text-align: center;
+        align-items: center;
+      }
+
+      .landing-hero {
+        padding: 0;
+        margin-bottom: 24px;
+        text-align: center;
+        max-width: 500px;
+      }
+
+      .landing-hero h1 {
+        font-size: 42px;
+      }
+
+      .landing-cta {
+        justify-content: center;
+        margin-bottom: 40px;
+      }
+
+      .btn-pill-lg {
+        width: 340px;
+      }
+
+      .landing-hero-image {
+        margin-bottom: 40px;
+      }
+
+      .landing-strip-preview {
+        width: 240px;
+      }
+
+      .landing-side-col {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 24px;
+      }
+
+      /* Config / Common Dialogs */
+      .config-header,
+      .review-header,
+      .customize-header,
+      .gallery-header,
+      .upload-header,
+      .settings-header {
+        padding: 40px 40px 16px;
+      }
+
+      .config-body,
+      .review-body,
+      .cust-body,
+      .gallery-body,
+      .upload-body,
+      .settings-body {
+        padding: 0 40px;
+      }
+
+      .config-footer,
+      .review-footer,
+      .customize-footer,
+      .gallery-footer,
+      .upload-footer,
+      .settings-footer {
+        padding: 24px 40px 40px;
+      }
+
+      .layout-grid {
+        gap: 16px;
+      }
+
+      .template-scroll {
+        gap: 16px;
+        padding-bottom: 12px;
+      }
+
+      /* Camera */
+      .cam-top-bar {
+        padding: 40px 40px 20px;
+      }
+
+      .cam-viewfinder {
+        margin: 0 40px;
+      }
+
+      .cam-bottom {
+        padding: 24px 40px 40px;
+      }
+
+      .cam-controls {
+        gap: 40px;
+      }
+
+      /* Review */
+      .review-body {
+        align-items: stretch;
+        padding: 20px 40px;
+      }
+
+      .review-strip {
+        margin: 0 auto;
+        width: 300px;
+        transform: scale(1.1);
+        transform-origin: top center;
+      }
+
+      /* Customize */
+      .customize-preview {
+        padding: 0 40px;
+        margin-bottom: 24px;
+      }
+
+      .customize-strip-mini {
+        width: 160px;
+      }
+
+      .customize-tabs {
+        padding: 0 40px;
+        gap: 12px;
+        margin-bottom: 24px;
+      }
+
+      .ctab {
+        padding: 14px 10px;
+        font-size: 13px;
+      }
+
+      /* Make grids horizontally scrollable to save vertical space on tablet */
+      .filter-grid {
+        display: flex;
+        overflow-x: auto;
+        gap: 16px;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+      }
+
+      .filter-card {
+        flex: 0 0 110px;
+        aspect-ratio: auto;
+        min-height: 130px;
+      }
+
+      .sticker-grid {
+        display: flex;
+        overflow-x: auto;
+        gap: 16px;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+      }
+
+      .sticker-cell {
+        flex: 0 0 90px;
+        aspect-ratio: 1;
+        font-size: 32px;
+      }
+
+      .color-grid {
+        gap: 16px;
+      }
+
+      .color-circle {
+        width: 48px;
+        height: 48px;
+      }
+
+      /* Result */
+      .result-header {
+        padding: 60px 40px 30px;
+      }
+
+      .result-strip {
+        width: 280px;
+        margin: 0 auto;
+      }
+
+      .result-format {
+        padding: 20px 40px;
+        width: 480px;
+        margin: 0 auto;
+      }
+
+      .result-actions {
+        padding: 0 40px 50px;
+        width: 480px;
+        margin: 0 auto;
+      }
+
+      .result-actions-row {
+        gap: 16px;
+      }
+
+      .result-secondary-row {
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .result-actions .btn {
+        padding: 16px;
+        font-size: 14px;
+      }
+    }
+
+    /* ===== MOBILE VIEW ===== */
+    @media(max-width:500px) {
+      .phone-frame {
+        width: 100%;
+        height: 100vh;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+      }
+
+      .phone-screen {
+        border-radius: 0;
+      }
+
+      .phone-notch,
+      .phone-indicator {
+        display: none;
+      }
+
+      .preview-area {
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="proto-header">
+    <div class="proto-logo">
+      <div class="pl-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+          <circle cx="12" cy="13" r="4" />
+        </svg></div>
+      <h1>Stecute</h1>
+      <span class="pl-badge">v4</span>
+    </div>
+    <div class="flow-nav">
+      <button class="active" onclick="showFlow('main',this)">Main Flow</button>
+      <button onclick="showFlow('event',this)">Event</button>
+      <button onclick="showFlow('error',this)">Errors</button>
+    </div>
+  </div>
+
+  <div class="main-layout">
+    <div class="flow-sidebar" id="flowSidebar"></div>
+    <div class="preview-area">
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+
+          <!-- LANDING -->
+          <div class="screen active" id="screen-landing">
+            <div class="landing-content">
+              <div class="landing-nav">
+                <div class="ln-logo">
+                  <div class="ln-logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white"
+                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg></div><span class="ln-logo-text">Stecute</span>
+                </div>
+                <button class="btn-icon" onclick="goTo('settings')"><svg width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg></button>
+              </div>
+
+              <div class="landing-layout-wrapper">
+                <div class="landing-main-col">
+                  <div class="landing-hero">
+                    <h1>Ambil Foto,<br><span>Langsung Simpan</span></h1>
+                    <p>Photo booth digital di perangkat kamu. 4 pose, template keren, tanpa login, bisa offline.</p>
+                  </div>
+
+                  <div class="landing-cta">
+                    <button class="btn-pill-lg" onclick="initSession(); goTo('camera')">Mulai Foto</button>
+                  </div>
+
+                  <div class="landing-hero-image">
+                    <!-- Left strip: Classic with pink border -->
+                    <div class="landing-strip-preview lsp-left">
+                      <div class="lsp-header"><span>Classic</span><span class="lsp-badge">4 Pose</span></div>
+                      <div class="lsp-photos">
+                        <div class="lsp-photo" style="background:var(--pink-light)">Pose 1</div>
+                        <div class="lsp-photo" style="background:var(--orange-light)">Pose 2</div>
+                        <div class="lsp-photo" style="background:var(--blue-light)">Pose 3</div>
+                        <div class="lsp-photo" style="background:var(--teal-light)">Pose 4</div>
+                      </div>
+                      <div class="lsp-footer"><span>stecute</span></div>
+                    </div>
+                    <!-- Center strip: Youth template -->
+                    <div class="landing-strip-preview lsp-center">
+                      <div class="lsp-header" style="background:#3b82f6;border-color:#2563eb;"><span
+                          style="color:#fff">Youth</span><span class="lsp-badge"
+                          style="background:rgba(255,255,255,0.2);color:#fff">4 Pose</span></div>
+                      <div class="lsp-photos">
+                        <div class="lsp-photo" style="background:#dbeafe">Pose 1</div>
+                        <div class="lsp-photo" style="background:#bfdbfe">Pose 2</div>
+                        <div class="lsp-photo" style="background:#93c5fd">Pose 3</div>
+                        <div class="lsp-photo" style="background:#60a5fa">Pose 4</div>
+                      </div>
+                      <div class="lsp-footer" style="background:#3b82f6;border-color:#2563eb;"><span
+                          style="color:#fff">stecute</span></div>
+                    </div>
+                    <!-- Right strip: Mono dark -->
+                    <div class="landing-strip-preview lsp-right">
+                      <div class="lsp-header" style="background:#2d2d2d;border-color:#111;"><span
+                          style="color:#fff">Mono</span><span class="lsp-badge"
+                          style="background:rgba(255,255,255,0.15);color:#fff">4 Pose</span></div>
+                      <div class="lsp-photos">
+                        <div class="lsp-photo" style="background:#3a3a3a">Pose 1</div>
+                        <div class="lsp-photo" style="background:#333">Pose 2</div>
+                        <div class="lsp-photo" style="background:#2a2a2a">Pose 3</div>
+                        <div class="lsp-photo" style="background:#3a3a3a">Pose 4</div>
+                      </div>
+                      <div class="lsp-footer" style="background:#2d2d2d;border-color:#111;"><span
+                          style="color:#666">stecute</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="landing-side-col">
+                  <div class="promo-box">
+                    <div class="promo-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg></div>
+                    <div class="promo-text">
+                      <h4>Coba Fitur Lain</h4>
+                      <p>Load foto lokal atau lihat galeri sesimu.</p>
+                    </div>
+                    <div class="promo-actions">
+                      <button class="btn btn-secondary btn-sm" onclick="goTo('upload')">Upload Lokal</button>
+                      <button class="btn btn-secondary btn-sm" onclick="goTo('gallery')">Galeri</button>
+                    </div>
+                  </div>
+                  <div class="landing-features">
+                    <div class="landing-feature">
+                      <div class="lf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg></div>
+                      <div class="lf-label">Privat</div>
+                    </div>
+                    <div class="landing-feature">
+                      <div class="lf-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="var(--text2)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                          <line x1="12" y1="18" x2="12.01" y2="18" />
+                        </svg></div>
+                      <div class="lf-label">Offline</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAMERA -->
+          <div class="screen camera-screen" id="screen-camera">
+            <div class="cam-full">
+              <div class="cam-top-bar">
+                <button class="btn-icon" onclick="goTo('landing')" style="font-size:14px"><svg width="18" height="18"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg></button>
+                <div class="cam-badges"><span class="cam-badge">4 Pose</span><span class="cam-badge">Classic</span>
+                </div>
+                <button class="btn-icon" onclick="goTo('config')"><svg width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path
+                      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg></button>
+              </div>
+              <div class="cam-viewfinder">
+                <div class="cam-vf-corner tl"></div>
+                <div class="cam-vf-corner tr"></div>
+                <div class="cam-vf-corner bl"></div>
+                <div class="cam-vf-corner br"></div>
+                <div class="cam-vf-placeholder">
+                  <div class="cvf-icon"><svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+                      stroke="var(--text3)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                      <circle cx="12" cy="13" r="4" />
+                    </svg></div>
+                  <p>Preview Kamera</p>
+                </div>
+              </div>
+              <div class="cam-bottom">
+                <div class="cam-thumbs">
+                  <div class="cam-thumb current">1/4</div>
+                  <div class="cam-thumb">2/4</div>
+                  <div class="cam-thumb">3/4</div>
+                  <div class="cam-thumb">4/4</div>
+                </div>
+                <div class="cam-filter-bar">
+                  <div class="cam-filter-chip active" onclick="selCamFilter(this)">Normal</div>
+                  <div class="cam-filter-chip" onclick="selCamFilter(this)">B&W</div>
+                  <div class="cam-filter-chip" onclick="selCamFilter(this)">Vintage</div>
+                  <div class="cam-filter-chip" onclick="selCamFilter(this)">Soft</div>
+                  <div class="cam-filter-chip" onclick="selCamFilter(this)">Warm</div>
+                </div>
+                <div class="cam-controls">
+                  <button class="cam-ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="23 4 23 10 17 10" />
+                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                    </svg></button>
+                  <button class="shutter" onclick="goTo('countdown')"></button>
+                  <button class="cam-ctrl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CONFIG -->
+          <div class="screen" id="screen-config">
+            <div class="config-header"><button class="btn-icon" onclick="goTo('camera')" style="font-size:14px"><svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg></button>
+              <h3>Setup Sesi</h3>
+              <div style="width:40px"></div>
+            </div>
+            <div class="config-body">
+              <div class="config-group">
+                <div class="config-label">Layout</div>
+                <div class="layout-grid">
+                  <div class="layout-card" onclick="sel(this,'layout')">
+                    <div class="lc-preview" style="flex-direction:row;gap:3px">
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                    </div>
+                    <div class="lc-name">2 Pose</div>
+                  </div>
+                  <div class="layout-card" onclick="sel(this,'layout')">
+                    <div class="lc-preview">
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                    </div>
+                    <div class="lc-name">3 Pose</div>
+                  </div>
+                  <div class="layout-card selected" onclick="sel(this,'layout')">
+                    <div class="lc-preview">
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                      <div class="lc-slot"></div>
+                    </div>
+                    <div class="lc-name">4 Pose</div>
+                  </div>
+                  <div class="layout-card" onclick="sel(this,'layout')">
+                    <div class="lc-preview" style="gap:2px">
+                      <div style="display:flex;gap:2px;width:100%">
+                        <div class="lc-slot" style="flex:1"></div>
+                        <div class="lc-slot" style="flex:1"></div>
+                      </div>
+                      <div style="display:flex;gap:2px;width:100%">
+                        <div class="lc-slot" style="flex:1"></div>
+                        <div class="lc-slot" style="flex:1"></div>
+                      </div>
+                      <div style="display:flex;gap:2px;width:100%">
+                        <div class="lc-slot" style="flex:1"></div>
+                        <div class="lc-slot" style="flex:1"></div>
+                      </div>
+                    </div>
+                    <div class="lc-name">6 Pose</div>
+                  </div>
+                </div>
+              </div>
+              <div class="config-group">
+                <div class="config-label">Template</div>
+                <div class="template-scroll">
+                  <div class="template-card selected" onclick="sel(this,'template')">
+                    <div class="tc-preview" style="background:linear-gradient(180deg,#fffdf8,#f5f0e8)"></div>
+                    <div class="tc-name">Classic</div>
+                  </div>
+                  <div class="template-card" onclick="sel(this,'template')">
+                    <div class="tc-preview" style="background:linear-gradient(180deg,#3b82f6,#1d4ed8)"></div>
+                    <div class="tc-name">Youth</div>
+                  </div>
+                  <div class="template-card" onclick="sel(this,'template')">
+                    <div class="tc-preview" style="background:linear-gradient(180deg,#2d2d2d,#111)"></div>
+                    <div class="tc-name">Mono</div>
+                  </div>
+                  <div class="template-card" onclick="sel(this,'template')">
+                    <div class="tc-preview" style="background:linear-gradient(180deg,#f3e8ff,#e0d4f5)"></div>
+                    <div class="tc-name">Pastel</div>
+                  </div>
+                </div>
+              </div>
+              <div class="config-group">
+                <div class="config-label">Countdown</div>
+                <div class="countdown-row">
+                  <div class="cd-opt selected" onclick="sel(this,'cd')">
+                    <div class="cd-val">3</div>
+                    <div class="cd-lbl">detik</div>
+                  </div>
+                  <div class="cd-opt" onclick="sel(this,'cd')">
+                    <div class="cd-val">5</div>
+                    <div class="cd-lbl">detik</div>
+                  </div>
+                  <div class="cd-opt" onclick="sel(this,'cd')">
+                    <div class="cd-val">10</div>
+                    <div class="cd-lbl">detik</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="config-footer"><button class="btn btn-primary btn-full" onclick="goTo('countdown')">Mulai
+                Sesi</button></div>
+          </div>
+
+          <!-- COUNTDOWN -->
+          <div class="screen countdown-screen" id="screen-countdown">
+            <div class="cd-full">
+              <div class="cd-number" id="cdNum">3</div>
+              <div class="cd-shot-label">Foto ke-<b id="cdShot">1</b> dari <b id="cdTotal">4</b></div>
+              <div class="cd-dots" id="cdDots">
+                <div class="cd-dot now"></div>
+                <div class="cd-dot"></div>
+                <div class="cd-dot"></div>
+                <div class="cd-dot"></div>
+              </div>
+              <button class="cd-cancel" onclick="goTo('camera')">Batal</button>
+            </div>
+          </div>
+
+          <!-- FLASH -->
+          <div class="screen flash-screen" id="screen-flash"></div>
+
+          <!-- REVIEW -->
+          <div class="screen" id="screen-review">
+            <div class="review-header">
+              <h3>Preview</h3><span class="review-badge">4 Foto</span>
+            </div>
+            <div class="review-body">
+              <div class="review-strip">
+                <div class="review-strip-top"><span>Classic Template</span><span class="rst-count">4 Pose</span></div>
+                <div class="review-strip-photos">
+                  <div class="rsp-photo"><span class="rsp-num">1</span>Pose 1</div>
+                  <div class="rsp-photo"><span class="rsp-num">2</span>Pose 2</div>
+                  <div class="rsp-photo"><span class="rsp-num">3</span>Pose 3</div>
+                  <div class="rsp-photo"><span class="rsp-num">4</span>Pose 4</div>
+                </div>
+                <div class="review-strip-bottom"><span>stecute &bull; 20 Mar 2026</span></div>
+              </div>
+            </div>
+            <div class="review-footer">
+              <button class="btn btn-primary btn-full" onclick="goTo('customize')">Kustomisasi</button>
+              <div class="result-actions-row">
+                <button class="btn btn-secondary" onclick="initSession(); goTo('camera')"><svg width="14" height="14"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" style="margin-right:4px">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg> Ulang Semua</button>
+                <button class="btn btn-success" onclick="goTo('rendering')"><svg width="14" height="14"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" style="margin-right:4px">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
+                  </svg> Simpan Langsung</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CUSTOMIZE -->
+          <div class="screen" id="screen-customize">
+            <div class="customize-header"><button class="btn-icon" onclick="goTo('review')" style="font-size:14px"><svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg></button>
+              <h3>Kustomisasi</h3>
+              <div style="width:40px"></div>
+            </div>
+            <div class="customize-preview">
+              <div class="customize-strip-mini">
+                <div class="csm-photos">
+                  <div class="csm-photo"></div>
+                  <div class="csm-photo"></div>
+                  <div class="csm-photo"></div>
+                  <div class="csm-photo"></div>
+                </div>
+              </div>
+            </div>
+            <div class="customize-tabs">
+              <button class="ctab active" onclick="switchTab(this,'filter')"><span class="ctab-icon"><svg width="16"
+                    height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg></span>Filter</button>
+              <button class="ctab" onclick="switchTab(this,'frame')"><span class="ctab-icon"><svg width="16" height="16"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg></span>Frame</button>
+              <button class="ctab" onclick="switchTab(this,'sticker')"><span class="ctab-icon"><svg width="16"
+                    height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon
+                      points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                  </svg></span>Sticker</button>
+              <button class="ctab" onclick="switchTab(this,'text')"><span class="ctab-icon"><svg width="16" height="16"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg></span>Teks</button>
+            </div>
+            <div class="cust-body">
+              <div id="cp-filter" class="cp">
+                <div class="filter-grid">
+                  <div class="filter-card selected" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#f5e6d3,#e8d0b3)"></div>
+                    <div class="fc-label">Normal</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#ccc,#666)"></div>
+                    <div class="fc-label">B&W</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#fde68a,#f59e0b)"></div>
+                    <div class="fc-label">Warm</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#bfdbfe,#60a5fa)"></div>
+                    <div class="fc-label">Cool</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#d4a574,#a0764a)"></div>
+                    <div class="fc-label">Vintage</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#e0e7ff,#a5b4fc)"></div>
+                    <div class="fc-label">Fade</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#bbf7d0,#4ade80)"></div>
+                    <div class="fc-label">Film</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#fecdd3,#fda4af)"></div>
+                    <div class="fc-label">Rosy</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#bfdbfe,#3b82f6)"></div>
+                    <div class="fc-label">Vivid</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#e8d5c4,#c4a882)"></div>
+                    <div class="fc-label">Intax</div>
+                  </div>
+                  <div class="filter-card" onclick="sel(this,'filter')">
+                    <div class="fc-preview" style="background:linear-gradient(135deg,#fce7f3,#f9a8d4)"></div>
+                    <div class="fc-label">Soft</div>
+                  </div>
+                </div>
+              </div>
+              <div id="cp-frame" class="cp" style="display:none">
+                <div class="config-label" style="margin-bottom:12px">Warna Frame</div>
+                <div class="color-grid">
+                  <div class="color-circle selected" style="background:#fff;border-color:#ccc"
+                    onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#1a1a2e" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#ff6b9d" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#ec4899" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#3b82f6" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#14b8a6" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#f59e0b" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#ef4444" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#10b981" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#f97316" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#0ea5e9" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#8b5cf6" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#d1fae5" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#fef3c7" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#ede9fe" onclick="sel(this,'color')"></div>
+                  <div class="color-circle" style="background:#fde8f0" onclick="sel(this,'color')"></div>
+                  <div class="color-picker-wrap" title="Pilih warna kustom"><input type="color" id="customFrameColor"
+                      value="#ff6b9d" onchange="applyCustomColor(this.value)"
+                      style="opacity:0;position:absolute;width:40px;height:40px;cursor:pointer;">
+                    <div class="color-circle"
+                      style="background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);display:flex;align-items:center;justify-content:center;font-size:14px;color:white;text-shadow:0 1px 2px rgba(0,0,0,0.5);font-weight:700">
+                      +</div>
+                  </div>
+                </div>
+              </div>
+              <div id="cp-sticker" class="cp" style="display:none">
+                <div class="sticker-category-label">Love</div>
+                <div class="sticker-grid">
+                  <div class="sticker-cell selected" onclick="this.classList.toggle('selected')" style="color:#ef4444">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#ec4899"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path
+                        d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#f43f5e"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg></div>
+                </div>
+                <div class="sticker-category-label">Shapes</div>
+                <div class="sticker-grid">
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#f59e0b"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#a855f7"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#eab308"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6L12 2z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#f59e0b"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="2" x2="12" y2="6" />
+                      <line x1="12" y1="18" x2="12" y2="22" />
+                      <line x1="4.93" y1="4.93" x2="7.76" y2="7.76" />
+                      <line x1="16.24" y1="16.24" x2="19.07" y2="19.07" />
+                      <line x1="2" y1="12" x2="6" y2="12" />
+                      <line x1="18" y1="12" x2="22" y2="12" />
+                      <line x1="4.93" y1="19.07" x2="7.76" y2="16.24" />
+                      <line x1="16.24" y1="7.76" x2="19.07" y2="4.93" />
+                    </svg></div>
+                </div>
+                <div class="sticker-category-label">Animals</div>
+                <div class="sticker-grid">
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#6366f1"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-3-9c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm6 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#a78bfa"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M4.5 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zM19.5 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zM12 4a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5zM12 20a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+                      <line x1="6" y1="8" x2="10" y2="5" stroke="currentColor" stroke-width="1.5" />
+                      <line x1="14" y1="5" x2="18" y2="8" stroke="currentColor" stroke-width="1.5" />
+                      <line x1="6" y1="8" x2="10" y2="19" stroke="currentColor" stroke-width="1.5" />
+                      <line x1="14" y1="19" x2="18" y2="8" stroke="currentColor" stroke-width="1.5" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#fb923c"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#10b981"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M17.66 11.2C17.43 10.9 17 10.74 16.6 10.74l-2.9.01c-.46 0-.9.2-1.2.55l-.96 1.12c-.12.14-.29.22-.47.22H8.36c-.46 0-.9-.2-1.2-.55l-.96-1.12c-.3-.35-.74-.55-1.2-.55l-2.9-.01c-.4 0-.83.16-1.06.46-.4.5-.37 1.24.06 1.7l4.23 5.12c.5.6 1.47.6 1.97 0l4.23-5.12c.43-.46.46-1.2.06-1.7h.07z" />
+                    </svg></div>
+                </div>
+                <div class="sticker-category-label">Nature</div>
+                <div class="sticker-grid">
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#22c55e"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#f472b6"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" />
+                      <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.5" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#a78bfa"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M12 3C7 3 3 7.5 3 12c0 2 .5 3.5 1.5 5L12 21l7.5-4c1-1.5 1.5-3 1.5-5 0-4.5-4-9-9-9z" />
+                    </svg></div>
+                </div>
+                <div class="sticker-category-label">Fun</div>
+                <div class="sticker-grid">
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#ef4444"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <rect x="3" y="8" width="18" height="4" rx="1" />
+                      <rect x="5" y="5" width="14" height="3" rx="1" />
+                      <rect x="7" y="3" width="10" height="2" rx="1" />
+                      <rect x="3" y="12" width="18" height="9" rx="1" />
+                      <rect x="8" y="14" width="8" height="5" rx="1" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#8b5cf6"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+                    </svg></div>
+                  <div class="sticker-cell" onclick="this.classList.toggle('selected')" style="color:#ec4899"><svg
+                      viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+                      <path
+                        d="M12 2l3.09 6.26L22 9.27l-5 4.32 1.5 6.41L12 17.77l-6.5 3.23 1.5-6.41-5-4.32 6.91-1.01L12 2z" />
+                    </svg></div>
+                </div>
+              </div>
+              <div id="cp-text" class="cp" style="display:none">
+                <div class="text-panel">
+                  <div class="tp-row">
+                    <div>
+                      <div class="tp-label">Tanggal & Waktu</div>
+                      <div class="tp-desc">Tampilkan di strip</div>
+                    </div>
+                    <div class="tp-toggle on" onclick="this.classList.toggle('on')"></div>
+                  </div>
+                  <div class="tp-row">
+                    <div>
+                      <div class="tp-label">Logo / Event Text</div>
+                      <div class="tp-desc">Teks kustom di footer</div>
+                    </div>
+                    <div class="tp-toggle" onclick="this.classList.toggle('on')"></div>
+                  </div>
+                  <div style="padding-top:8px">
+                    <div style="font-size:12px;color:var(--text3);margin-bottom:6px;font-weight:500">Teks Logo</div>
+                    <input class="tp-input" type="text" placeholder="Contoh: Wedding Agus & Sari">
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="customize-footer"><button class="btn btn-primary btn-full" onclick="goTo('rendering')"><svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg> Simpan Hasil</button></div>
+          </div>
+
+          <!-- RENDERING -->
+          <div class="screen rendering-screen" id="screen-rendering">
+            <div class="render-spinner"></div>
+            <h3>Memproses...</h3>
+            <p>Menggabungkan foto ke template strip</p>
+            <div class="render-bar">
+              <div class="render-bar-fill"></div>
+            </div>
+          </div>
+
+          <!-- RESULT -->
+          <div class="screen" id="screen-result">
+            <div class="result-header">
+              <div class="rh-check"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--green)"
+                  stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg></div>
+              <h3>Hasil Siap!</h3>
+              <p>Photo strip kamu sudah jadi</p>
+            </div>
+            <div class="result-body">
+              <div class="result-strip">
+                <div class="rs-inner">
+                  <div class="rs-top"><span>Classic</span><span style="display:flex;align-items:center;gap:4px;"><span
+                        class="rs-frame-dot" style="background:#fff;border:1px solid #ddd"></span>4 Pose</span></div>
+                  <div class="rs-photos">
+                    <div class="rs-photo"></div>
+                    <div class="rs-photo"></div>
+                    <div class="rs-photo"></div>
+                    <div class="rs-photo"></div>
+                  </div>
+                  <div class="rs-bottom"><span>stecute &bull; 20 mar 2026</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="result-format"><button class="rf-btn active">PNG</button><button class="rf-btn">JPG</button>
+            </div>
+            <div class="result-actions">
+              <button class="btn btn-primary btn-full"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                  style="margin-right:6px">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg> Download</button>
+              <div class="result-actions-row">
+                <button class="btn btn-secondary"
+                  style="background:var(--blue-light);border-color:var(--blue);color:var(--blue);"><svg width="14"
+                    height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px">
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg> Share</button>
+                <button class="btn btn-secondary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    style="margin-right:4px">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                  </svg> Print</button>
+              </div>
+              <div class="result-secondary-row">
+                <button class="btn btn-secondary" onclick="goTo('gallery')"><svg width="14" height="14"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" style="margin-right:4px">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                  </svg> Galeri</button>
+                <button class="btn btn-secondary" onclick="goTo('landing')"><svg width="14" height="14"
+                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" style="margin-right:4px">
+                    <polyline points="23 4 23 10 17 10" />
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                  </svg> Foto Baru</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- GALLERY -->
+          <div class="screen" id="screen-gallery">
+            <div class="gallery-header"><button class="btn-icon" onclick="goTo('landing')" style="font-size:14px"><svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg></button>
+              <h3>Galeri</h3><span class="gh-count">3 item</span>
+            </div>
+            <div class="gallery-body">
+              <div class="gallery-grid">
+                <!-- Item 1: 4 pose Classic -->
+                <div class="gallery-item">
+                  <div class="gi-inner">
+                    <div class="gi-strip-mini" style="border-left:3px solid var(--pink)">
+                      <div class="gsm-photo" style="background:var(--pink-light)"></div>
+                      <div class="gsm-photo" style="background:var(--orange-light)"></div>
+                      <div class="gsm-photo" style="background:var(--blue-light)"></div>
+                      <div class="gsm-photo" style="background:var(--teal-light)"></div>
+                    </div>
+                    <div class="gi-date">Hari ini, 09:41 &bull; 4 Pose</div>
+                  </div>
+                  <div class="gi-overlay"><button class="gio-dl"><svg width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg></button><button class="gio-del"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg></button></div>
+                </div>
+                <!-- Item 2: 6 pose grid -->
+                <div class="gallery-item" style="aspect-ratio:3/2">
+                  <div class="gi-inner">
+                    <div class="gi-strip-mini"
+                      style="display:grid;grid-template-columns:1fr 1fr;gap:3px;padding:6px;border-left:3px solid var(--blue)">
+                      <div class="gsm-photo" style="background:var(--blue-light);width:100%"></div>
+                      <div class="gsm-photo" style="background:var(--green-light);width:100%"></div>
+                      <div class="gsm-photo" style="background:var(--purple-light);width:100%"></div>
+                      <div class="gsm-photo" style="background:var(--orange-light);width:100%"></div>
+                      <div class="gsm-photo" style="background:var(--pink-light);width:100%"></div>
+                      <div class="gsm-photo" style="background:var(--teal-light);width:100%"></div>
+                    </div>
+                    <div class="gi-date">Hari ini, 09:30 &bull; 6 Pose</div>
+                  </div>
+                  <div class="gi-overlay"><button class="gio-dl"><svg width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg></button><button class="gio-del"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg></button></div>
+                </div>
+                <!-- Item 3: 3 pose Mono -->
+                <div class="gallery-item">
+                  <div class="gi-inner">
+                    <div class="gi-strip-mini" style="border-left:3px solid #555;background:#f0f0f0">
+                      <div class="gsm-photo" style="background:#d4d4d4"></div>
+                      <div class="gsm-photo" style="background:#bbb"></div>
+                      <div class="gsm-photo" style="background:#ccc"></div>
+                    </div>
+                    <div class="gi-date">Kemarin, 14:22 &bull; 3 Pose</div>
+                  </div>
+                  <div class="gi-overlay"><button class="gio-dl"><svg width="12" height="12" viewBox="0 0 24 24"
+                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg></button><button class="gio-del"><svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg></button></div>
+                </div>
+              </div>
+            </div>
+            <div class="gallery-footer"><button class="btn btn-secondary btn-full btn-sm" style="color:var(--red)">Hapus
+                Semua</button></div>
+          </div>
+
+          <!-- UPLOAD -->
+          <div class="screen" id="screen-upload">
+            <div class="upload-header"><button class="btn-icon" onclick="goTo('landing')" style="font-size:14px"><svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg></button>
+              <h3>Upload Foto</h3>
+              <div style="width:40px"></div>
+            </div>
+            <div class="upload-body">
+              <div class="upload-hint">Pilih <b>4 foto</b> dari perangkat kamu sesuai layout yang aktif.</div>
+              <div class="upload-zone">
+                <div class="uz-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--pink)"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg></div>
+                <h4>Pilih Foto</h4>
+                <p>JPG, PNG, WebP &bull; Maks 10MB/file</p>
+              </div>
+              <div class="upload-thumbs">
+                <div class="upload-thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <div class="ut-rm">&times;</div>
+                </div>
+                <div class="upload-thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <div class="ut-rm">&times;</div>
+                </div>
+                <div class="upload-thumb"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                    stroke="var(--text3)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                  </svg>
+                  <div class="ut-rm">&times;</div>
+                </div>
+                <div class="upload-thumb add">+1</div>
+              </div>
+            </div>
+            <div class="upload-footer"><button class="btn btn-primary btn-full" onclick="goTo('review')">Lanjut ke
+                Preview</button></div>
+          </div>
+
+          <!-- SETTINGS -->
+          <div class="screen" id="screen-settings">
+            <div class="settings-header"><button class="btn-icon" onclick="goTo('landing')" style="font-size:14px"><svg
+                  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg></button>
+              <h3>Pengaturan</h3>
+              <div style="width:40px"></div>
+            </div>
+            <div class="settings-body">
+              <div class="settings-card">
+                <div class="sc-title">Kamera</div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Suara Shutter</div>
+                    <div class="sc-desc">Efek suara saat ambil foto</div>
+                  </div>
+                  <div class="tp-toggle on" onclick="this.classList.toggle('on')"></div>
+                </div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Flash Otomatis</div>
+                    <div class="sc-desc">Aktifkan flash saat capture</div>
+                  </div>
+                  <div class="tp-toggle" onclick="this.classList.toggle('on')"></div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="sc-title">Workflow</div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Reset Manual Cepat</div>
+                    <div class="sc-desc">Sesi berikutnya dimulai setelah operator menekan reset</div>
+                  </div>
+                  <div class="sc-value">Aktif</div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="sc-title">Penyimpanan</div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Galeri Lokal</div>
+                    <div class="sc-desc">Simpan 10 hasil terakhir</div>
+                  </div>
+                  <div class="sc-value">3/10</div>
+                </div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Penggunaan</div>
+                    <div class="sc-desc">Estimasi storage</div>
+                  </div>
+                  <div class="sc-value">12 MB</div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="sc-title">Aplikasi</div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Versi</div>
+                  </div>
+                  <div class="sc-value" style="color:var(--text3)">1.2 Baseline</div>
+                </div>
+                <div class="sc-row">
+                  <div>
+                    <div class="sc-label">Cache</div>
+                  </div><span
+                    style="font-size:11px;background:var(--green-light);color:var(--green);padding:3px 10px;border-radius:20px;font-weight:600;">Offline
+                    Ready</span>
+                </div>
+              </div>
+            </div>
+            <div class="settings-footer"><button class="btn btn-secondary btn-full btn-sm"
+                style="color:var(--red)">Hapus Semua Data</button></div>
+          </div>
+
+          <!-- ERROR: CAMERA DENIED -->
+          <div class="screen error-screen" id="screen-error-camera">
+            <div class="error-icon cam"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--red)"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg></div>
+            <h3>Kamera Tidak Diizinkan</h3>
+            <p>Aplikasi membutuhkan akses kamera. Izinkan melalui pengaturan browser kamu.</p>
+            <div class="error-steps-list">
+              <div class="error-step">
+                <div class="es-num">1</div><span>Buka Pengaturan Browser</span>
+              </div>
+              <div class="error-step">
+                <div class="es-num">2</div><span>Cari izin Kamera</span>
+              </div>
+              <div class="error-step">
+                <div class="es-num">3</div><span>Ubah menjadi Izinkan</span>
+              </div>
+              <div class="error-step">
+                <div class="es-num">4</div><span>Muat ulang halaman</span>
+              </div>
+            </div>
+            <div class="error-actions">
+              <button class="btn btn-primary btn-full" onclick="goTo('camera')">Coba Lagi</button>
+              <button class="btn btn-secondary btn-full" onclick="goTo('upload')">Upload Foto Lokal</button>
+            </div>
+          </div>
+
+          <!-- ERROR: NO CAMERA -->
+          <div class="screen error-screen" id="screen-error-nocam">
+            <div class="error-icon nocam"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M9.5 9.5L14.5 14.5" />
+              </svg></div>
+            <h3>Tidak Ada Kamera</h3>
+            <p>Perangkat ini tidak memiliki kamera atau sedang digunakan aplikasi lain.</p>
+            <div class="error-actions">
+              <button class="btn btn-primary btn-full" onclick="goTo('upload')">Upload Foto Lokal</button>
+              <button class="btn btn-secondary btn-full" onclick="goTo('landing')">Kembali</button>
+            </div>
+          </div>
+
+          <!-- ERROR: OFFLINE -->
+          <div class="screen error-screen" id="screen-error-offline">
+            <div class="error-icon offline"><svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+                stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 1l22 22" />
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                <line x1="12" y1="20" x2="12.01" y2="20" />
+              </svg></div>
+            <h3>Perlu Koneksi Internet</h3>
+            <p>Untuk pertama kali, aplikasi perlu mengunduh aset inti agar bisa offline nanti.</p>
+            <div class="error-actions"><button class="btn btn-primary btn-full" onclick="goTo('landing')">Coba
+                Lagi</button></div>
+          </div>
+
+        </div>
+        <div class="phone-indicator"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const flows = {
+      main: [
+        { id: 'landing', label: 'Landing', desc: 'Hero + strip preview + CTA' },
+        { id: 'camera', label: 'Kamera', desc: 'Full-screen preview + shutter + thumbnails' },
+        { id: 'config', label: 'Setup Sesi', desc: 'Layout, template, countdown' },
+        { id: 'countdown', label: 'Countdown', desc: '3-2-1 per pose + progress dots' },
+        { id: 'review', label: 'Preview Strip', desc: 'Lihat semua foto, retake atau lanjut' },
+        { id: 'customize', label: 'Kustomisasi', desc: 'Filter, frame, sticker, teks' },
+        { id: 'rendering', label: 'Rendering', desc: 'Compositing foto ke template' },
+        { id: 'result', label: 'Hasil Siap', desc: 'Download, share, print' },
+        { id: 'gallery', label: 'Galeri', desc: '10 hasil terakhir' },
+      ],
+      event: [
+        { id: 'landing', label: 'Landing', desc: 'Mode event booth' },
+        { id: 'config', label: 'Setup Booth', desc: 'Template dan layout dipilih operator' },
+        { id: 'camera', label: 'Kamera Siap', desc: 'Tamu tekan shutter' },
+        { id: 'countdown', label: 'Capture', desc: '3s countdown, 4 pose' },
+        { id: 'review', label: 'Review', desc: 'Tamu lihat hasil' },
+        { id: 'rendering', label: 'Render', desc: 'Proses hasil booth' },
+        { id: 'result', label: 'Export', desc: 'Download / share / reset manual' },
+        { id: 'gallery', label: 'Gallery', desc: 'Hasil session hari ini' },
+      ],
+      error: [
+        { id: 'error-camera', label: 'Izin Ditolak', desc: 'Recovery + fallback upload' },
+        { id: 'error-nocam', label: 'Tidak Ada Kamera', desc: 'Fallback upload lokal' },
+        { id: 'error-offline', label: 'Offline First Visit', desc: 'Perlu internet first load' },
+      ]
+    };
+    let curFlow = 'main', curScreen = 'landing';
+    let capturedShots = [], totalShots = 4, curShotIdx = 0, retakeModeIdx = null;
+    const dummyPhotos = ['linear-gradient(135deg, #ff9a9e, #FECFEF)', 'linear-gradient(135deg, #f6d365, #fda085)', 'linear-gradient(135deg, #a1c4fd, #c2e9fb)', 'linear-gradient(135deg, #d4fc79, #96e6a1)', 'linear-gradient(135deg, #cfd9df, #e2ebf0)', 'linear-gradient(135deg, #fbc2eb, #a6c1ee)'];
+
+    function initSession() {
+      totalShots = 4;
+      capturedShots = new Array(totalShots).fill(null);
+      curShotIdx = 0;
+      retakeModeIdx = null;
+      renderThumbs();
+    }
+
+    function renderThumbs() {
+      const th = document.querySelectorAll('.cam-thumb');
+      th.forEach((t, i) => {
+        if (i >= totalShots) { t.style.display = 'none'; return; }
+        t.style.display = 'flex';
+        t.className = 'cam-thumb';
+        let icon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+        if (capturedShots[i]) {
+          t.classList.add('done');
+          t.style.background = capturedShots[i];
+          t.innerHTML = `<div class="cam-thumb-overlay" onclick="retakeShot(${i},event)">${icon}</div>`;
+        } else {
+          t.style.background = 'var(--surface)';
+          t.innerHTML = (i + 1) + '/' + totalShots;
+          if (curShotIdx === i) t.classList.add('current');
+        }
+      });
+
+      const rsp = document.querySelectorAll('.rsp-photo');
+      rsp.forEach((r, i) => {
+        if (i >= totalShots) { r.style.display = 'none'; return; }
+        r.style.display = 'flex';
+        if (capturedShots[i]) {
+          r.style.background = capturedShots[i];
+          r.style.color = 'transparent';
+          let rIcon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:4px"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>';
+          r.innerHTML = `<span class="rsp-num" style="color:var(--text3)">${i + 1}</span><div class="rsp-overlay" onclick="retakeShot(${i},event)">${rIcon}Ulang</div>`;
+        } else {
+          r.style.background = 'var(--bg3)';
+          r.style.color = 'var(--text3)';
+          r.innerHTML = `<span class="rsp-num">${i + 1}</span>Pose ${i + 1}`;
+        }
+      });
+    }
+
+    function retakeShot(idx, e) {
+      if (e) e.stopPropagation();
+      retakeModeIdx = idx;
+      curShotIdx = idx;
+      renderThumbs();
+      goTo('camera');
+    }
+
+    function renderSidebar() {
+      const sb = document.getElementById('flowSidebar');
+      const steps = flows[curFlow];
+      let h = `<h3>${curFlow === 'main' ? 'Main Flow' : curFlow === 'event' ? 'Event Flow' : 'Error States'}</h3>`;
+      steps.forEach((s, i) => {
+        const a = s.id === curScreen;
+        h += `<div class="flow-step${a ? ' active' : ''}" onclick="goTo('${s.id}')"><div class="fs-dot"></div><div class="fs-label">${s.label}</div></div>`;
+        if (i < steps.length - 1) h += '<div class="flow-connector"></div>';
+      });
+      sb.innerHTML = h;
+    }
+
+    function goTo(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const t = document.getElementById('screen-' + id);
+      if (t) { t.classList.add('active'); curScreen = id; renderSidebar(); }
+      if (id === 'landing' || id === 'config') initSession();
+      if (id === 'countdown') startCountdown();
+      if (id === 'rendering') setTimeout(() => goTo('result'), 2000);
+    }
+
+    function showFlow(f, el) {
+      curFlow = f;
+      document.querySelectorAll('.flow-nav button').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      renderSidebar();
+      goTo(flows[f][0].id);
+    }
+
+    function startCountdown() {
+      let c = 3;
+      function tick() {
+        if (curScreen !== 'countdown') return;
+        const n = document.getElementById('cdNum');
+        n.textContent = c; n.style.animation = 'none'; n.offsetHeight; n.style.animation = 'cdPop .7s cubic-bezier(.34,1.56,.64,1)';
+        document.getElementById('cdShot').textContent = (curShotIdx + 1);
+        document.getElementById('cdTotal').textContent = totalShots;
+        let dots = '';
+        for (let i = 0; i < totalShots; i++) { if (i < curShotIdx) dots += '<div class="cd-dot done"></div>'; else if (i === curShotIdx) dots += '<div class="cd-dot now"></div>'; else dots += '<div class="cd-dot"></div>'; }
+        document.getElementById('cdDots').innerHTML = dots;
+        c--;
+        if (c < 0) {
+          capturedShots[curShotIdx] = dummyPhotos[curShotIdx % dummyPhotos.length];
+          const flash = document.getElementById('screen-flash');
+          flash.classList.remove('active');
+          void flash.offsetWidth;
+          flash.classList.add('active');
+          goTo('flash');
+
+          if (retakeModeIdx !== null) {
+            retakeModeIdx = null;
+            let missing = capturedShots.findIndex(s => s === null);
+            if (missing === -1) setTimeout(() => { renderThumbs(); goTo('review'); }, 400);
+            else { curShotIdx = missing; renderThumbs(); setTimeout(() => goTo('camera'), 400); }
+            return;
+          }
+
+          curShotIdx++;
+          renderThumbs();
+          if (curShotIdx >= totalShots) setTimeout(() => goTo('review'), 400);
+          else setTimeout(() => goTo('camera'), 500);
+          return;
+        }
+        setTimeout(tick, 1000);
+      }
+      tick();
+    }
+
+    function sel(el, group) {
+      const cls = { layout: '.layout-card', template: '.template-card', cd: '.cd-opt', filter: '.filter-card', color: '.color-circle' };
+      document.querySelectorAll(cls[group]).forEach(e => e.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+
+    function switchTab(el, panel) {
+      document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active')); el.classList.add('active');
+      document.querySelectorAll('.cp').forEach(p => p.style.display = 'none');
+      document.getElementById('cp-' + panel).style.display = 'block';
+    }
+
+    function applyCustomColor(val) {
+      const wrap = document.querySelector('.color-picker-wrap .color-circle');
+      wrap.style.background = val;
+      document.querySelectorAll('.color-circle').forEach(c => c.classList.remove('selected'));
+      wrap.classList.add('selected');
+    }
+
+    function selCamFilter(el) {
+      document.querySelectorAll('.cam-filter-chip').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+    }
+    initSession();
+    renderSidebar();
+  </script>
+</body>
+
+</html>
