@@ -28,9 +28,7 @@ export function validateFiles(files: File[], slotCount: number): ValidationResul
   }
 
   if (files.length !== slotCount) {
-    errors.push(
-      `Layout ini membutuhkan tepat ${slotCount} foto. Kamu memilih ${files.length}.`,
-    )
+    errors.push(`Layout ini membutuhkan tepat ${slotCount} foto. Kamu memilih ${files.length}.`)
   }
 
   for (const file of files) {
@@ -85,7 +83,9 @@ export function openImagePicker(multiple: boolean = true): Promise<FileList | nu
   })
 }
 
-export function loadImageAsBitmap(file: File): Promise<{ bitmap: ImageBitmap; width: number; height: number }> {
+export function loadImageAsBitmap(
+  file: File,
+): Promise<{ bitmap: ImageBitmap; width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()

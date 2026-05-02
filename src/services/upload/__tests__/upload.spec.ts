@@ -1,11 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateFile, validateFiles } from '@/services/upload'
 
-function createFile(
-  name: string,
-  type: string,
-  size: number,
-): File {
+function createFile(name: string, type: string, size: number): File {
   return { name, type, size } as File
 }
 
@@ -33,7 +29,9 @@ describe('upload validation', () => {
     )
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain('"notes.txt" bukan format yang didukung. Gunakan JPG, PNG, atau WebP.')
+    expect(result.errors).toContain(
+      '"notes.txt" bukan format yang didukung. Gunakan JPG, PNG, atau WebP.',
+    )
     expect(result.errors).toContain('"large.png" melebihi batas ukuran 10 MB.')
   })
 

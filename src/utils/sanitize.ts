@@ -11,10 +11,7 @@ function removeControlCharacters(text: string): string {
 }
 
 export function sanitizeLogoText(text: string, maxLength: number = 24): string {
-  return removeControlCharacters(text)
-    .replace(MARKUP_CHARS, '')
-    .trim()
-    .slice(0, maxLength)
+  return removeControlCharacters(text).replace(MARKUP_CHARS, '').trim().slice(0, maxLength)
 }
 
 export function isTextSafe(text: string): boolean {

@@ -32,9 +32,9 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not get 2D canvas context')
 
-  // Draw background
-  ctx.fillStyle = template.background
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  await drawTemplateBackground(ctx, canvas.width, canvas.height, template)
+
+  const frameColor = decoration.frameColor || template.defaultFrameColor
 
   // Draw shots into slots
   for (let i = 0; i < layout.slots.length; i++) {
@@ -43,6 +43,8 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     if (!shot) continue
 
     const img = await decodeImageBlob(shot.blob)
+
+    drawPhotoBacking(ctx, slot, frameColor, template)
 
     // Apply filter
     if (decoration.filterId && decoration.filterId !== 'normal') {
@@ -58,14 +60,11 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
   // Reset filter for overlays
   ctx.filter = 'none'
 
-  // Draw frame color border
-  if (decoration.frameColor) {
-    drawFrameOverlay(ctx, layout, decoration.frameColor)
-  }
-
   if (decoration.selectedStickerIds.length > 0) {
     drawStickers(ctx, canvas.width, canvas.height, decoration.selectedStickerIds)
   }
+
+  await drawTemplateLabel(ctx, canvas.width, canvas.height, template, layout)
 
   // Draw date/time
   if (decoration.showDateTime) {
@@ -89,6 +88,145 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     width: canvas.width,
     height: canvas.height,
   }
+}
+
+async function drawTemplateBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  template: TemplateConfig,
+) {
+  ctx.fillStyle = template.background
+  ctx.fillRect(0, 0, width, height)
+
+  if (template.blanko.mode === 'image' && template.blanko.backgroundImage) {
+    await drawBlankoImage(ctx, width, height, template.blanko.backgroundImage)
+    return
+  }
+
+  ctx.save()
+
+  if (template.id === 'classic') {
+    ctx.restore()
+    return
+  }
+
+  if (template.blanko.pattern === 'gingham') drawGinghamBackground(ctx, width, height, template)
+  if (template.blanko.pattern === 'mono') drawMonoBackground(ctx, width, height)
+  if (template.blanko.pattern === 'paper') drawPaperBackground(ctx, width, height, template)
+
+  ctx.restore()
+}
+
+async function drawBlankoImage(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  path: string,
+) {
+  const response = await fetch(path)
+  if (!response.ok) throw new Error(`Failed to load template blanko: ${path}`)
+  const image = await decodeImageBlob(await response.blob())
+  drawImageCover(ctx, image, { x: 0, y: 0, width, height, radius: 0 })
+  image.close?.()
+}
+
+function drawPaperBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  template: TemplateConfig,
+) {
+  ctx.fillStyle = template.background
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.globalAlpha = 0.16
+  ctx.fillStyle = template.accentColor
+  for (let y = 120; y < height; y += 160) {
+    ctx.fillRect(0, y, width, 2)
+  }
+
+  ctx.globalAlpha = 0.08
+  for (let index = 0; index < 80; index++) {
+    const x = (index * 137) % width
+    const y = (index * 193) % height
+    ctx.fillRect(x, y, 2, 2)
+  }
+}
+
+function drawGinghamBackground(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  template: TemplateConfig,
+) {
+  const cell = 96
+  ctx.fillStyle = '#fff7ed'
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.globalAlpha = 0.18
+  ctx.fillStyle = template.accentColor
+  for (let x = 0; x < width; x += cell * 2) {
+    ctx.fillRect(x, 0, cell, height)
+  }
+  for (let y = 0; y < height; y += cell * 2) {
+    ctx.fillRect(0, y, width, cell)
+  }
+
+  ctx.globalAlpha = 0.08
+  ctx.fillStyle = template.textColor
+  for (let x = cell; x < width; x += cell * 2) {
+    ctx.fillRect(x, 0, 1, height)
+  }
+  for (let y = cell; y < height; y += cell * 2) {
+    ctx.fillRect(0, y, width, 1)
+  }
+}
+
+function drawMonoBackground(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  ctx.fillStyle = '#202020'
+  ctx.fillRect(0, 0, width, height)
+
+  ctx.globalAlpha = 0.1
+  ctx.fillStyle = '#ffffff'
+  for (let y = 80; y < height; y += 180) {
+    ctx.fillRect(0, y, width, 1)
+  }
+
+  ctx.globalAlpha = 0.05
+  for (let index = 0; index < 90; index++) {
+    const x = (index * 211) % width
+    const y = (index * 89) % height
+    ctx.fillRect(x, y, 2, 2)
+  }
+}
+
+function drawPhotoBacking(
+  ctx: CanvasRenderingContext2D,
+  slot: SlotConfig,
+  frameColor: string,
+  template: TemplateConfig,
+) {
+  const padding = template.blanko.photoPadding
+  if (padding <= 0) return
+
+  ctx.save()
+  if (template.blanko.photoShadow) {
+    ctx.shadowColor = template.id === 'mono' ? 'rgba(0,0,0,0.28)' : 'rgba(38,30,24,0.1)'
+    ctx.shadowBlur = template.id === 'mono' ? 10 : 8
+    ctx.shadowOffsetY = template.id === 'mono' ? 5 : 4
+  }
+  ctx.fillStyle = frameColor
+  roundRect(
+    ctx,
+    slot.x - padding,
+    slot.y - padding,
+    slot.width + padding * 2,
+    slot.height + padding * 2,
+    template.blanko.photoRadius + padding,
+  )
+  ctx.fill()
+  ctx.restore()
 }
 
 async function decodeImageBlob(blob: Blob): Promise<DecodedImage> {
@@ -123,6 +261,26 @@ async function decodeImageBlob(blob: Blob): Promise<DecodedImage> {
     }
 
     image.src = url
+  })
+}
+
+function loadImageSource(src: string): Promise<DecodedImage> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+
+    image.onload = () => {
+      resolve({
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      })
+    }
+
+    image.onerror = () => {
+      reject(new Error(`Failed to load image source: ${src}`))
+    }
+
+    image.src = src
   })
 }
 
@@ -328,16 +486,58 @@ function getCanvasFilter(filterId: string): string {
   return filterMap[filterId] ?? 'none'
 }
 
-function drawFrameOverlay(ctx: CanvasRenderingContext2D, layout: LayoutConfig, color: string) {
-  const margin = 8
-  ctx.strokeStyle = color
-  ctx.lineWidth = margin
-  ctx.strokeRect(
-    margin / 2,
-    margin / 2,
-    layout.canvas.width - margin,
-    layout.canvas.height - margin,
-  )
+async function drawTemplateLabel(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  template: TemplateConfig,
+  layout: LayoutConfig,
+) {
+  if (template.footerLogo) {
+    await drawFooterLogo(ctx, canvasWidth, canvasHeight, layout, template.footerLogo)
+    return
+  }
+
+  if (!template.label.text) return
+
+  ctx.save()
+  ctx.fillStyle = template.textColor
+  ctx.globalAlpha = template.id === 'mono' ? 0.78 : 0.7
+  ctx.font = `700 ${template.label.fontSize * 0.58}px Poppins, sans-serif`
+  ctx.textAlign = template.label.align
+  const x =
+    template.label.align === 'left'
+      ? 90
+      : template.label.align === 'right'
+        ? canvasWidth - 90
+        : canvasWidth / 2
+  ctx.fillText(template.label.text, x, canvasHeight - 120)
+  ctx.restore()
+}
+
+async function drawFooterLogo(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  layout: LayoutConfig,
+  src: string,
+) {
+  const lastSlot = layout.slots[layout.slots.length - 1]
+  if (!lastSlot) return
+
+  const logo = await loadImageSource(src)
+  const footerTop = lastSlot.y + lastSlot.height
+  const footerHeight = canvasHeight - footerTop
+  const logoWidth = Math.min(canvasWidth * 0.3, 340)
+  const logoHeight = logoWidth * (logo.height / logo.width)
+  const x = (canvasWidth - logoWidth) / 2
+  const y = footerTop + Math.max(0, (footerHeight - logoHeight) / 2)
+
+  ctx.save()
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(logo.source, x, y, logoWidth, logoHeight)
+  ctx.restore()
 }
 
 function drawDateTime(
@@ -356,10 +556,10 @@ function drawDateTime(
   })
 
   ctx.save()
-  ctx.fillStyle = template.background === '#212121' ? '#e0e0e0' : '#333333'
+  ctx.fillStyle = template.textColor
   ctx.font = `${template.label.fontSize * 0.6}px Poppins, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText(text, canvasWidth / 2, canvasHeight - 40)
+  ctx.fillText(text, canvasWidth / 2, canvasHeight - 38)
   ctx.restore()
 }
 
@@ -371,10 +571,10 @@ function drawLogoText(
   template: TemplateConfig,
 ) {
   ctx.save()
-  ctx.fillStyle = template.background === '#212121' ? '#e0e0e0' : '#333333'
+  ctx.fillStyle = template.textColor
   ctx.font = `700 ${template.label.fontSize * 0.7}px Poppins, sans-serif`
   ctx.textAlign = 'center'
-  ctx.fillText(text, canvasWidth / 2, canvasHeight - 20)
+  ctx.fillText(text, canvasWidth / 2, canvasHeight - 22)
   ctx.restore()
 }
 

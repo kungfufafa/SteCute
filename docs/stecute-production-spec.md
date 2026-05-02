@@ -37,18 +37,13 @@ Fitur yang wajib ada:
 
 - landing page dan app shell
 - alur kamera dan upload lokal
-- format cetak `2x6` untuk varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto`
-- template bawaan `Classic`, `Youth`, `Mono`
-- countdown `3`, `5`, `10` detik
+- format output adaptif untuk varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto`
+- template default `Classic`
+- countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
 - retake `per-shot` sebelum render final
-- filter dasar bundled offline
-- frame color dasar
-- sticker pack dasar bundled offline
-- toggle `date/time`
-- input `logo text` sederhana
-- render final `PNG` dan `JPG`
+- render final `PNG`
 - download lokal
 - save to device jika capability tersedia
 - share jika capability tersedia
@@ -57,6 +52,15 @@ Fitur yang wajib ada:
 - reset session
 - offline mode setelah first load berhasil cache
 - error states utama
+
+Template aktif v1 wajib menghasilkan render final yang clean dan konsisten:
+
+- `Classic`: blanko putih clean, foto 4:3 landscape, padding/gap putih rapi, footer memakai logo bundled `icons.svg`
+
+Template lain boleh tetap tersedia di engine sebagai persiapan fase berikutnya, tetapi tidak ditampilkan sebagai pilihan di flow v1 process-first.
+Template default menetapkan visual render tanpa override manual.
+Border keras dan garis aksen dekoratif tidak boleh menjadi treatment default; output harus terasa seperti photobooth/blanko, bukan kartu UI.
+Template engine harus siap memakai blanko image lokal/bundled di fase berikutnya dengan fallback generated blanko.
 
 ### 2.3 Fitur yang tidak masuk rilis produksi v1
 
@@ -71,13 +75,14 @@ Tidak masuk v1:
 - marketplace template
 - pembayaran
 - kiosk native wrapper
+- kustomisasi manual pasca-capture: filter, frame color, sticker, toggle `date/time`, dan input `logo text`
 
 ### 2.4 Keputusan open questions yang dikunci
 
 - `Preset event dasar` tidak masuk rilis v1. Masuk fase berikutnya.
 - `Print ringan` adalah capability bonus, bukan blocker rilis.
 - `Gallery lokal` menyimpan final render. Raw shots disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
-- `Sticker pack awal` dibatasi untuk menjaga performa. Detail ada di dokumen asset.
+- `Kustomisasi manual` ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
 
 ---
@@ -89,23 +94,22 @@ Tidak masuk v1:
 1. User membuka aplikasi.
 2. User menekan `Mulai Foto`.
 3. App meminta izin kamera saat masuk flow kamera.
-4. User dapat mengganti layout, template, countdown, dan kamera aktif sebelum capture.
+4. User memilih jumlah foto dan dapat mengganti kamera aktif sebelum capture.
 5. App menjalankan capture berurutan sesuai slot layout.
 6. User dapat retake per-shot dari layar review sebelum render final.
-7. User dapat lanjut ke kustomisasi.
-8. User melakukan render final.
-9. User memilih `Download`, `Save`, `Share`, atau `Print` sesuai capability browser.
-10. Session dapat di-reset untuk sesi baru.
+7. User melakukan render final.
+8. User memilih `Download`, `Save`, `Share`, atau `Print` sesuai capability browser.
+9. Session dapat di-reset untuk sesi baru.
 
 ### 3.2 Flow upload lokal
 
 1. User membuka aplikasi.
 2. User memilih `Upload Lokal`.
-3. App meminta file sesuai jumlah slot layout aktif.
-4. App memvalidasi format, ukuran, dan jumlah file.
-5. User masuk ke review.
-6. User dapat hapus dan ganti per-shot.
-7. User lanjut ke kustomisasi.
+3. User memilih jumlah foto.
+4. App meminta file sesuai jumlah slot layout aktif.
+5. App memvalidasi format, ukuran, dan jumlah file.
+6. Jika valid, user langsung masuk ke review tanpa tombol lanjut tambahan.
+7. User dapat ganti per-shot.
 8. App render final.
 9. User memilih output action yang tersedia.
 
@@ -135,18 +139,31 @@ Setiap error wajib memiliki:
 
 ### 4.1 Format output
 
-- Default export: `PNG`
-- Optional export: `JPG`
-- JPEG quality default: `0.9`
+- Export aktif v1: `PNG`
+- `JPG` tidak ditampilkan di UI v1 agar flow output tetap sederhana.
+- Dukungan teknis `JPG` boleh dipertahankan sebagai fallback internal atau opsi fase berikutnya.
 
 ### 4.2 Ukuran canvas output
 
 Baseline output:
 
-- `2 foto`: `1200 x 3600`
-- `3 foto`: `1200 x 3600`
-- `4 foto`: `1200 x 3600`
-- `6 foto`: `1200 x 3600`
+- `2 foto`: `1200 x 1910`
+- `3 foto`: `1200 x 2740`
+- `4 foto`: `1200 x 3570`
+- `6 foto`: `1200 x 5230`
+
+Prinsip ukuran output:
+
+- tinggi canvas harus mengikuti jumlah foto agar hasil simpan tidak tampak seperti kertas kosong terlalu panjang
+- `6 foto` tetap memakai tinggi strip penuh karena jumlah slot membutuhkan ruang penuh
+- `4 foto` memakai strip tinggi yang padat
+- `2 foto` dan `3 foto` memakai canvas lebih pendek
+
+Rasio slot foto:
+
+- default slot foto memakai rasio kamera landscape `4:3`
+- stream kamera yang lebih lebar dari `4:3` di-crop tengah saat capture agar hasil tidak gepeng
+- layout `6 foto` boleh memakai slot lebih sempit agar enam foto `4:3` tetap masuk ke canvas strip penuh
 
 App boleh menurunkan ukuran pada device lemah dengan aturan berikut:
 
@@ -291,7 +308,7 @@ Wajib:
 - strict CSP
 - Permissions-Policy untuk membatasi camera hanya ke origin sendiri
 - tidak ada inline remote script pihak ketiga di production
-- semua custom text disanitasi dan dibatasi panjang
+- tidak ada input teks kustom pada v1 process-first; jika fitur teks diaktifkan kembali, sanitasi dan batas panjang wajib diterapkan sebelum rilis
 
 ### 9.2 CSP baseline
 
@@ -319,11 +336,11 @@ Catatan:
 - jika analytics diaktifkan di fase depan, hanya event non-image dan harus tercantum di privacy notice
 - tombol `Hapus Semua Data` wajib menghapus gallery, setting lokal, dan cache aplikasi yang dapat dihapus oleh app
 
-### 9.4 Input constraints
+### 9.4 Future customization constraints
 
-- `logoText` maksimum `24` karakter
+- `logoText` maksimum `24` karakter jika fitur logo text diaktifkan kembali
 - karakter kontrol dan markup tidak boleh diterima
-- sticker aktif maksimum `5`
+- sticker aktif maksimum `5` jika fitur sticker diaktifkan kembali
 
 ---
 
@@ -410,7 +427,6 @@ Wajib lulus pada browser target utama:
 - upload lokal valid
 - upload lokal invalid
 - render PNG
-- render JPG
 - download
 - reset session
 - delete single gallery item

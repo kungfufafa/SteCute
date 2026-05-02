@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onErrorCaptured } from 'vue'
+import { ui } from '@/ui/styles'
 
 const error = ref<Error | null>(null)
 
@@ -14,26 +15,18 @@ function dismiss() {
 </script>
 
 <template>
-  <div
-    v-if="error"
-    class="flex min-h-svh flex-col items-center justify-center bg-stc-bg p-4"
-  >
+  <div v-if="error" class="bg-stc-bg flex min-h-svh flex-col items-center justify-center p-4">
     <div
-      class="w-full max-w-sm rounded-[28px] border border-stc-border bg-white/95 p-6 text-center shadow-[0_24px_60px_rgba(26,26,46,0.12)] backdrop-blur"
+      class="border-stc-border shadow-stc-xs w-full max-w-sm rounded-2xl border bg-white p-6 text-center"
     >
       <div
-        class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-stc-error-soft text-stc-error"
+        class="bg-stc-error-soft text-stc-error mx-auto mb-4 flex size-14 items-center justify-center rounded-full"
       >
         !
       </div>
-      <h2 class="mb-2 text-lg font-semibold text-stc-error">Something went wrong</h2>
-      <p class="mb-4 text-sm leading-relaxed text-stc-text-soft">{{ error.message }}</p>
-      <button
-        class="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-stc-text px-5 py-3 text-sm font-semibold text-white shadow-stc-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-stc-text-soft active:scale-[0.98]"
-        @click="dismiss"
-      >
-        Dismiss
-      </button>
+      <h2 class="text-stc-error mb-2 text-lg font-semibold">Ada yang bermasalah</h2>
+      <p class="text-stc-text-soft mb-4 text-sm leading-relaxed">{{ error.message }}</p>
+      <button :class="[ui.secondaryButton, 'w-full']" @click="dismiss">Tutup</button>
     </div>
   </div>
   <slot v-else />

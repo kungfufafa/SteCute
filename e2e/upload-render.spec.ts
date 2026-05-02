@@ -6,14 +6,12 @@ const uploadFixtures = [
   'public/images/1759243291185.png',
   'public/images/1769149454852.png',
   'public/images/1770039834020.png',
-  'public/icons/icon-512x512.png',
 ].map((path) => resolve(path))
 
 async function openUploadFlow(page: Page) {
   await page.goto('/config?source=upload')
-  await page.getByRole('button', { name: '4 Foto Ukuran 2x6 2x6' }).click()
-  await page.getByRole('button', { name: 'Youth Bundled offline Ready' }).click()
-  await page.getByRole('button', { name: 'Mulai Sesi' }).click()
+  await page.getByRole('button', { name: /3 Foto, strip Fit 3 foto, slot foto rasio 4:3/ }).click()
+  await page.getByRole('button', { name: 'Pilih Foto' }).click()
   await expect(page).toHaveURL('/upload')
 }
 
@@ -31,7 +29,7 @@ test.describe('real browser upload flow', () => {
 
     await expect(page.getByText('Masalah Upload')).toBeVisible()
     await expect(page.getByText('"invalid-upload.txt" bukan format yang didukung. Gunakan JPG, PNG, atau WebP.')).toBeVisible()
-    await expect(page.getByText('Layout ini membutuhkan tepat 4 foto. Kamu memilih 1.')).toBeVisible()
+    await expect(page.getByText('Layout ini membutuhkan tepat 3 foto. Kamu memilih 1.')).toBeVisible()
   })
 
   test('uploads photos, renders output, and stores it in local gallery', async ({ page }) => {
@@ -48,9 +46,6 @@ test.describe('real browser upload flow', () => {
     const chooser = await chooserPromise
     await chooser.setFiles(uploadFixtures)
 
-    await expect(page.getByRole('button', { name: 'Lanjut ke Preview' })).toBeEnabled()
-    await page.getByRole('button', { name: 'Lanjut ke Preview' }).click()
-
     if (page.url().endsWith('/upload')) {
       await page.waitForTimeout(500)
       const uploadErrors = await page
@@ -65,18 +60,26 @@ test.describe('real browser upload flow', () => {
 
     await expect(page).toHaveURL('/review')
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
-    await page.getByRole('button', { name: 'Kustomisasi' }).click()
-
-    await expect(page).toHaveURL('/customize')
-    await page.getByRole('button', { name: 'Teks' }).click()
-    await page.getByLabel('Teks Logo').fill('<b>Browser QA Logo With Long Text</b>')
-    await page.getByText('Tanggal & Waktu').click()
-    await page.getByRole('button', { name: 'Simpan Hasil' }).click()
+    await page.getByRole('button', { name: 'Buat Hasil' }).click()
 
     await expect(page).toHaveURL('/output', { timeout: 20_000 })
-    await expect(page.getByRole('img', { name: 'Rendered strip' })).toBeVisible({ timeout: 20_000 })
+    const renderedStrip = page.getByRole('img', { name: 'Rendered strip' })
+    await expect(renderedStrip).toBeVisible({ timeout: 20_000 })
+    await expect
+      .poll(
+        async () =>
+          renderedStrip.evaluate((image) => ({
+            width: (image as HTMLImageElement).naturalWidth,
+            height: (image as HTMLImageElement).naturalHeight,
+          })),
+        { timeout: 20_000 },
+      )
+      .toEqual({ width: 1200, height: 2740 })
+    await expect(page.getByRole('button', { name: 'PNG' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'JPG' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Download' })).toBeVisible()
-    await page.getByRole('button', { name: 'Galeri' }).click()
+    await page.getByRole('button', { name: 'Opsi lain' }).click()
+    await page.getByRole('button', { name: 'Lihat Galeri' }).click()
 
     await expect(page).toHaveURL('/gallery')
     await expect(page.getByText('1 item')).toBeVisible()

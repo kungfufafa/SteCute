@@ -19,9 +19,7 @@ useRegisterSW({
   <ErrorBoundary>
     <OfflineBanner />
     <UpdatePrompt ref="updatePromptRef" />
-    <div
-      class="min-h-dvh bg-stc-bg text-stc-text"
-    >
+    <div class="bg-stc-bg text-stc-text min-h-dvh">
       <RouterView />
     </div>
   </ErrorBoundary>

@@ -1,14 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { createDecorationConfig, renderAndStoreSession } from '@/services/session'
+import { createDefaultDecorationConfig, renderAndStoreSession } from '@/services/session'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
-import { useCustomizeStore, useSessionStore } from '@/stores'
+import { useSessionStore } from '@/stores'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
-const customizeStore = useCustomizeStore()
 const isRendering = ref(false)
 
 onMounted(async () => {
@@ -30,13 +29,7 @@ onMounted(async () => {
       sessionId,
       layout,
       template,
-      decoration: createDecorationConfig({
-        filterId: customizeStore.activeFilterId,
-        frameColor: customizeStore.frameColor,
-        selectedStickerIds: customizeStore.selectedStickerIds,
-        showDateTime: customizeStore.showDateTime,
-        logoText: customizeStore.logoText,
-      }),
+      decoration: createDefaultDecorationConfig(template),
       format: 'image/png',
     })
 
@@ -58,26 +51,30 @@ onMounted(async () => {
     class="mx-auto flex min-h-dvh w-full max-w-6xl items-center justify-center px-4 py-10 text-center sm:px-6 lg:px-10"
   >
     <div
-      class="w-full max-w-md rounded-[32px] border border-stc-border bg-white/95 px-8 py-10 shadow-[0_24px_70px_rgba(26,26,46,0.14)]"
+      class="border-stc-border shadow-stc-sm w-full max-w-md rounded-2xl border bg-white px-8 py-10"
     >
-      <div class="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-stc-pink-soft">
-        <div class="size-10 animate-spin rounded-full border-4 border-transparent border-r-stc-pink/60 border-t-stc-pink"></div>
+      <div
+        class="bg-stc-pink-soft mx-auto mb-5 flex size-16 items-center justify-center rounded-full"
+      >
+        <div
+          class="border-r-stc-pink/60 border-t-stc-pink size-10 animate-spin rounded-full border-4 border-transparent"
+        ></div>
       </div>
-      <h3 class="text-xl font-bold tracking-tight text-stc-text">Memproses...</h3>
-      <p class="mt-2 text-sm leading-relaxed text-stc-text-soft">
-        Menggabungkan foto ke template strip pilihan kamu.
+      <h3 class="text-stc-text text-xl font-bold tracking-tight">Memproses...</h3>
+      <p class="text-stc-text-soft mt-2 text-sm leading-relaxed">
+        Menggabungkan foto ke strip final.
       </p>
-      <div class="mt-8 overflow-hidden rounded-full bg-stc-border">
+      <div class="bg-stc-border mt-8 overflow-hidden rounded-full">
         <div
           v-if="isRendering"
-          class="h-2 w-1/3 animate-indeterminate-progress rounded-full bg-stc-pink"
+          class="animate-indeterminate-progress bg-stc-pink h-2 w-1/3 rounded-full"
         ></div>
         <div
           v-else
-          class="h-2 w-full rounded-full bg-stc-success transition-[width] duration-300"
+          class="bg-stc-success h-2 w-full rounded-full transition-[width] duration-150"
         ></div>
       </div>
-      <p class="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-stc-text-faint">
+      <p class="text-stc-text-faint mt-3 text-xs font-semibold tracking-[0.16em] uppercase">
         {{ isRendering ? 'Memproses...' : 'Selesai' }}
       </p>
     </div>

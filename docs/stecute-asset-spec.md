@@ -31,10 +31,6 @@ Rekomendasi struktur:
 src/assets/
   icons/
   frames/
-  stickers/
-    starter/
-  filters/
-    previews/
   templates/
     classic/
     youth/
@@ -54,8 +50,7 @@ public/
 
 - icon UI: `SVG`
 - frame raster: `PNG`
-- sticker: `PNG` transparan
-- preview kecil: `WebP` atau `PNG`
+- template preview kecil: `WebP` atau `PNG`
 - app icon PWA: `PNG`
 - font: `WOFF2`
 
@@ -68,10 +63,8 @@ public/
 
 ### 3.3 Aturan ukuran
 
-- satu sticker file target `< 150 KB`
 - satu frame file target `< 250 KB`
-- satu preview filter target `< 80 KB`
-- total sticker starter pack target `< 2 MB`
+- satu template preview target `< 80 KB`
 - total frame dan template visual target `< 2 MB`
 - total font target `< 500 KB`
 - total bundled visual asset target `< 8 MB`
@@ -140,11 +133,11 @@ Setiap layout harus memiliki:
 
 ---
 
-## 6. Filter inventory
+## 6. Deferred filter inventory
 
-### 6.1 Filter wajib v1
+Filter manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diaktifkan kembali, baseline berikut dapat dipakai sebagai inventory awal.
 
-Minimal `8` filter:
+### 6.1 Filter kandidat fase berikutnya
 
 - `normal`
 - `bw`
@@ -155,7 +148,7 @@ Minimal `8` filter:
 - `film`
 - `rosy`
 
-### 6.2 Filter implementation rule
+### 6.2 Filter implementation rule fase berikutnya
 
 - filter final harus diterapkan via render engine, bukan gambar preview statis
 - preview filter menggunakan thumbnail asset kecil
@@ -163,11 +156,11 @@ Minimal `8` filter:
 
 ---
 
-## 7. Sticker inventory
+## 7. Deferred sticker inventory
 
-### 7.1 Starter pack v1
+Sticker manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diaktifkan kembali, starter pack berikut dapat dipakai sebagai baseline.
 
-Starter pack terdiri dari `16` sticker:
+### 7.1 Starter pack fase berikutnya
 
 - `4` playful shapes
 - `4` stars or sparkles
@@ -176,7 +169,7 @@ Starter pack terdiri dari `16` sticker:
 - `2` speech or doodle accent
 - `2` celebration elements
 
-### 7.2 Sticker constraints
+### 7.2 Sticker constraints fase berikutnya
 
 - maksimum sticker aktif pada satu render: `5`
 - semua sticker harus PNG transparan

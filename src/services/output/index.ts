@@ -56,12 +56,14 @@ export async function saveBlob(blob: Blob, filename: string): Promise<boolean> {
   if (!saveFilePicker) return false
 
   try {
+    const accept: Record<string, string[]> =
+      blob.type === 'image/jpeg' ? { 'image/jpeg': ['.jpg'] } : { 'image/png': ['.png'] }
     const handle = await saveFilePicker({
       suggestedName: filename,
       types: [
         {
           description: 'Photo Strip',
-          accept: { 'image/png': ['.png'], 'image/jpeg': ['.jpg'] },
+          accept,
         },
       ],
     })

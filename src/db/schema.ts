@@ -99,6 +99,17 @@ export interface TemplateConfig {
   id: string
   name: string
   background: string
+  surfaceColor: string
+  accentColor: string
+  textColor: string
+  blanko: {
+    mode: 'generated' | 'image'
+    backgroundImage: string | null
+    pattern: 'paper' | 'gingham' | 'mono'
+    photoPadding: number
+    photoRadius: number
+    photoShadow: boolean
+  }
   frameAsset: string
   defaultFrameColor: string
   label: {
@@ -106,6 +117,7 @@ export interface TemplateConfig {
     fontSize: number
     align: 'left' | 'center' | 'right'
   }
+  footerLogo: string | null
   supports: {
     stickers: boolean
     frameColor: boolean

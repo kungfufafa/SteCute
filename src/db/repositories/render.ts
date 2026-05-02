@@ -11,7 +11,9 @@ export class RenderRepository {
   async create(render: Omit<Render, 'id' | 'sizeBytes'>): Promise<string> {
     const id = crypto.randomUUID()
     const sizeBytes = render.blob.size
-    await writeBlobWithFallback(render.blob, (blob) => db.renders.add({ ...render, blob, id, sizeBytes }))
+    await writeBlobWithFallback(render.blob, (blob) =>
+      db.renders.add({ ...render, blob, id, sizeBytes }),
+    )
     return id
   }
 

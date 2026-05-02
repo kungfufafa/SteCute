@@ -5,15 +5,15 @@ export const strip2Config: LayoutConfig = {
   name: '2 Foto',
   slotCount: 2,
   printFormat: {
-    id: '2x6-mini-strip',
+    id: 'fit-2-photo-strip',
     label: '2 Foto',
-    paperSize: '2x6 in',
-    description: 'Ukuran 2x6',
-    fileSlug: '2x6-mini-strip',
+    paperSize: 'Fit 2 foto',
+    description: 'Kertas pendek',
+    fileSlug: 'fit-2-photo-strip',
   },
-  canvas: { width: 1200, height: 3600 },
+  canvas: { width: 1200, height: 1910 },
   slots: [
-    { x: 150, y: 180, width: 900, height: 1560, radius: 20 },
-    { x: 150, y: 1860, width: 900, height: 1560, radius: 20 },
+    { x: 60, y: 60, width: 1080, height: 810, radius: 0 },
+    { x: 60, y: 890, width: 1080, height: 810, radius: 0 },
   ],
 }

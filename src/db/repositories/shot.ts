@@ -30,11 +30,22 @@ export class ShotRepository {
     await db.shots.where('sessionId').equals(sessionId).delete()
   }
 
-  async replaceShot(sessionId: string, order: number, blob: Blob, width: number, height: number): Promise<void> {
+  async replaceShot(
+    sessionId: string,
+    order: number,
+    blob: Blob,
+    width: number,
+    height: number,
+  ): Promise<void> {
     const existing = await this.getBySessionAndOrder(sessionId, order)
     if (existing) {
       await writeBlobWithFallback(blob, async (storedBlob) => {
-        await db.shots.update(existing.id, { blob: storedBlob, width, height, createdAt: Date.now() })
+        await db.shots.update(existing.id, {
+          blob: storedBlob,
+          width,
+          height,
+          createdAt: Date.now(),
+        })
       })
     }
   }

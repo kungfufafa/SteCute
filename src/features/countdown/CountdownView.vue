@@ -38,6 +38,6 @@ onUnmounted(() => {
     <p class="mb-4 text-sm tracking-wider text-white/60">
       FOTO {{ currentShot + 1 }} DARI {{ totalShots }}
     </p>
-    <span class="text-9xl font-black leading-none tabular-nums">{{ remaining }}</span>
+    <span class="text-9xl leading-none font-bold tabular-nums">{{ remaining }}</span>
   </div>
 </template>

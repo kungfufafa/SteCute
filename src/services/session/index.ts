@@ -32,6 +32,14 @@ export function createDecorationConfig(input?: Partial<DecorationConfig>): Decor
   return normalizeDecorationConfig(input)
 }
 
+export function createDefaultDecorationConfig(
+  template?: Pick<TemplateConfig, 'defaultFrameColor'>,
+): DecorationConfig {
+  return normalizeDecorationConfig({
+    frameColor: template?.defaultFrameColor,
+  })
+}
+
 export async function createSession(config: SessionFlowConfig): Promise<string> {
   return sessionRepo.create({
     status: 'idle',

@@ -34,11 +34,6 @@ const router = createRouter({
       component: () => import('@/features/review/ReviewView.vue'),
     },
     {
-      path: '/customize',
-      name: 'customize',
-      component: () => import('@/features/customize/CustomizeView.vue'),
-    },
-    {
       path: '/render',
       name: 'render',
       component: () => import('@/features/renderer/RendererView.vue'),

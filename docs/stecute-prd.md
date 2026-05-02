@@ -10,7 +10,7 @@ Pemilik dokumen: Product + Founder
 
 ## 1. Ringkasan produk
 
-Produk yang akan dibangun adalah aplikasi web photo booth offline-first tanpa login yang memungkinkan pengguna membuka aplikasi, memberi izin kamera atau mengunggah foto lokal, memilih layout, mengambil atau menyusun beberapa foto, mengatur filter dan dekorasi, lalu langsung menyimpan hasil sebagai photo strip tanpa membuat akun.
+Produk yang akan dibangun adalah aplikasi web photo booth offline-first tanpa login yang memungkinkan pengguna membuka aplikasi, memberi izin kamera atau mengunggah foto lokal, memilih jumlah foto, mengambil atau menyusun beberapa foto, melakukan review dan retake, lalu langsung menyimpan hasil sebagai photo strip tanpa membuat akun.
 
 Produk ini ditujukan untuk dua konteks utama:
 
@@ -24,7 +24,7 @@ Prinsip utama produk:
 - Semua proses inti berjalan lokal di device pengguna.
 - Foto dan hasil akhir disimpan lokal secara default.
 - Cepat dipakai dalam hitungan detik.
-- Tetap kompetitif dalam variasi layout, filter, dekorasi, dan output.
+- Tetap kompetitif dalam variasi layout, alur capture, dan output tanpa membebani pengguna dengan terlalu banyak pilihan awal.
 - UI sederhana untuk consumer, namun cukup kuat untuk event use.
 
 Dokumen pendamping yang menjadi referensi final untuk implementasi:
@@ -40,8 +40,8 @@ Dokumen pendamping yang menjadi referensi final untuk implementasi:
 Berdasarkan pola dari aplikasi referensi, kebutuhan inti pasar untuk produk photo booth digital adalah:
 
 - Pengambilan beberapa foto berurutan dengan timer singkat.
-- Format cetak strip utama adalah `2x6 inci / 5x15 cm` dengan pilihan `2 foto`, `3 foto`, `4 foto`, atau `6 foto`.
-- Filter, frame, sticker, dan dekorasi untuk personalisasi hasil.
+- Format output utama adalah photo strip adaptif dengan pilihan `2 foto`, `3 foto`, `4 foto`, atau `6 foto`; tinggi hasil simpan mengikuti jumlah foto agar tidak ada ruang kosong berlebihan.
+- Template default yang clean dan konsisten tanpa memperlambat alur inti.
 - Output yang langsung bisa diunduh, disimpan, dibagikan, atau dicetak ringan.
 - Pengalaman yang ringan, instan, estetik, dan cocok untuk event maupun penggunaan personal.
 
@@ -55,7 +55,7 @@ Masalah yang ingin diselesaikan:
 
 Kesimpulan produk:
 
-Aplikasi harus memprioritaskan local-first execution. Semua fungsi utama capture, upload lokal, review, kustomisasi, compositing, export, save, dan gallery lokal harus dapat berjalan di perangkat pengguna setelah aplikasi dimuat dan tercache.
+Aplikasi harus memprioritaskan local-first execution. Semua fungsi utama capture, upload lokal, review, retake, compositing, export, save, dan gallery lokal harus dapat berjalan di perangkat pengguna setelah aplikasi dimuat dan tercache.
 
 ---
 
@@ -71,7 +71,7 @@ Menjadi aplikasi photo booth web offline-first tanpa login yang paling cepat, ny
 
 - Menghadirkan MVP yang cukup kuat untuk validasi pasar consumer dan event.
 - Menekan biaya infrastruktur dengan memproses mayoritas alur di sisi client.
-- Membedakan produk lewat privacy by default, offline-first, dan kustomisasi hasil yang tetap ringan.
+- Membedakan produk lewat privacy by default, offline-first, dan alur photo booth yang cepat serta mudah dipahami.
 - Membuka peluang monetisasi tahap lanjut lewat template premium, branding event, kiosk mode, atau paket SaaS event.
 
 ### 4.2 Tujuan produk
@@ -92,6 +92,7 @@ Menjadi aplikasi photo booth web offline-first tanpa login yang paling cepat, ny
 - Pembayaran dan template berbayar.
 - Native print driver.
 - QR delivery yang mengharuskan backend.
+- Kustomisasi manual pasca-capture seperti filter, frame color, sticker, date/time, dan logo text. Fitur ini ditunda sampai alur inti capture-review-render terasa solid.
 
 ---
 
@@ -109,7 +110,7 @@ Kebutuhan utama:
 - Kamera cepat aktif.
 - Timer jelas.
 - Layout menarik.
-- Filter dan dekorasi sederhana.
+- Template hasil yang menarik tanpa setup panjang.
 - Mudah retake.
 - Mudah simpan hasil.
 
@@ -140,8 +141,8 @@ Kebutuhan utama:
 - Tanpa login dan tanpa friksi akun.
 - Offline-first dan local-first, cocok untuk event dan koneksi buruk.
 - Privacy by default: foto diproses lokal dan tidak wajib diunggah ke server.
-- Format cetak utama tetap `2x6 inci / 5x15 cm` dengan variasi `2 foto`, `3 foto`, `4 foto`, dan `6 foto`.
-- Hasil lebih personal: filter, frame color, sticker, date or time, dan logo teks sederhana.
+- Format cetak utama memakai varian adaptif `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, dengan `6 foto` tetap memakai strip tinggi penuh.
+- Template default `Classic` memberi hasil clean seperti photobooth tanpa langkah kustomisasi tambahan.
 - Output siap pakai: download, save to device, share sheet, dan print ringan bila browser mendukung.
 - Dapat diinstal sebagai PWA untuk pengalaman yang terasa seperti aplikasi.
 
@@ -155,29 +156,27 @@ Kebutuhan utama:
 2. Permintaan izin kamera saat dibutuhkan.
 3. Opsi sumber foto: kamera atau upload foto lokal.
 4. Pemilihan kamera depan atau belakang jika tersedia.
-5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto` dalam format `2x6 inci / 5x15 cm`.
-6. Pilihan countdown: 3 detik, 5 detik, 10 detik.
+5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto` dengan tinggi canvas mengikuti jumlah foto.
+6. Countdown default 3 detik untuk flow kamera.
 7. Capture berurutan sesuai jumlah slot layout.
 8. Review hasil per sesi.
 9. Retake seluruh sesi.
 10. Retake per-shot sebelum render final.
-11. Pilihan template dan frame color dasar.
-12. Filter warna dasar yang dibundel offline.
-13. Sticker pack dasar yang dibundel offline.
-14. Toggle date, time, dan logo teks sederhana.
-15. Render hasil final photo strip.
-16. Download hasil PNG atau JPG.
-17. Save to device melalui flow browser yang tersedia.
-18. Native share sheet jika browser mendukung.
-19. Print ringan jika browser mendukung.
-20. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
-21. Dukungan offline setelah initial install atau cache.
-22. Reset session cepat untuk pengguna berikutnya.
-23. Shortcut keyboard dasar untuk desktop.
-24. Basic responsive UI untuk desktop, tablet, mobile.
+11. Template default `Classic` dengan visual photobooth clean.
+12. Render hasil final photo strip.
+13. Download hasil PNG.
+14. Save to device melalui flow browser yang tersedia.
+15. Native share sheet jika browser mendukung.
+16. Print ringan jika browser mendukung.
+17. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
+18. Dukungan offline setelah initial install atau cache.
+19. Reset session cepat untuk pengguna berikutnya.
+20. Shortcut keyboard dasar untuk desktop.
+21. Basic responsive UI untuk desktop, tablet, mobile.
 
 ### 8.2 Fitur nice-to-have bila sempat dalam MVP+
 
+- Kustomisasi manual pasca-capture: filter, frame color, sticker, date/time, dan logo text.
 - Preview live filter yang lebih kaya.
 - Upload custom background lokal.
 - Sound on or off.
@@ -207,16 +206,17 @@ Kebutuhan utama:
 1. Pengguna membuka aplikasi.
 2. Jika pertama kali, aplikasi menjelaskan bahwa fitur inti berjalan lokal dan offline penuh tersedia setelah cache selesai.
 3. Pengguna memilih kamera atau upload foto lokal.
-4. Pengguna memilih layout, template, dan countdown.
+4. Pengguna memilih jumlah foto.
 5. Pengguna mengambil foto sesuai jumlah slot layout.
-6. Pengguna melihat preview hasil dan menambahkan filter, sticker, frame color, date or time, atau logo sederhana.
-7. Pengguna menekan download, save, share, print, atau retake.
-8. Jika download atau save, file tersimpan lokal.
+6. Pengguna melihat preview hasil dan dapat retake per-shot atau seluruh sesi.
+7. Pengguna membuat hasil final.
+8. Pengguna menekan download, save, share, print, atau mulai sesi baru.
+9. Jika download atau save, file tersimpan lokal.
 
 ### Journey B - Event booth
 
 1. Operator membuka aplikasi dan memastikan app shell sudah tercache.
-2. Operator memilih layout dan template acara yang sudah tersedia lokal.
+2. Operator memakai default layout/template yang sudah tersedia lokal.
 3. Tamu datang dan menekan mulai.
 4. Sesi foto berjalan cepat tanpa login.
 5. Hasil final langsung tersedia untuk download, save, share, atau print bila didukung browser.
@@ -252,26 +252,26 @@ Acceptance criteria:
 
 ### FR-03 Session configuration
 
-- Pengguna bisa memilih sumber foto, layout, template, countdown, dan style dasar sebelum sesi dimulai.
-- Pengguna bisa melihat contoh hasil layout atau template.
+- Pengguna memilih jumlah foto sebelum sesi dimulai.
+- Sumber foto berasal dari entry point awal: `Mulai Foto` atau `Upload Lokal`.
+- Template dan countdown memakai default agar flow tetap singkat.
 
 Acceptance criteria:
 
-- Minimal tersedia hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` dalam format `2x6 inci / 5x15 cm`.
-- Minimal tersedia 3 template dasar di MVP.
-- Minimal tersedia 6 filter bundled offline.
+- Minimal tersedia hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` dengan ukuran output yang fit terhadap jumlah foto.
+- Default aktif memakai template `Classic`; template lain dapat tetap tersedia di engine untuk fase berikutnya.
 
 ### FR-04 Countdown and capture
 
 - Aplikasi mengambil foto berurutan sesuai jumlah slot layout aktif.
-- Countdown per foto dapat dipilih 3 detik, 5 detik, atau 10 detik.
+- Countdown kamera memakai default 3 detik.
 - Sistem memberi feedback visual yang jelas pada setiap pengambilan.
 
 Acceptance criteria:
 
 - Pengguna tahu foto ke berapa yang sedang diambil.
 - Jeda antar shot konsisten.
-- Hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` dalam format `2x6 inci / 5x15 cm` menghasilkan jumlah shot yang benar.
+- Hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` menghasilkan jumlah shot yang benar dan tinggi output sesuai jumlah foto.
 
 ### FR-05 Upload local images
 
@@ -285,22 +285,22 @@ Acceptance criteria:
 - Format yang diterima dibatasi ke JPG, PNG, atau WebP.
 - Ukuran file maksimum 10 MB per file.
 
-### FR-06 Review, customize, and retake
+### FR-06 Review, render, and retake
 
 - Setelah sesi selesai, pengguna bisa melihat semua shot dan preview final.
 - Pengguna dapat retake seluruh sesi.
 - Pengguna dapat retake per-shot sebelum render final.
-- Pengguna dapat menambahkan filter, frame color, sticker, date or time, dan logo teks sederhana sebelum export.
+- Pengguna dapat melanjutkan langsung ke render final tanpa langkah kustomisasi tambahan.
 
 Acceptance criteria:
 
-- Semua dekorasi inti dapat dipakai tanpa koneksi internet.
+- Template default diterapkan pada hasil final tanpa koneksi internet.
 - Retake menghapus hasil sementara session sebelumnya bila pengguna konfirmasi.
 - Retake per-shot tidak menghapus shot lain yang masih valid.
 
 ### FR-07 Photo strip rendering
 
-- Sistem menggabungkan foto sesuai layout dan template terpilih.
+- Sistem menggabungkan foto sesuai layout aktif dan template default.
 - Sistem menghasilkan output final dengan resolusi siap simpan dan siap cetak ringan.
 
 Acceptance criteria:
@@ -310,7 +310,7 @@ Acceptance criteria:
 
 ### FR-08 Export and local save
 
-- Pengguna dapat mengunduh hasil sebagai PNG atau JPG.
+- Pengguna dapat mengunduh hasil sebagai PNG.
 - Pengguna dapat menyimpan hasil ke device melalui flow browser yang tersedia.
 - Pengguna dapat menggunakan native share sheet bila browser mendukung.
 - Pengguna dapat menggunakan print ringan bila browser mendukung sebagai capability bonus.
@@ -326,7 +326,7 @@ Acceptance criteria:
 ### FR-09 Offline mode
 
 - Setelah app shell dan aset inti tersimpan, fungsi utama harus tetap berjalan tanpa internet.
-- Template inti, filter dasar, sticker pack dasar, dan asset frame tersedia offline.
+- Template inti dan visual default template tersedia offline.
 
 Acceptance criteria:
 
@@ -381,11 +381,11 @@ Acceptance criteria:
 - Permission kamera dikelola secara eksplisit.
 - Tidak ada eksekusi template dinamis yang tidak tervalidasi.
 - Font produksi harus self-hosted.
-- Logo text harus disanitasi dan dibatasi panjangnya.
+- Input teks kustom belum ada di v1 process-first.
 
 ### NFR-06 Maintainability
 
-- Komponen UI, capture engine, render engine, decoration engine, dan persistence dipisahkan jelas.
+- Komponen UI, capture engine, render engine, template engine, dan persistence dipisahkan jelas.
 - Layout dan template dapat ditambah tanpa mengubah core flow.
 
 ---
@@ -398,7 +398,7 @@ Acceptance criteria:
 - Layout nyaman disentuh di tablet dan mobile.
 - Tunjukkan privacy dan offline state secara jelas namun halus.
 - UI event-friendly: operator bisa menjalankan sesi berulang dengan cepat.
-- Kustomisasi harus terasa menyenangkan, tetapi tidak memperlambat alur inti.
+- Pilihan template harus memperkaya hasil tanpa menambah langkah setelah review.
 
 ---
 
@@ -442,11 +442,8 @@ Acceptance criteria:
 ### Phase 1 - MVP publik
 
 - PWA offline-first.
-- Format cetak `2x6 inci / 5x15 cm` dengan varian `2 foto`, `3 foto`, `4 foto`, `6 foto`.
-- 3 template dasar.
-- Filter bundled offline.
-- Frame color dan sticker pack dasar.
-- Date or time dan logo teks sederhana.
+- Format cetak adaptif dengan varian `2 foto`, `3 foto`, `4 foto`, `6 foto`.
+- Template default Classic.
 - Upload foto lokal.
 - Gallery 10 hasil terakhir.
 - Error state permission kamera.
@@ -502,7 +499,7 @@ Mitigasi:
 
 - Gunakan worker untuk compositing.
 - Sediakan preset resolusi sesuai device.
-- Batasi jumlah asset dekorasi aktif bila perlu.
+- Batasi ukuran dan kompleksitas template aktif bila perlu.
 
 ### Risiko 5 - Penyimpanan lokal penuh
 
@@ -510,7 +507,7 @@ Mitigasi:
 
 - Batasi gallery lokal default.
 - Beri opsi hapus hasil lama.
-- Simpan asset dekorasi secara bundled, bukan duplikasi per sesi.
+- Simpan asset template secara bundled, bukan duplikasi per sesi.
 
 ---
 
@@ -519,7 +516,7 @@ Mitigasi:
 - Fokus utama MVP adalah web app PWA, bukan native mobile app.
 - Tidak ada backend wajib untuk fitur inti.
 - Pengguna menerima model anonymous local session.
-- Layout, template, filter, dan sticker inti dibundel ke aplikasi agar tersedia offline.
+- Layout dan template inti dibundel ke aplikasi agar tersedia offline.
 
 ---
 
@@ -534,14 +531,14 @@ Mitigasi:
 
 - Membuat UI state lengkap: loading, permission denied, offline, rendering, success, error.
 - Membuat minimal 4 layout dasar.
-- Membuat 3 template strip dasar, filter preview, dan sticker pack awal.
+- Membuat template default Classic yang clean dan siap dipakai.
 - Menyediakan asset spec final dan font self-hosted.
 
 ### Engineering
 
 - Capture engine.
 - Upload lokal flow.
-- Render and decoration engine.
+- Render and template engine.
 - Offline caching.
 - Local persistence.
 
@@ -559,7 +556,7 @@ Mitigasi:
 - Preset event dasar tidak masuk v1. Masuk fase berikutnya.
 - GIF export lokal tidak masuk v1.
 - Print ringan diperlakukan sebagai capability bonus, bukan blocker rilis.
-- Sticker aktif pada satu render dibatasi untuk menjaga performa device menengah.
+- Kustomisasi manual pasca-capture ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
 - Gallery lokal menyimpan final render, bukan raw shots jangka panjang.
 
 ---
@@ -569,9 +566,9 @@ Mitigasi:
 MVP dianggap selesai jika:
 
 - Pengguna bisa membuka aplikasi tanpa login.
-- Pengguna bisa memilih sumber foto, layout, dan template.
+- Pengguna bisa memilih sumber foto dan jumlah foto.
 - Pengguna bisa mengambil atau mengunggah foto sesuai jumlah slot layout.
-- Pengguna bisa mengatur filter dan dekorasi dasar.
+- Pengguna bisa melihat hasil strip final tanpa langkah kustomisasi tambahan.
 - Pengguna bisa melihat hasil strip final.
 - Pengguna bisa mengunduh atau menyimpan hasil tanpa backend.
 - Aplikasi tetap dapat digunakan offline setelah initial load dan cache selesai.

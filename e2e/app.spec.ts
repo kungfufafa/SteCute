@@ -17,9 +17,9 @@ test.describe('Stecute app smoke', () => {
     await page.getByRole('button', { name: 'Mulai Foto' }).click()
 
     await expect(page).toHaveURL('/config?source=camera')
-    await expect(page.getByRole('heading', { name: 'Setup Sesi' })).toBeVisible()
-    await expect(page.getByText('Hasil Cetak', { exact: true })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Mulai Sesi' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Pilih Jumlah Foto' })).toBeVisible()
+    await expect(page.getByText('Strip', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Buka Kamera' })).toBeVisible()
   })
 
   test('navigates to upload view from landing', async ({ page }) => {
@@ -28,11 +28,11 @@ test.describe('Stecute app smoke', () => {
     await page.getByRole('button', { name: 'Upload Lokal' }).first().click()
 
     await expect(page).toHaveURL('/config?source=upload')
-    await page.getByRole('button', { name: 'Mulai Sesi' }).click()
+    await page.getByRole('button', { name: 'Pilih Foto' }).click()
 
     await expect(page).toHaveURL('/upload')
     await expect(page.getByRole('heading', { name: 'Upload Foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Lanjut ke Preview' })).toBeDisabled()
+    await expect(page.getByRole('button', { name: 'Pilih Foto' })).toBeVisible()
   })
 
   test('shows gallery empty state on fresh app', async ({ page }) => {

@@ -19,7 +19,7 @@ Aplikasi dibangun sebagai PWA berbasis SPA dengan offline-first architecture. Se
 - countdown
 - multi-shot capture
 - layout-driven compositing
-- decoration rendering
+- template-driven rendering
 - export and output actions
 - local persistence
 
@@ -73,7 +73,7 @@ Keputusan utama:
 - Tidak memakai login agar friction minimum.
 - Tidak bergantung pada backend untuk fitur inti agar offline-first benar-benar terasa.
 - PWA dipilih karena paling efisien untuk web installability dan cache offline.
-- Format cetak `2x6 inci / 5x15 cm` dan template dibuat data-driven agar varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto` bisa didukung tanpa mengubah core engine.
+- Format output dan template dibuat data-driven agar varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto` bisa didukung tanpa mengubah core engine.
 - Output actions dibuat capability-based agar save, share, dan print hanya muncul bila browser mendukung.
 - Tauri diposisikan sebagai extension phase jika nanti dibutuhkan kiosk native atau integrasi OS lebih dalam.
 
@@ -82,9 +82,9 @@ Keputusan utama:
 ## 2. Sasaran teknis
 
 - Fungsi inti tetap berjalan saat offline setelah initial install atau cache.
-- Arsitektur mendukung hasil cetak berbasis slot dengan ukuran final tetap `2x6 inci / 5x15 cm`.
+- Arsitektur mendukung hasil cetak berbasis slot dengan tinggi canvas yang mengikuti jumlah foto.
 - Satu engine mendukung dua sumber input: kamera dan upload lokal.
-- Semua dekorasi inti tersedia offline: filter, sticker, frame color, date or time, logo teks sederhana.
+- Template inti dan visual default template tersedia offline tanpa langkah kustomisasi manual.
 - Output mendukung download, save, share, dan print dengan capability detection per browser.
 - Render tidak membuat UI freeze yang mengganggu.
 - Local persistence aman untuk hasil session, gallery, dan konfigurasi device.
@@ -100,7 +100,7 @@ Keputusan utama:
 - Web app PWA.
 - Local capture engine.
 - Local upload pipeline.
-- Local render and decoration engine.
+- Local render and template engine.
 - Local asset cache.
 - Local gallery terbatas.
 - Output actions berbasis capability.
@@ -114,6 +114,7 @@ Keputusan utama:
 - Native print driver.
 - QR delivery berbasis server.
 - Server-side rendering.
+- Kustomisasi manual pasca-capture seperti filter, frame color, sticker, date/time, dan logo text.
 
 ---
 
@@ -128,7 +129,7 @@ flowchart TD
     A --> F[Session Orchestrator]
     F --> G[Render Worker]
     G --> H[Canvas or OffscreenCanvas]
-    G --> I[Decoration Engine]
+    G --> I[Template Engine]
     F --> B
     G --> J[Output Service]
     J --> K[Browser Download]
@@ -137,7 +138,7 @@ flowchart TD
     M --> N[IndexedDB via Dexie]
     O[Service Worker] --> P[App Shell Cache]
     O --> Q[Layout and Template Cache]
-    O --> R[Decoration Asset Cache]
+    O --> R[Template Asset Cache]
     A --> O
 ```
 
@@ -148,10 +149,10 @@ Penjelasan:
 - Camera Controller mengelola preview, switch camera, dan permission.
 - Upload Controller mengelola file lokal sebagai source alternatif.
 - Session Orchestrator membaca layout aktif dan menjalankan sesi sesuai jumlah slot.
-- Render Worker menyusun hasil akhir dan dekorasi di background thread bila tersedia.
+- Render Worker menyusun hasil akhir dan visual template di background thread bila tersedia.
 - Output Service memutuskan action yang didukung browser: download, save, share, atau print.
 - Persistence Service menyimpan session, render, layout choice, dan gallery lokal ke IndexedDB.
-- Service Worker mengelola app shell, layout, template, filter, sticker, dan asset offline.
+- Service Worker mengelola app shell, layout, template, dan asset offline.
 
 ---
 
@@ -233,8 +234,7 @@ Tanggung jawab:
 
 - crop dan scale frame sesuai layout
 - compositing frame ke canvas output
-- menerapkan filter lokal
-- menggambar frame, sticker, label, margin, date or time, dan logo teks
+- menggambar background template, photo backing, label, margin, dan visual default template
 - mengekspor Blob final
 
 Implementasi:
@@ -271,7 +271,7 @@ Tanggung jawab:
 Tanggung jawab:
 
 - precache app shell
-- cache layout, template, filter, sticker, dan frame inti
+- cache layout, template, dan asset visual template inti
 - cache strategi runtime terbatas
 - support offline fallback untuk route aplikasi
 
@@ -293,7 +293,6 @@ src/
     countdown/
     capture/
     review/
-    customize/
     renderer/
     output/
     gallery/
@@ -306,7 +305,6 @@ src/
     camera/
     upload/
     render/
-    decoration/
     output/
     storage/
     cache/
@@ -314,8 +312,7 @@ src/
   workers/
     render.worker.ts
   assets/
-    filters/
-    stickers/
+    templates/
     frames/
     fonts/
   layouts/
@@ -341,7 +338,7 @@ Catatan:
 
 - Feature-driven structure dipilih agar alur capture tidak bercampur dengan concern umum.
 - Layout disimpan terpisah dari template agar jumlah slot tidak melekat ke visual style.
-- Decoration asset dibundel sebagai bagian aplikasi agar tersedia offline.
+- Asset visual template dibundel sebagai bagian aplikasi agar tersedia offline.
 
 ---
 
@@ -378,7 +375,7 @@ Contoh isi:
 | layoutId | string | layout aktif |
 | templateId | string | template aktif |
 | slotCount | number | jumlah frame untuk sesi |
-| decorationConfig | json | filter, frame color, sticker, logo, date or time |
+| decorationConfig | json | visual treatment default dari template; field kustomisasi manual disiapkan untuk fase berikutnya |
 | startedAt | number | epoch ms |
 | completedAt | number | epoch ms nullable |
 | finalRenderId | string | relasi hasil akhir |
@@ -439,7 +436,7 @@ Contoh isi:
 | Field | Type | Keterangan |
 |---|---|---|
 | id | string | asset id |
-| type | string | frame, sticker, overlay, filter-preview |
+| type | string | frame, overlay, template-preview, future-sticker, future-filter-preview |
 | name | string | nama asset |
 | path | string | lokasi asset lokal |
 | packId | string | grup asset |
@@ -458,7 +455,7 @@ Catatan:
 | name | string | nama preset |
 | layoutId | string | layout default |
 | templateId | string | template default |
-| decorationConfig | json | default customization |
+| decorationConfig | json | default visual treatment template |
 | autoResetEnabled | boolean | reset otomatis |
 | updatedAt | number | epoch ms |
 
@@ -478,22 +475,21 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 ### 8.1 Pemisahan concern
 
 - Layout menentukan jumlah slot, ukuran canvas, dan posisi frame.
-- Template menentukan visual treatment: background, frame, text style, overlay.
-- Decoration layer menambahkan filter, sticker, date or time, dan logo teks.
+- Template menentukan visual treatment yang harus terlihat jelas tetapi natural: blanko/background, surface, accent, default frame color, text style, dan photo treatment.
+- V1 process-first tidak mengekspos decoration layer yang dapat diedit user; renderer memakai visual default dari template.
 
 ### 8.2 Contoh struktur config layout
 
 ```json
 {
-  "id": "strip-4-vertical",
-  "name": "2x6 Classic Strip",
-  "slotCount": 4,
-  "canvas": { "width": 1200, "height": 1800 },
+  "id": "strip-3-vertical",
+  "name": "3 Foto",
+  "slotCount": 3,
+  "canvas": { "width": 1200, "height": 2740 },
   "slots": [
-    { "x": 120, "y": 120, "width": 960, "height": 320, "radius": 20 },
-    { "x": 120, "y": 470, "width": 960, "height": 320, "radius": 20 },
-    { "x": 120, "y": 820, "width": 960, "height": 320, "radius": 20 },
-    { "x": 120, "y": 1170, "width": 960, "height": 320, "radius": 20 }
+    { "x": 60, "y": 60, "width": 1080, "height": 810, "radius": 0 },
+    { "x": 60, "y": 890, "width": 1080, "height": 810, "radius": 0 },
+    { "x": 60, "y": 1720, "width": 1080, "height": 810, "radius": 0 }
   ]
 }
 ```
@@ -504,19 +500,31 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 {
   "id": "classic",
   "name": "Classic",
-  "background": "#fffdf8",
+  "background": "#ffffff",
+  "surfaceColor": "#ffffff",
+  "accentColor": "#111111",
+  "textColor": "#111111",
+  "blanko": {
+    "mode": "generated",
+    "backgroundImage": null,
+    "pattern": "paper",
+    "photoPadding": 0,
+    "photoRadius": 0,
+    "photoShadow": false
+  },
   "frameAsset": "/assets/frames/classic.png",
   "defaultFrameColor": "#ffffff",
   "label": {
-    "text": "photo booth",
-    "fontSize": 36,
+    "text": "",
+    "fontSize": 104,
     "align": "center"
   },
+  "footerLogo": "/icons.svg",
   "supports": {
-    "stickers": true,
-    "frameColor": true,
-    "dateTime": true,
-    "logoText": true
+    "stickers": false,
+    "frameColor": false,
+    "dateTime": false,
+    "logoText": false
   }
 }
 ```
@@ -524,8 +532,10 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 ### 8.4 Aturan engine
 
 - Layout menentukan jumlah slot: 2, 3, 4, atau 6.
-- Semua asset frame, sticker, dan overlay inti harus precache.
+- Semua asset template, frame default, dan overlay inti harus precache.
 - Template tidak boleh memuat script eksternal.
+- Template boleh memakai blanko image lokal/bundled di fase berikutnya; renderer harus fallback ke generated blanko bila image belum ada.
+- Flow v1 memakai template default Classic; template lain tidak perlu ditampilkan sebagai pilihan pengguna.
 - Perubahan layout baru cukup menambah config dan asset.
 - Perubahan template baru cukup menambah config dan asset.
 - Font produksi harus self-hosted dan tidak boleh bergantung pada Google Fonts atau CDN lain.
@@ -545,7 +555,7 @@ sequenceDiagram
 
     U->>A: Open app first time
     A->>SW: Register service worker
-    SW->>C: Precache app shell, layouts, templates, decoration assets
+    SW->>C: Precache app shell, layouts, templates, visual assets
     A->>U: App ready
 ```
 
@@ -602,7 +612,7 @@ sequenceDiagram
     participant RW as Render Worker
     participant OUT as Output Service
 
-    UI->>DB: Read session shots, layout, template, decoration config
+    UI->>DB: Read session shots, layout, template, default visual treatment
     UI->>RW: Send render job
     RW->>RW: Compose final strip
     RW-->>UI: Return Blob final
@@ -652,14 +662,6 @@ Gunakan Pinia untuk state runtime. Bagi state menjadi beberapa store.
 - shotIds
 - renderId
 
-### `useCustomizeStore`
-
-- activeFilterId
-- frameColor
-- selectedStickerIds
-- showDateTime
-- logoText
-
 ### `useGalleryStore`
 
 - recentRenders
@@ -685,8 +687,6 @@ Aturan:
 - bundled layouts
 - bundled template config
 - frame PNG atau SVG inti
-- filter preview assets
-- starter sticker packs
 - offline fallback assets
 - print stylesheet
 
@@ -700,14 +700,14 @@ Aturan:
 
 - App shell: precache
 - Layout and template assets: cache-first
-- Decoration assets: cache-first
+- Template visual assets: cache-first
 - Navigation requests: network-first with offline fallback atau app-shell fallback tergantung hosting
 - Remote optional APIs di fase depan: stale-while-revalidate atau network-first sesuai jenis data
 
 ### 11.3 Update policy
 
 - Tampilkan notifikasi "versi baru tersedia" setelah service worker mendapat update.
-- Jangan force refresh saat user sedang dalam session capture atau customizing.
+- Jangan force refresh saat user sedang dalam session capture, review, render, atau output.
 - Update hanya diterapkan saat session idle atau saat user menyetujui reload.
 
 ---
@@ -745,15 +745,17 @@ Gunakan constraints adaptif, contoh:
 ### 12.4 Capture pipeline
 
 1. Preview stream ke elemen video.
-2. Saat capture, draw current frame ke canvas sementara.
-3. Ekspor frame sebagai Blob.
-4. Simpan ke IndexedDB.
-5. Lanjut shot berikutnya sesuai slot layout.
+2. Saat capture, crop frame tengah ke rasio foto landscape `4:3`.
+3. Draw frame hasil crop ke canvas sementara.
+4. Ekspor frame sebagai Blob.
+5. Simpan ke IndexedDB.
+6. Lanjut shot berikutnya sesuai slot layout.
 
 ### 12.5 Orientation handling
 
 - Layout default dioptimalkan untuk portrait strip.
-- Preview dapat menyesuaikan ratio device.
+- Preview kamera produksi memakai framing `4:3` agar tidak terlihat terlalu gepeng di desktop.
+- Preview dapat menyesuaikan ratio device untuk fallback browser atau device yang tidak mendukung constraint ideal.
 - Jika mobile landscape terjadi, tampilkan hint orientasi terbaik.
 
 ---
@@ -762,10 +764,10 @@ Gunakan constraints adaptif, contoh:
 
 ### 13.1 Prinsip
 
-- Render deterministik berdasarkan layout config + template config + shot list + decoration config.
+- Render deterministik berdasarkan layout config + template config + shot list + visual treatment default dari template.
 - Semua operasi berat dipindahkan ke worker jika memungkinkan.
-- Hasil akhir mendukung PNG default dan JPG opsional.
-- Default export adalah PNG, JPG memakai quality `0.9`.
+- Hasil akhir v1 memakai PNG sebagai satu-satunya pilihan yang ditampilkan.
+- Dukungan JPG boleh tetap tersedia di level render/storage untuk kompatibilitas atau fase berikutnya, tetapi tidak menjadi pilihan pengguna di flow output v1.
 
 ### 13.2 Tahapan render
 
@@ -776,7 +778,7 @@ Gunakan constraints adaptif, contoh:
 5. Crop dan fit ke slot.
 6. Gambar background.
 7. Gambar slot 1..N.
-8. Terapkan frame, sticker, filter, date or time, dan logo.
+8. Terapkan background template, photo backing, label template, dan frame default template.
 9. Ekspor Blob final.
 
 ### 13.3 Output actions
@@ -789,10 +791,12 @@ Gunakan constraints adaptif, contoh:
 
 Ukuran baseline output:
 
-- `2 foto`: `1200 x 3600`
-- `3 foto`: `1200 x 3600`
-- `4 foto`: `1200 x 3600`
-- `6 foto`: `1200 x 3600`
+- `2 foto`: `1200 x 1910`
+- `3 foto`: `1200 x 2740`
+- `4 foto`: `1200 x 3570`
+- `6 foto`: `1200 x 5230`
+
+Tinggi canvas mengikuti jumlah foto agar export tidak menyisakan kertas kosong berlebihan.
 
 Aturan tambahan:
 
@@ -806,7 +810,7 @@ Aturan tambahan:
 - Hindari base64 sebagai format penyimpanan utama; pilih Blob.
 - Jika browser tertentu gagal menyimpan Blob/File ke IndexedDB, persistence layer boleh retry sebagai ArrayBuffer binary dan mengembalikannya sebagai Blob di API aplikasi.
 - Hindari render ulang penuh bila hanya preview UI berubah.
-- Batasi jumlah sticker aktif untuk device lemah jika perlu.
+- Batasi kompleksitas template aktif untuk device lemah jika perlu.
 
 ---
 
@@ -829,10 +833,10 @@ Aturan tambahan:
 - Gunakan HTTPS pada semua environment non-local.
 - Content Security Policy ketat.
 - Hindari remote script pihak ketiga yang tidak penting.
-- Asset template dan decoration dibundel atau divalidasi hash.
+- Asset template dibundel atau divalidasi hash.
 - Gunakan `Permissions-Policy` untuk membatasi camera ke origin sendiri.
 - Font produksi wajib self-hosted.
-- `logoText` harus disanitasi dan dibatasi maksimum 24 karakter.
+- Jika input teks kustom diaktifkan pada fase berikutnya, teks harus disanitasi dan dibatasi maksimum 24 karakter.
 
 ### 14.4 Data deletion
 
@@ -898,7 +902,7 @@ Cakupan:
 - layout config parser
 - countdown logic
 - render math untuk crop dan fit
-- decoration config reducer
+- default template treatment config
 - state transitions session store
 - storage repository
 
@@ -1050,7 +1054,7 @@ Dengan pola ini, implementasi awal cukup local-only. Pada fase berikutnya, adapt
 ### Sprint 3
 
 - template engine v1
-- decoration engine v1
+- template renderer v1
 - worker render
 - output actions: download and save
 - reset session
@@ -1070,7 +1074,7 @@ Dengan pola ini, implementasi awal cukup local-only. Pada fase berikutnya, adapt
 Implementasi MVP dianggap selesai jika:
 
 - App dapat diinstal sebagai PWA.
-- App shell, layout, template, filter, dan sticker inti tersedia offline setelah initial load.
+- App shell, layout, template, dan asset visual template inti tersedia offline setelah initial load.
 - Capture dinamis sesuai slot layout berjalan stabil di browser target utama.
 - Upload lokal berjalan tanpa backend.
 - Render final berjalan dengan fallback yang aman.

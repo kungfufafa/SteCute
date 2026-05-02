@@ -87,7 +87,10 @@ function drawImageCover(
   const imgRatio = img.width / img.height
   const slotRatio = width / height
 
-  let sx = 0, sy = 0, sw = img.width, sh = img.height
+  let sx = 0,
+    sy = 0,
+    sw = img.width,
+    sh = img.height
 
   if (imgRatio > slotRatio) {
     sw = img.height * slotRatio
