@@ -22,11 +22,17 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
   const cameraStore = useCameraStore()
 
   try {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      cameraStore.setPermissionState('unavailable')
+      throw new DOMException('Camera API is unavailable in this browser.', 'NotFoundError')
+    }
+
     const videoConstraints: MediaTrackConstraints = {
       ...(DEFAULT_CONSTRAINTS.video as MediaTrackConstraints),
       ...(options?.deviceId ? { deviceId: { exact: options.deviceId } } : {}),
       ...(options?.facingMode ? { facingMode: options.facingMode } : {}),
       ...(options?.width ? { width: options.width } : {}),
+      ...(options?.height ? { height: options.height } : {}),
     }
 
     const constraints: MediaStreamConstraints = {
@@ -62,6 +68,8 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
 }
 
 export async function enumerateDevices(): Promise<MediaDeviceInfo[]> {
+  if (!navigator.mediaDevices?.enumerateDevices) return []
+
   const devices = await navigator.mediaDevices.enumerateDevices()
   return devices.filter((d) => d.kind === 'videoinput')
 }
@@ -78,6 +86,11 @@ export function stopCamera(stream: MediaStream): void {
 
 export function captureFrame(videoEl: HTMLVideoElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
+    if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+      reject(new Error('Camera preview is not ready yet'))
+      return
+    }
+
     const canvas = document.createElement('canvas')
     canvas.width = videoEl.videoWidth
     canvas.height = videoEl.videoHeight

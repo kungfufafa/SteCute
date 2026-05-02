@@ -1,21 +1,28 @@
 import { db, type Render } from '../schema'
+import { restoreIndexedDbBlob, writeBlobWithFallback } from '../blob'
 
 export const GALLERY_RETENTION_LIMIT = 10
+
+function restoreRenderBlob(render: Render): Render {
+  return { ...render, blob: restoreIndexedDbBlob(render.blob) }
+}
 
 export class RenderRepository {
   async create(render: Omit<Render, 'id' | 'sizeBytes'>): Promise<string> {
     const id = crypto.randomUUID()
     const sizeBytes = render.blob.size
-    await db.renders.add({ ...render, id, sizeBytes })
+    await writeBlobWithFallback(render.blob, (blob) => db.renders.add({ ...render, blob, id, sizeBytes }))
     return id
   }
 
   async getById(id: string): Promise<Render | undefined> {
-    return db.renders.get(id)
+    const render = await db.renders.get(id)
+    return render ? restoreRenderBlob(render) : undefined
   }
 
   async getRecent(limit: number = GALLERY_RETENTION_LIMIT): Promise<Render[]> {
-    return db.renders.orderBy('createdAt').reverse().limit(limit).toArray()
+    const renders = await db.renders.orderBy('createdAt').reverse().limit(limit).toArray()
+    return renders.map(restoreRenderBlob)
   }
 
   async markSavedToDevice(id: string): Promise<void> {

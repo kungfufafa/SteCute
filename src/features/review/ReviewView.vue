@@ -72,12 +72,13 @@ async function retakeShot(index: number) {
     }
 
     const dimensions = await getImageDimensions(file)
+    const blob = new Blob([await file.arrayBuffer()], { type: file.type })
 
     await saveShot({
       sessionId,
       order: index,
       sourceType: 'upload',
-      blob: file,
+      blob,
       width: dimensions.width,
       height: dimensions.height,
     })

@@ -4,9 +4,10 @@ test.describe('Stecute app smoke', () => {
   test('loads landing with final CTA and desktop-friendly hero', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByText('Stecute').first()).toBeVisible()
+    await expect(page.getByRole('img', { name: 'Stecute' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mulai Foto' })).toBeVisible()
-    await expect(page.getByText('Coba Fitur Lain')).toBeVisible()
+    await expect(page.getByText('Tanpa Login')).toBeVisible()
+    await expect(page.getByText('Privasi Terjaga')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Upload Lokal' }).first()).toBeVisible()
   })
 
@@ -17,7 +18,7 @@ test.describe('Stecute app smoke', () => {
 
     await expect(page).toHaveURL('/config?source=camera')
     await expect(page.getByRole('heading', { name: 'Setup Sesi' })).toBeVisible()
-    await expect(page.getByText('Layout', { exact: true })).toBeVisible()
+    await expect(page.getByText('Hasil Cetak', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mulai Sesi' })).toBeVisible()
   })
 

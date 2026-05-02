@@ -16,6 +16,23 @@ const previewUrls = ref<string[]>([])
 
 const isProcessing = ref(false)
 
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}`
+  }
+
+  if (error && typeof error === 'object') {
+    const details = error as { name?: unknown; message?: unknown; code?: unknown }
+    return JSON.stringify({
+      name: details.name,
+      message: details.message,
+      code: details.code,
+    })
+  }
+
+  return String(error)
+}
+
 function resetPreviewUrls() {
   previewUrls.value.forEach((url) => URL.revokeObjectURL(url))
   previewUrls.value = []
@@ -74,11 +91,12 @@ async function processUpload() {
 
     for (const [index, file] of selectedFiles.value.entries()) {
       const size = await getImageDimensions(file)
+      const blob = new Blob([await file.arrayBuffer()], { type: file.type })
       const shotId = await saveShot({
         sessionId,
         order: index,
         sourceType: 'upload',
-        blob: file,
+        blob,
         width: size.width,
         height: size.height,
       })
@@ -88,7 +106,7 @@ async function processUpload() {
     sessionStore.setReviewing()
     router.push('/review')
   } catch (error) {
-    console.error('Upload failed:', error)
+    console.error(`Upload failed: ${describeError(error)}`)
     if (sessionId) {
       const { resetSessionData } = await import('@/services/session')
       await resetSessionData(sessionId).catch(() => {})

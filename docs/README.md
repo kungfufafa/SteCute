@@ -9,7 +9,8 @@ Dokumentasi utama proyek Stecute ada di folder ini. Paket dokumen ini sudah disu
 3. [stecute-production-spec.md](./stecute-production-spec.md)
 4. [stecute-asset-spec.md](./stecute-asset-spec.md)
 5. [stecute-release-checklist.md](./stecute-release-checklist.md)
-6. [stecute-prototype.html](./stecute-prototype.html)
+6. [stecute-qa-findings.md](./stecute-qa-findings.md)
+7. [stecute-prototype.html](./stecute-prototype.html)
 
 ## Fungsi tiap dokumen
 
@@ -18,6 +19,7 @@ Dokumentasi utama proyek Stecute ada di folder ini. Paket dokumen ini sudah disu
 - [stecute-production-spec.md](./stecute-production-spec.md): keputusan final lintas fungsi agar implementasi bisa diarahkan ke production-ready.
 - [stecute-asset-spec.md](./stecute-asset-spec.md): inventory asset, format, budget ukuran, bundling offline, dan aturan lisensi.
 - [stecute-release-checklist.md](./stecute-release-checklist.md): checklist go/no-go sebelum rilis.
+- [stecute-qa-findings.md](./stecute-qa-findings.md): catatan hasil QA real browser dan status perbaikan.
 - [stecute-prototype.html](./stecute-prototype.html): referensi visual dan flow UI.
 
 ## Source of truth

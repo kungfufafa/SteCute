@@ -22,7 +22,6 @@ vitest.config.js
 vitest.config.d.ts
 playwright.config.js
 playwright.config.d.ts
-eslint.config.js
 src/**/*.js
 !src/**/*.config.js
 

@@ -1,13 +1,13 @@
 // Web Worker for off-main-thread rendering
 // Falls back to main thread if OffscreenCanvas is not available
+import type { DecorationConfig, LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
 
 export interface RenderWorkerMessage {
   type: 'render'
-  layout: any
-  template: any
+  layout: LayoutConfig
+  template: TemplateConfig
   shots: ArrayBuffer[]
-  shotMeta: { width: number; height: number }[]
-  decoration: any
+  decoration: DecorationConfig
   format: 'image/png' | 'image/jpeg'
   quality?: number
 }
@@ -21,7 +21,7 @@ export interface RenderWorkerResult {
 }
 
 self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
-  const { type, layout, template, shots, shotMeta, decoration, format, quality } = event.data
+  const { type, layout, template, shots, decoration, format, quality } = event.data
 
   if (type !== 'render') return
 
@@ -81,7 +81,7 @@ self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
 function drawImageCover(
   ctx: OffscreenCanvasRenderingContext2D,
   img: ImageBitmap,
-  slot: { x: number; y: number; width: number; height: number; radius: number },
+  slot: SlotConfig,
 ) {
   const { x, y, width, height, radius } = slot
   const imgRatio = img.width / img.height

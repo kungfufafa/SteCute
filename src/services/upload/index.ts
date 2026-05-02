@@ -20,11 +20,11 @@ export function validateFiles(files: File[], slotCount: number): ValidationResul
   const constraints = DEFAULT_UPLOAD_CONSTRAINTS
 
   if (files.length === 0) {
-    return { valid: false, errors: ['No files selected'] }
+    return { valid: false, errors: ['Belum ada file yang dipilih.'] }
   }
 
   if (files.length > constraints.maxFiles) {
-    errors.push(`Maximum ${constraints.maxFiles} files allowed. You selected ${files.length}.`)
+    errors.push(`Maksimal ${constraints.maxFiles} file per sesi. Kamu memilih ${files.length}.`)
   }
 
   if (files.length !== slotCount) {
@@ -35,10 +35,10 @@ export function validateFiles(files: File[], slotCount: number): ValidationResul
 
   for (const file of files) {
     if (!constraints.acceptedTypes.includes(file.type)) {
-      errors.push(`"${file.name}" is not a supported format. Use JPG, PNG, or WebP.`)
+      errors.push(`"${file.name}" bukan format yang didukung. Gunakan JPG, PNG, atau WebP.`)
     }
     if (file.size > constraints.maxFileSize) {
-      errors.push(`"${file.name}" exceeds the 10 MB size limit.`)
+      errors.push(`"${file.name}" melebihi batas ukuran 10 MB.`)
     }
   }
 

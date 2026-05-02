@@ -29,6 +29,7 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const countdownActive = ref(false)
 const countdownValue = ref(0)
 const flashVisible = ref(false)
+const cameraError = ref<string | null>(null)
 let stream: MediaStream | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 
@@ -45,9 +46,25 @@ const cameraRecoverySteps = [
   'Muat ulang halaman',
 ]
 
-onMounted(async () => {
+onMounted(() => {
+  void setupCamera()
+})
+
+async function setupCamera() {
   sessionStore.setCapturing()
+  cameraStore.setPermissionState('prompt')
+  cameraStore.setStreamReady(false)
+  cameraError.value = null
+
+  if (stream) {
+    stopCamera(stream)
+    stream = null
+  }
+
   try {
+    stream = await initCamera()
+    if (videoRef.value) videoRef.value.srcObject = stream
+
     const sessionId = await ensureSession(sessionStore.sessionId, {
       layoutId: sessionStore.layoutId,
       templateId: sessionStore.templateId,
@@ -66,9 +83,6 @@ onMounted(async () => {
       sessionStore.startSession(sessionId, 'camera', sessionStore.slotCount)
       sessionStore.sessionStatus = 'capturing'
     }
-
-    stream = await initCamera()
-    if (videoRef.value) videoRef.value.srcObject = stream
   } catch (error) {
     console.error('Camera init failed:', error)
     if (error instanceof DOMException && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
@@ -79,7 +93,7 @@ onMounted(async () => {
       cameraStore.setPermissionState('denied')
     }
   }
-})
+}
 
 onUnmounted(() => {
   if (countdownTimer) {
@@ -106,9 +120,17 @@ async function handleSwitchCamera() {
 
 async function handleCapture() {
   if (!videoRef.value || !stream) return
-  const blob = await captureFrame(videoRef.value)
-  const sessionId = sessionStore.sessionId
+  let blob: Blob
 
+  try {
+    blob = await captureFrame(videoRef.value)
+  } catch (error) {
+    console.error('Capture failed:', error)
+    cameraError.value = 'Preview kamera belum siap. Coba ambil foto lagi.'
+    return
+  }
+
+  const sessionId = sessionStore.sessionId
   if (!sessionId) return
 
   const order = sessionStore.currentShotIndex
@@ -171,6 +193,7 @@ function cancelCountdown() {
 function runCountdownAndCapture() {
   if (countdownActive.value) return
 
+  cameraError.value = null
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
   countdownActive.value = true
 
@@ -297,6 +320,13 @@ function goBack() {
         </div>
       </div>
 
+      <div
+        v-if="cameraError"
+        class="mb-4 rounded-2xl border border-stc-error/20 bg-stc-error-soft px-4 py-3 text-center text-sm font-semibold text-stc-error"
+      >
+        {{ cameraError }}
+      </div>
+
       <div class="mb-4 flex snap-x items-center justify-start gap-2 overflow-x-auto pb-1">
         <button
           v-for="filter in quickFilters"
@@ -359,7 +389,7 @@ function goBack() {
         </div>
       </div>
       <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button :class="[ui.primaryButton, 'w-full']" @click="router.push('/camera')">Coba Lagi</button>
+        <button :class="[ui.primaryButton, 'w-full']" @click="setupCamera">Coba Lagi</button>
         <button :class="[ui.secondaryButton, 'w-full']" @click="router.push('/upload')">
           Upload Foto Lokal
         </button>

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -35,10 +35,13 @@
     "tailwindcss": "^4.1.8",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.34.1",
-    "vite": "^8.0.1",
+    "vite": "^7.3.2",
     "vite-plugin-pwa": "^1.0.2",
     "vitest": "^3.2.4",
     "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.2.5"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5"
   }
 }

@@ -16,6 +16,13 @@ export interface RenderResult {
   height: number
 }
 
+interface DecodedImage {
+  source: CanvasImageSource
+  width: number
+  height: number
+  close?: () => void
+}
+
 export async function renderStrip(job: RenderJob): Promise<RenderResult> {
   const { layout, template, shots, decoration, format, quality } = job
 
@@ -35,7 +42,7 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     const shot = shots[i]
     if (!shot) continue
 
-    const img = await createImageBitmap(shot.blob)
+    const img = await decodeImageBlob(shot.blob)
 
     // Apply filter
     if (decoration.filterId && decoration.filterId !== 'normal') {
@@ -45,7 +52,7 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     }
 
     drawImageCover(ctx, img, slot)
-    img.close()
+    img.close?.()
   }
 
   // Reset filter for overlays
@@ -82,6 +89,41 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     width: canvas.width,
     height: canvas.height,
   }
+}
+
+async function decodeImageBlob(blob: Blob): Promise<DecodedImage> {
+  if (typeof createImageBitmap === 'function') {
+    const bitmap = await createImageBitmap(blob)
+
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      close: () => bitmap.close(),
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+
+    image.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve({
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+      })
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to decode image blob'))
+    }
+
+    image.src = url
+  })
 }
 
 type StickerShape = 'heart' | 'star' | 'burst' | 'flower' | 'bubble' | 'diamond'
@@ -225,7 +267,7 @@ function drawStickers(
   })
 }
 
-function drawImageCover(ctx: CanvasRenderingContext2D, img: ImageBitmap, slot: SlotConfig) {
+function drawImageCover(ctx: CanvasRenderingContext2D, img: DecodedImage, slot: SlotConfig) {
   const { x, y, width, height, radius } = slot
 
   // Calculate cover fit
@@ -248,7 +290,7 @@ function drawImageCover(ctx: CanvasRenderingContext2D, img: ImageBitmap, slot: S
   ctx.save()
   roundRect(ctx, x, y, width, height, radius)
   ctx.clip()
-  ctx.drawImage(img, sx, sy, sw, sh, x, y, width, height)
+  ctx.drawImage(img.source, sx, sy, sw, sh, x, y, width, height)
   ctx.restore()
 }
 

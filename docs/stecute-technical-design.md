@@ -391,7 +391,7 @@ Contoh isi:
 | sessionId | string | relasi session |
 | order | number | urutan 1..N |
 | sourceType | string | camera atau upload |
-| blob | Blob | frame image |
+| blob | Blob | frame image; boleh memakai fallback ArrayBuffer internal bila browser gagal menulis Blob ke IndexedDB |
 | width | number | pixel |
 | height | number | pixel |
 | createdAt | number | epoch ms |
@@ -404,7 +404,7 @@ Contoh isi:
 | sessionId | string | relasi session |
 | mimeType | string | image/png atau image/jpeg |
 | variant | string | default, print, share |
-| blob | Blob | hasil akhir |
+| blob | Blob | hasil akhir; boleh memakai fallback ArrayBuffer internal bila browser gagal menulis Blob ke IndexedDB |
 | width | number | pixel |
 | height | number | pixel |
 | sizeBytes | number | ukuran file |
@@ -804,6 +804,7 @@ Aturan tambahan:
 
 - Gunakan `createImageBitmap` bila tersedia.
 - Hindari base64 sebagai format penyimpanan utama; pilih Blob.
+- Jika browser tertentu gagal menyimpan Blob/File ke IndexedDB, persistence layer boleh retry sebagai ArrayBuffer binary dan mengembalikannya sebagai Blob di API aplikasi.
 - Hindari render ulang penuh bila hanya preview UI berubah.
 - Batasi jumlah sticker aktif untuk device lemah jika perlu.
 

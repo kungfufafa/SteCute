@@ -106,6 +106,7 @@ function filterPreview(filterId: string) {
                 ? 'border-stc-pink bg-stc-pink text-white shadow-[0_14px_32px_rgba(244,91,141,0.24)]'
                 : 'border-stc-border bg-white text-stc-text-faint hover:-translate-y-0.5 hover:bg-stc-bg-2',
             ]"
+            :aria-label="tab.label"
             @click="activeTab = tab.id"
           >
             <span class="block text-base">{{ tab.icon }}</span>
