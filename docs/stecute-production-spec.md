@@ -38,7 +38,7 @@ Fitur yang wajib ada:
 - landing page dan app shell
 - alur kamera dan upload lokal
 - format output adaptif untuk varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto`
-- template default `Classic`
+- pilihan template bundled sebelum capture, dengan `Classic` sebagai default aman
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -56,11 +56,12 @@ Fitur yang wajib ada:
 Template aktif v1 wajib menghasilkan render final yang clean dan konsisten:
 
 - `Classic`: blanko putih clean, foto 4:3 landscape, padding/gap putih rapi, footer memakai logo bundled `icons.svg`
+- `Youth` dan `Mono`: generated blanko lokal yang tetap mengikuti layout v1 dan tidak membuka kustomisasi manual pasca-capture
+- Template blanko raster lokal boleh ditampilkan hanya bila punya slot coordinate, artboard, dan layout support yang eksplisit. Template yang hanya cocok untuk `3 foto` tidak boleh muncul saat layout `2`, `4`, atau `6 foto` dipilih.
 
-Template lain boleh tetap tersedia di engine sebagai persiapan fase berikutnya, tetapi tidak ditampilkan sebagai pilihan di flow v1 process-first.
-Template default menetapkan visual render tanpa override manual.
+Template default menetapkan visual render tanpa override manual setelah sesi dimulai.
 Border keras dan garis aksen dekoratif tidak boleh menjadi treatment default; output harus terasa seperti photobooth/blanko, bukan kartu UI.
-Template engine harus siap memakai blanko image lokal/bundled di fase berikutnya dengan fallback generated blanko.
+Template engine harus siap memakai blanko image lokal/bundled dengan fallback generated blanko bila asset gagal dimuat.
 
 ### 2.3 Fitur yang tidak masuk rilis produksi v1
 

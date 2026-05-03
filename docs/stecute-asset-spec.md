@@ -60,6 +60,7 @@ public/
 - semua asset harus aman dipakai offline
 - semua asset harus punya nama file stabil dan deskriptif
 - semua asset harus lolos review lisensi
+- blanko raster harus punya photo window transparan atau layer overlay terpisah; placeholder warna solid hanya boleh dipakai sebagai panduan produksi, bukan asset final yang langsung dirender
 
 ### 3.3 Aturan ukuran
 
@@ -89,6 +90,8 @@ Setiap template harus memiliki:
 - frame asset utama bila ada
 - label style
 - fallback color palette
+- daftar layout yang didukung bila template tidak cocok untuk semua layout
+- slot coordinate per layout bila memakai blanko raster dengan artboard khusus
 
 ### 4.3 Template decisions
 
@@ -112,6 +115,12 @@ Setiap template harus memiliki:
 - background: dark neutral
 - frame: minimal
 - tone: formal atau nostalgic
+
+#### Raster blanko sample lokal
+
+- `public/templates/1777041071745-IMG_1107.png` dapat dipakai sebagai template strip `3 foto` karena area foto sudah transparan dan slot dapat dipetakan eksplisit.
+- `public/templates/1777562621419-Template_4R.png` tidak masuk pilihan v1 karena memakai format 4R dengan `5` slot, sedangkan layout v1 terkunci pada `2`, `3`, `4`, dan `6` pose strip.
+- Sebelum rilis publik, nama file sample harus diganti menjadi stabil dan status lisensi/ownership harus dikonfirmasi.
 
 ---
 

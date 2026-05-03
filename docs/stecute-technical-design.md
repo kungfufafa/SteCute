@@ -507,11 +507,15 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
   "blanko": {
     "mode": "generated",
     "backgroundImage": null,
+    "imageLayer": "overlay",
+    "imageFit": "stretch",
     "pattern": "paper",
     "photoPadding": 0,
     "photoRadius": 0,
     "photoShadow": false
   },
+  "supportedLayoutIds": ["strip-2-vertical", "strip-3-vertical", "strip-4-vertical", "strip-6-vertical"],
+  "layoutOverrides": {},
   "frameAsset": "/assets/frames/classic.png",
   "defaultFrameColor": "#ffffff",
   "label": {
@@ -534,8 +538,10 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 - Layout menentukan jumlah slot: 2, 3, 4, atau 6.
 - Semua asset template, frame default, dan overlay inti harus precache.
 - Template tidak boleh memuat script eksternal.
-- Template boleh memakai blanko image lokal/bundled di fase berikutnya; renderer harus fallback ke generated blanko bila image belum ada.
-- Flow v1 memakai template default Classic; template lain tidak perlu ditampilkan sebagai pilihan pengguna.
+- Template boleh memakai blanko image lokal/bundled; renderer harus fallback ke generated blanko bila image belum ada.
+- Blanko raster yang memiliki artboard atau slot berbeda dari layout dasar wajib mendefinisikan `layoutOverrides` per `layoutId`. UI hanya menampilkan template yang `supportedLayoutIds`-nya cocok dengan layout aktif.
+- Untuk blanko PNG dengan lubang transparan di area foto, renderer menggambar foto lebih dulu lalu menggambar blanko sebagai `overlay`, agar dekorasi foreground tidak tertutup foto.
+- Flow v1 memakai `Classic` sebagai default, tetapi boleh menampilkan pilihan template bundled sebelum capture selama tidak menambah langkah kustomisasi pasca-capture.
 - Perubahan layout baru cukup menambah config dan asset.
 - Perubahan template baru cukup menambah config dan asset.
 - Font produksi harus self-hosted dan tidak boleh bergantung pada Google Fonts atau CDN lain.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createDefaultDecorationConfig, createSession, saveShot } from '@/services/session'
 import { useSessionStore } from '@/stores'
@@ -7,12 +7,13 @@ import { getImageDimensions, openImagePicker, validateFiles } from '@/services/u
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
-import StripPreview from '@/components/prototype/StripPreview.vue'
+import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
 const activeLayout = getLayoutById(sessionStore.layoutId)
+const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
 const errors = ref<string[]>([])
 const selectedFiles = ref<File[]>([])
 const previewUrls = ref<string[]>([])
@@ -278,16 +279,16 @@ onBeforeUnmount(() => resetPreviewUrls())
             </div>
 
             <div class="mx-auto max-w-[190px]">
-              <StripPreview
-                :slot-count="sessionStore.slotCount"
-                title="Classic"
-                :badge="activeLayout?.printFormat.paperSize"
-                footer="Stecute"
-                variant="mini"
-              />
+              <StripCanvasPreview :layout="activeLayout" :template-config="activeTemplate" />
             </div>
 
             <div class="mt-6 space-y-3">
+              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
+                <span class="text-stc-text-soft text-sm font-semibold">Template</span>
+                <span class="text-stc-text text-sm font-bold">
+                  {{ activeTemplate?.name ?? 'Classic' }}
+                </span>
+              </div>
               <div :class="['flex items-center justify-between gap-4', ui.softTile]">
                 <span class="text-stc-text-soft text-sm font-semibold">Format</span>
                 <span class="text-stc-text text-sm font-bold">JPG/PNG/WebP</span>

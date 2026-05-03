@@ -98,18 +98,33 @@ export interface TemplateRecord {
 export interface TemplateConfig {
   id: string
   name: string
+  description?: string
   background: string
   surfaceColor: string
   accentColor: string
   textColor: string
+  preview?: {
+    background?: string
+    thumbnailImage?: string
+  }
   blanko: {
     mode: 'generated' | 'image'
     backgroundImage: string | null
+    imageLayer?: 'background' | 'overlay'
+    imageFit?: 'cover' | 'contain' | 'stretch'
     pattern: 'paper' | 'gingham' | 'mono'
     photoPadding: number
     photoRadius: number
     photoShadow: boolean
   }
+  supportedLayoutIds?: string[]
+  layoutOverrides?: Record<
+    string,
+    {
+      canvas: { width: number; height: number }
+      slots: SlotConfig[]
+    }
+  >
   frameAsset: string
   defaultFrameColor: string
   label: {

@@ -142,7 +142,7 @@ Kebutuhan utama:
 - Offline-first dan local-first, cocok untuk event dan koneksi buruk.
 - Privacy by default: foto diproses lokal dan tidak wajib diunggah ke server.
 - Format cetak utama memakai varian adaptif `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, dengan `6 foto` tetap memakai strip tinggi penuh.
-- Template default `Classic` memberi hasil clean seperti photobooth tanpa langkah kustomisasi tambahan.
+- Template default `Classic` memberi hasil clean seperti photobooth, dengan pilihan template bundled sebelum capture tanpa langkah kustomisasi tambahan setelah review.
 - Output siap pakai: download, save to device, share sheet, dan print ringan bila browser mendukung.
 - Dapat diinstal sebagai PWA untuk pengalaman yang terasa seperti aplikasi.
 
@@ -162,7 +162,7 @@ Kebutuhan utama:
 8. Review hasil per sesi.
 9. Retake seluruh sesi.
 10. Retake per-shot sebelum render final.
-11. Template default `Classic` dengan visual photobooth clean.
+11. Template default `Classic` dengan visual photobooth clean dan pilihan template bundled yang kompatibel dengan layout aktif.
 12. Render hasil final photo strip.
 13. Download hasil PNG.
 14. Save to device melalui flow browser yang tersedia.
@@ -254,12 +254,13 @@ Acceptance criteria:
 
 - Pengguna memilih jumlah foto sebelum sesi dimulai.
 - Sumber foto berasal dari entry point awal: `Mulai Foto` atau `Upload Lokal`.
-- Template dan countdown memakai default agar flow tetap singkat.
+- Template dapat dipilih sebelum sesi dimulai; `Classic` tetap default agar flow tetap singkat.
 
 Acceptance criteria:
 
 - Minimal tersedia hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` dengan ukuran output yang fit terhadap jumlah foto.
-- Default aktif memakai template `Classic`; template lain dapat tetap tersedia di engine untuk fase berikutnya.
+- Default aktif memakai template `Classic`.
+- Template yang memakai blanko raster khusus hanya tampil bila kompatibel dengan layout aktif.
 
 ### FR-04 Countdown and capture
 
@@ -300,7 +301,7 @@ Acceptance criteria:
 
 ### FR-07 Photo strip rendering
 
-- Sistem menggabungkan foto sesuai layout aktif dan template default.
+- Sistem menggabungkan foto sesuai layout aktif dan template aktif.
 - Sistem menghasilkan output final dengan resolusi siap simpan dan siap cetak ringan.
 
 Acceptance criteria:
@@ -443,7 +444,7 @@ Acceptance criteria:
 
 - PWA offline-first.
 - Format cetak adaptif dengan varian `2 foto`, `3 foto`, `4 foto`, `6 foto`.
-- Template default Classic.
+- Template default Classic dan pilihan template bundled yang kompatibel dengan layout aktif.
 - Upload foto lokal.
 - Gallery 10 hasil terakhir.
 - Error state permission kamera.

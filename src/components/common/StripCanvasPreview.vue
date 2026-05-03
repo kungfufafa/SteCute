@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
+import { resolveTemplateLayout } from '@/templates'
 
 const props = withDefaults(
   defineProps<{
@@ -23,8 +24,13 @@ const emit = defineEmits<{
 
 const placeholderTones = ['#fde8f0', '#fef3c7', '#dbeafe', '#ccfbf1', '#ede9fe', '#fee2e2']
 
+const previewLayout = computed(() => {
+  if (!props.layout || !props.templateConfig) return null
+  return resolveTemplateLayout(props.layout, props.templateConfig)
+})
+
 const canvasStyle = computed<Record<string, string>>(() => {
-  const layout = props.layout
+  const layout = previewLayout.value
   const template = props.templateConfig
 
   if (!layout || !template) return {} as Record<string, string>
@@ -36,6 +42,31 @@ const canvasStyle = computed<Record<string, string>>(() => {
     '--strip-ratio': String(layout.canvas.width / layout.canvas.height),
   }
 })
+
+const blankoImageSrc = computed(() => {
+  const template = props.templateConfig
+  if (template?.blanko.mode !== 'image') return null
+  return template.blanko.backgroundImage
+})
+
+const blankoImageStyle = computed<Record<string, string>>(() => {
+  const template = props.templateConfig
+  const imageFit = template?.blanko.imageFit ?? 'cover'
+
+  return {
+    objectFit: imageFit === 'stretch' ? 'fill' : imageFit,
+  }
+})
+
+const usesBlankoBackgroundImage = computed(
+  () => props.templateConfig?.blanko.imageLayer === 'background',
+)
+
+const usesBlankoOverlayImage = computed(
+  () =>
+    props.templateConfig?.blanko.mode === 'image' &&
+    props.templateConfig.blanko.imageLayer !== 'background',
+)
 
 function percent(value: number, total: number) {
   return `${(value / total) * 100}%`
@@ -70,7 +101,7 @@ function templateBackground(template: TemplateConfig) {
 }
 
 function backingStyle(slot: SlotConfig) {
-  const layout = props.layout
+  const layout = previewLayout.value
   const template = props.templateConfig
   if (!layout || !template) return {}
 
@@ -96,7 +127,7 @@ function backingStyle(slot: SlotConfig) {
 }
 
 function slotStyle(slot: SlotConfig, index: number) {
-  const layout = props.layout
+  const layout = previewLayout.value
   if (!layout) return {}
 
   const url = props.shotUrls[index]
@@ -120,7 +151,7 @@ function slotStyle(slot: SlotConfig, index: number) {
 }
 
 function labelStyle() {
-  const layout = props.layout
+  const layout = previewLayout.value
   const template = props.templateConfig
   if (!layout || !template) return {}
 
@@ -144,7 +175,7 @@ function labelStyle() {
 }
 
 function footerLogoStyle() {
-  const layout = props.layout
+  const layout = previewLayout.value
   if (!layout) return {}
 
   const lastSlot = layout.slots[layout.slots.length - 1]
@@ -167,19 +198,28 @@ function footerLogoStyle() {
 
 <template>
   <div
-    v-if="layout && templateConfig"
+    v-if="previewLayout && templateConfig"
     class="strip-canvas-preview border-stc-border shadow-stc-sm [container-type:inline-size] relative overflow-hidden rounded-xl border"
     :class="{ 'strip-canvas-preview--fit': fitViewport }"
     :style="canvasStyle"
   >
+    <img
+      v-if="blankoImageSrc && usesBlankoBackgroundImage"
+      :src="blankoImageSrc"
+      alt=""
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 h-full w-full"
+      :style="blankoImageStyle"
+    />
+
     <div
-      v-for="(slot, index) in layout.slots"
+      v-for="(slot, index) in previewLayout.slots"
       :key="`backing-${index}`"
       class="absolute"
       :style="backingStyle(slot)"
     ></div>
 
-    <template v-for="(slot, index) in layout.slots" :key="`slot-${index}`">
+    <template v-for="(slot, index) in previewLayout.slots" :key="`slot-${index}`">
       <button
         v-if="interactive"
         class="group bg-stc-bg-3 hover:ring-stc-pink/35 focus-visible:ring-stc-pink/60 absolute overflow-hidden text-left transition-shadow duration-150 hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
@@ -205,6 +245,15 @@ function footerLogoStyle() {
         :style="slotStyle(slot, index)"
       ></div>
     </template>
+
+    <img
+      v-if="blankoImageSrc && usesBlankoOverlayImage"
+      :src="blankoImageSrc"
+      alt=""
+      aria-hidden="true"
+      class="pointer-events-none absolute inset-0 h-full w-full"
+      :style="blankoImageStyle"
+    />
 
     <img
       v-if="templateConfig.footerLogo"

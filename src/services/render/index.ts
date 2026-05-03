@@ -1,5 +1,6 @@
 import type { LayoutConfig, SlotConfig, Shot, DecorationConfig } from '@/db/schema'
 import type { TemplateConfig } from '@/db/schema'
+import { resolveTemplateLayout } from '@/templates'
 
 export interface RenderJob {
   layout: LayoutConfig
@@ -25,10 +26,11 @@ interface DecodedImage {
 
 export async function renderStrip(job: RenderJob): Promise<RenderResult> {
   const { layout, template, shots, decoration, format, quality } = job
+  const renderLayout = resolveTemplateLayout(layout, template)
 
   const canvas = document.createElement('canvas')
-  canvas.width = layout.canvas.width
-  canvas.height = layout.canvas.height
+  canvas.width = renderLayout.canvas.width
+  canvas.height = renderLayout.canvas.height
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not get 2D canvas context')
 
@@ -37,8 +39,8 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
   const frameColor = decoration.frameColor || template.defaultFrameColor
 
   // Draw shots into slots
-  for (let i = 0; i < layout.slots.length; i++) {
-    const slot = layout.slots[i]
+  for (let i = 0; i < renderLayout.slots.length; i++) {
+    const slot = renderLayout.slots[i]
     const shot = shots[i]
     if (!shot) continue
 
@@ -64,7 +66,8 @@ export async function renderStrip(job: RenderJob): Promise<RenderResult> {
     drawStickers(ctx, canvas.width, canvas.height, decoration.selectedStickerIds)
   }
 
-  await drawTemplateLabel(ctx, canvas.width, canvas.height, template, layout)
+  await drawTemplateOverlay(ctx, canvas.width, canvas.height, template)
+  await drawTemplateLabel(ctx, canvas.width, canvas.height, template, renderLayout)
 
   // Draw date/time
   if (decoration.showDateTime) {
@@ -99,8 +102,12 @@ async function drawTemplateBackground(
   ctx.fillStyle = template.background
   ctx.fillRect(0, 0, width, height)
 
-  if (template.blanko.mode === 'image' && template.blanko.backgroundImage) {
-    await drawBlankoImage(ctx, width, height, template.blanko.backgroundImage)
+  if (
+    template.blanko.mode === 'image' &&
+    template.blanko.imageLayer === 'background' &&
+    template.blanko.backgroundImage
+  ) {
+    await tryDrawBlankoImage(ctx, width, height, template)
     return
   }
 
@@ -118,17 +125,82 @@ async function drawTemplateBackground(
   ctx.restore()
 }
 
+async function drawTemplateOverlay(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  template: TemplateConfig,
+) {
+  if (
+    template.blanko.mode !== 'image' ||
+    template.blanko.imageLayer === 'background' ||
+    !template.blanko.backgroundImage
+  ) {
+    return
+  }
+
+  await tryDrawBlankoImage(ctx, width, height, template)
+}
+
+async function tryDrawBlankoImage(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  template: TemplateConfig,
+) {
+  if (!template.blanko.backgroundImage) return
+
+  try {
+    await drawBlankoImage(
+      ctx,
+      width,
+      height,
+      template.blanko.backgroundImage,
+      template.blanko.imageFit ?? 'cover',
+    )
+  } catch (error) {
+    console.warn(`Falling back to generated blanko for template "${template.id}".`, error)
+  }
+}
+
 async function drawBlankoImage(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   path: string,
+  fit: 'cover' | 'contain' | 'stretch',
 ) {
   const response = await fetch(path)
   if (!response.ok) throw new Error(`Failed to load template blanko: ${path}`)
   const image = await decodeImageBlob(await response.blob())
-  drawImageCover(ctx, image, { x: 0, y: 0, width, height, radius: 0 })
+  drawImageFit(ctx, image, { x: 0, y: 0, width, height, radius: 0 }, fit)
   image.close?.()
+}
+
+function drawImageFit(
+  ctx: CanvasRenderingContext2D,
+  img: DecodedImage,
+  slot: SlotConfig,
+  fit: 'cover' | 'contain' | 'stretch',
+) {
+  const { x, y, width, height } = slot
+
+  if (fit === 'stretch') {
+    ctx.drawImage(img.source, x, y, width, height)
+    return
+  }
+
+  if (fit === 'contain') {
+    const scale = Math.min(width / img.width, height / img.height)
+    const drawWidth = img.width * scale
+    const drawHeight = img.height * scale
+    const drawX = x + (width - drawWidth) / 2
+    const drawY = y + (height - drawHeight) / 2
+    ctx.drawImage(img.source, drawX, drawY, drawWidth, drawHeight)
+    return
+  }
+
+  drawImageCover(ctx, img, slot)
 }
 
 function drawPaperBackground(
