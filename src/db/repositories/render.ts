@@ -27,10 +27,6 @@ export class RenderRepository {
     return renders.map(restoreRenderBlob)
   }
 
-  async markSavedToDevice(id: string): Promise<void> {
-    await db.renders.update(id, { savedToDeviceAt: Date.now() })
-  }
-
   async delete(id: string): Promise<void> {
     await db.renders.delete(id)
   }
@@ -45,13 +41,5 @@ export class RenderRepository {
 
   async clearAll(): Promise<void> {
     await db.renders.clear()
-  }
-
-  async getStorageEstimate(): Promise<number> {
-    let total = 0
-    await db.renders.toCollection().each((r) => {
-      total += r.sizeBytes
-    })
-    return total
   }
 }

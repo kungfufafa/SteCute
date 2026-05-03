@@ -8,10 +8,12 @@ const props = withDefaults(
     templateConfig: TemplateConfig | null | undefined
     shotUrls?: string[]
     interactive?: boolean
+    fitViewport?: boolean
   }>(),
   {
     shotUrls: () => [],
     interactive: false,
+    fitViewport: false,
   },
 )
 
@@ -31,6 +33,7 @@ const canvasStyle = computed<Record<string, string>>(() => {
     aspectRatio: `${layout.canvas.width} / ${layout.canvas.height}`,
     background: templateBackground(template),
     color: template.textColor,
+    '--strip-ratio': String(layout.canvas.width / layout.canvas.height),
   }
 })
 
@@ -165,7 +168,8 @@ function footerLogoStyle() {
 <template>
   <div
     v-if="layout && templateConfig"
-    class="border-stc-border shadow-stc-sm [container-type:inline-size] relative w-full max-w-[20rem] overflow-hidden rounded-xl border"
+    class="strip-canvas-preview border-stc-border shadow-stc-sm [container-type:inline-size] relative overflow-hidden rounded-xl border"
+    :class="{ 'strip-canvas-preview--fit': fitViewport }"
     :style="canvasStyle"
   >
     <div
@@ -219,3 +223,27 @@ function footerLogoStyle() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.strip-canvas-preview {
+  width: min(100%, 20rem);
+  max-width: 20rem;
+}
+
+.strip-canvas-preview--fit {
+  width: min(100%, 20rem, calc((100dvh - 17rem) * var(--strip-ratio, 1)));
+}
+
+@media (min-width: 768px) {
+  .strip-canvas-preview--fit {
+    width: min(100%, 22rem, calc((100dvh - 15rem) * var(--strip-ratio, 1)));
+    max-width: 22rem;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 768px) {
+  .strip-canvas-preview--fit {
+    width: min(100%, 19rem, calc((100dvh - 12rem) * var(--strip-ratio, 1)));
+  }
+}
+</style>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAppStore, useCapabilityStore } from '@/stores'
+import { ui } from '@/ui/styles'
+import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -8,31 +10,18 @@ const capabilityStore = useCapabilityStore()
 const showcaseImages = [
   {
     src: '/images/1759243291185.png',
-    alt: 'Photo strip classic preview',
-    wrapperClass:
-      'absolute z-10 -rotate-[12deg] lg:-translate-x-[78px] xl:-translate-x-[112px] translate-y-6 opacity-90',
-    imageClass: 'w-[148px] md:w-[176px]',
-    mobileWrapperClass:
-      'absolute bottom-5 left-1/2 z-10 -translate-x-[112px] rotate-[-11deg] opacity-90',
-    mobileImageClass: 'w-[128px]',
+    alt: 'Preview strip Classic',
+    baseClass: 'absolute top-6 -left-2 w-[48%] -rotate-12 hover:-rotate-6 z-10 sm:-left-4 sm:top-8',
   },
   {
     src: '/images/1769149454852.png',
-    alt: 'Photo strip mono preview',
-    wrapperClass:
-      'absolute z-10 rotate-[12deg] lg:translate-x-[78px] xl:translate-x-[112px] translate-y-12 opacity-90',
-    imageClass: 'w-[144px] md:w-[170px]',
-    mobileWrapperClass:
-      'absolute bottom-4 left-1/2 z-10 translate-x-[6px] rotate-[10deg] opacity-90',
-    mobileImageClass: 'w-[124px]',
+    alt: 'Preview strip Mono',
+    baseClass: 'absolute top-10 -right-2 w-[48%] rotate-12 hover:rotate-6 z-10 sm:-right-4 sm:top-12',
   },
   {
     src: '/images/1770039834020.png',
-    alt: 'Photo strip youth preview',
-    wrapperClass: 'absolute z-20',
-    imageClass: 'w-[204px]',
-    mobileWrapperClass: 'absolute bottom-0 left-1/2 z-20 -translate-x-1/2',
-    mobileImageClass: 'w-[172px]',
+    alt: 'Preview strip Youth',
+    baseClass: 'relative w-[56%] z-20 shadow-stc-lg',
   },
 ] as const
 
@@ -48,31 +37,26 @@ function startWithUpload() {
 </script>
 
 <template>
-  <div class="bg-stc-bg relative flex min-h-dvh flex-1 flex-col overflow-hidden font-sans">
-    <!-- Navigation -->
-    <nav class="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-8">
-      <div class="flex items-center gap-2">
-        <img class="block h-auto w-[132px]" src="/icons.svg" alt="Stecute" />
+  <div :class="ui.page">
+    <nav :class="ui.headerWide">
+      <div :class="ui.headerGroup">
+        <img class="block h-auto w-[116px] md:w-[132px]" src="/icons.svg" alt="Stecute" />
       </div>
       <div class="flex items-center gap-3">
         <button
-          class="border-stc-border text-stc-text shadow-stc-xs hover:bg-stc-bg-2 hidden min-h-11 rounded-xl border bg-white px-5 py-2.5 text-sm font-semibold transition-colors duration-150 md:flex"
+          :class="[ui.secondaryButton, '!hidden !min-h-11 !w-auto !px-5 !py-2.5 !text-sm md:!flex']"
           @click="startWithUpload"
         >
           Upload Lokal
         </button>
-        <button
-          class="border-stc-border text-stc-text-soft shadow-stc-xs hover:bg-stc-bg-2 hover:text-stc-pink flex size-11 items-center justify-center rounded-xl border bg-white transition-colors duration-150"
-          @click="router.push('/gallery')"
-          title="Galeri"
-        >
+        <button :class="ui.iconButton" @click="router.push('/gallery')" title="Galeri">
           <svg
             width="20"
             height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -84,126 +68,130 @@ function startWithUpload() {
       </div>
     </nav>
 
-    <!-- Hero Section -->
+    <FlowProgress current="landing" />
+
     <main
-      class="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col items-center gap-10 px-6 pt-12 pb-24 md:pt-20 md:pb-32 lg:flex-row lg:gap-24"
+      class="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-8 px-4 pt-3 pb-12 sm:px-6 md:px-8 md:pt-6 md:pb-16 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,1.05fr)] lg:items-center lg:gap-12 xl:gap-16"
     >
-      <!-- Hero Left: Copy & Actions -->
-      <div class="flex w-full flex-1 flex-col items-center text-center lg:items-start lg:text-left">
-        <!-- Headline -->
+      <section class="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
+        <p :class="[ui.sectionLabel, 'text-stc-pink mb-3 sm:mb-4']">Photo booth lokal</p>
         <h1
-          class="text-stc-text mb-6 text-5xl leading-[1.1] font-bold tracking-tight md:text-6xl lg:text-[4.5rem]"
+          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] tracking-tight font-extrabold sm:text-[3.5rem] lg:text-[4rem]"
         >
-          Abadikan Momen,<br />
-          <span class="text-stc-pink">Langsung Simpan.</span>
+          Stecute Photo Booth
         </h1>
 
-        <!-- Subtitle -->
         <p
-          class="text-stc-text-soft mb-10 max-w-2xl text-lg leading-relaxed font-medium lg:max-w-md"
+          class="text-stc-text-soft mt-6 max-w-[34rem] text-[1rem] leading-relaxed font-medium sm:text-[1.0625rem] lg:max-w-[31rem]"
         >
-          Photo booth digital premium di perangkat kamu. Lengkap dengan format strip realistis,
-          hasil rapi, dan privasi penuh.
+          Buka kamera, ambil beberapa pose, lalu simpan photo strip langsung di perangkat.
           {{ appStore.offlineMode ? '100% Offline.' : 'Siap Offline.' }}
         </p>
 
-        <!-- CTA Buttons -->
-        <div class="flex w-full flex-col items-center gap-4 sm:w-auto sm:flex-row">
-          <button
-            class="bg-stc-pink shadow-stc-sm hover:bg-stc-pink-strong w-full rounded-xl px-8 py-4 text-lg font-bold text-white transition-colors duration-150 sm:w-auto"
-            @click="startWithCamera"
-          >
+        <div class="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+          <button :class="[ui.primaryButton, 'sm:!w-auto']" @click="startWithCamera">
             Mulai Foto
           </button>
-          <!-- Mobile only secondary actions, since desktop has them in nav -->
-          <div class="mt-2 flex w-full gap-3 sm:hidden">
-            <button
-              class="border-stc-border text-stc-text shadow-stc-xs hover:bg-stc-bg-2 flex-1 rounded-xl border bg-white px-6 py-3.5 text-sm font-bold transition-colors duration-150"
-              @click="startWithUpload"
-            >
-              Upload Lokal
-            </button>
+          <div class="flex w-full sm:hidden">
+            <button :class="ui.secondaryButton" @click="startWithUpload">Upload Lokal</button>
           </div>
         </div>
-        <!-- Feature Ticks -->
-        <div
-          class="text-stc-text-soft mt-12 flex w-full flex-wrap items-center justify-center gap-x-6 gap-y-3 text-sm font-medium lg:justify-start"
-        >
-          <div class="flex items-center gap-1.5">
-            <svg
-              class="text-stc-success h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="3"
+
+        <div class="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:mt-10 lg:justify-start">
+          <div
+            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
+          >
+            <div
+              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+              <svg
+                class="size-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="4"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
             Tanpa Login
           </div>
-          <div class="flex items-center gap-1.5">
-            <svg
-              class="text-stc-success h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="3"
+          <div
+            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
+          >
+            <div
+              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+              <svg
+                class="size-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="4"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
             Privasi Terjaga
           </div>
-          <div class="flex items-center gap-1.5">
-            <svg
-              class="text-stc-success h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="3"
+          <div
+            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
+          >
+            <div
+              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+              <svg
+                class="size-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="4"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
             Hasil Lokal
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="pointer-events-none mt-12 flex w-full justify-center lg:hidden">
-        <div class="relative h-[430px] w-full max-w-[320px]">
-          <div
-            v-for="image in showcaseImages"
-            :key="`${image.src}-mobile`"
-            :class="image.mobileWrapperClass"
-          >
+      <section
+        class="border-stc-border shadow-stc-lg relative mx-auto flex h-[400px] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border bg-white/40 sm:h-[500px]"
+        aria-label="Preview Stecute"
+      >
+        <div class="relative flex-1 overflow-hidden">
+          <div class="absolute top-6 left-1/2 flex w-[260px] -translate-x-1/2 justify-center sm:top-10 sm:w-[320px]">
             <img
+              v-for="image in showcaseImages"
+              :key="image.src"
               :src="image.src"
               :alt="image.alt"
               loading="lazy"
               :class="[
-                image.mobileImageClass,
-                'shadow-stc-sm block rounded-2xl border-4 border-white bg-white',
+                image.baseClass,
+                'shadow-stc-md rounded-xl border-[4px] border-white bg-white transition-transform duration-500 hover:-translate-y-2',
               ]"
             />
           </div>
         </div>
-      </div>
 
-      <!-- Hero Right: Visual Composition -->
-      <div
-        class="pointer-events-none relative isolate mt-8 hidden h-[550px] w-full max-w-[500px] flex-1 items-center justify-center [perspective:1000px] lg:mt-0 lg:flex"
-      >
-        <div v-for="image in showcaseImages" :key="image.src" :class="image.wrapperClass">
-          <img
-            :src="image.src"
-            :alt="image.alt"
-            loading="lazy"
-            :class="[
-              image.imageClass,
-              'shadow-stc-sm block rounded-2xl border-4 border-white bg-white',
-            ]"
-          />
+        <div
+          class="border-stc-border bg-stc-bg-2 relative z-30 grid grid-cols-3 border-t px-5 py-4 text-center sm:px-8"
+        >
+          <div>
+            <p :class="ui.sectionLabel">Layout</p>
+            <p class="text-stc-text mt-1 text-sm font-bold">2/3/4/6</p>
+          </div>
+          <div class="border-stc-border border-x">
+            <p :class="ui.sectionLabel">Timer</p>
+            <p class="text-stc-text mt-1 text-sm font-bold">3-10s</p>
+          </div>
+          <div>
+            <p :class="ui.sectionLabel">Penyimpanan</p>
+            <p class="text-stc-text mt-1 text-sm font-bold">Lokal</p>
+          </div>
         </div>
-      </div>
+      </section>
     </main>
   </div>
 </template>

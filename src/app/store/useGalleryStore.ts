@@ -5,7 +5,6 @@ import { RenderRepository } from '@/db/repositories'
 
 export const useGalleryStore = defineStore('gallery', () => {
   const recentRenders = ref<Render[]>([])
-  const storageUsageEstimate = ref(0)
   const isLoading = ref(false)
 
   const renderRepo = new RenderRepository()
@@ -14,7 +13,6 @@ export const useGalleryStore = defineStore('gallery', () => {
     isLoading.value = true
     try {
       recentRenders.value = await renderRepo.getRecent()
-      storageUsageEstimate.value = await renderRepo.getStorageEstimate()
     } catch (error) {
       console.error('Failed to load gallery:', error)
     } finally {
@@ -36,12 +34,10 @@ export const useGalleryStore = defineStore('gallery', () => {
   async function clearAll() {
     await renderRepo.clearAll()
     recentRenders.value = []
-    storageUsageEstimate.value = 0
   }
 
   return {
     recentRenders,
-    storageUsageEstimate,
     isLoading,
     loadRecent,
     removeRender,

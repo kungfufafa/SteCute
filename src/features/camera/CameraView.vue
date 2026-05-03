@@ -18,6 +18,7 @@ import {
   switchCamera,
 } from '@/services/camera'
 import { ui } from '@/ui/styles'
+import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const cameraStore = useCameraStore()
@@ -30,9 +31,14 @@ const flashVisible = ref(false)
 const cameraError = ref<string | null>(null)
 let stream: MediaStream | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
+let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
+let autoCaptureRunning = false
 
 const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
 const activeLayout = computed(() => getLayoutById(sessionStore.layoutId))
+const shotProgressLabel = computed(
+  () => `Foto ${sessionStore.currentShotIndex + 1} dari ${sessionStore.slotCount}`,
+)
 const cameraRecoverySteps = [
   'Buka pengaturan browser',
   'Cari izin Kamera',
@@ -72,15 +78,17 @@ async function setupCamera() {
       sessionStore.sessionStatus = 'capturing'
     }
   } catch (error) {
-    console.error('Camera init failed:', error)
-    if (
+    const isDeniedError =
       error instanceof DOMException &&
       (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
-    ) {
+    const isUnavailableError = error instanceof DOMException && error.name === 'NotFoundError'
+
+    if (isDeniedError) {
       cameraStore.setPermissionState('denied')
-    } else if (error instanceof DOMException && error.name === 'NotFoundError') {
+    } else if (isUnavailableError) {
       cameraStore.setPermissionState('unavailable')
     } else {
+      console.error('Camera init failed:', error)
       cameraStore.setPermissionState('denied')
     }
   }
@@ -91,6 +99,13 @@ onUnmounted(() => {
     clearInterval(countdownTimer)
     countdownTimer = null
   }
+
+  if (autoCaptureTimeout) {
+    clearTimeout(autoCaptureTimeout)
+    autoCaptureTimeout = null
+  }
+
+  autoCaptureRunning = false
 
   if (stream) {
     stopCamera(stream)
@@ -163,6 +178,13 @@ async function handleCapture() {
   } else {
     sessionStore.advanceShot()
   }
+
+  // Trigger auto-capture for next shot
+  if (sessionStore.autoCapture && autoCaptureRunning) {
+    autoCaptureTimeout = setTimeout(() => {
+      runCountdownAndCapture()
+    }, 800)
+  }
 }
 
 function triggerFlash() {
@@ -178,6 +200,12 @@ function cancelCountdown() {
     countdownTimer = null
   }
 
+  if (autoCaptureTimeout) {
+    clearTimeout(autoCaptureTimeout)
+    autoCaptureTimeout = null
+  }
+
+  autoCaptureRunning = false
   countdownActive.value = false
 }
 
@@ -187,6 +215,11 @@ function runCountdownAndCapture() {
   cameraError.value = null
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
   countdownActive.value = true
+
+  // Mark auto-capture as running on the first manual trigger
+  if (sessionStore.autoCapture) {
+    autoCaptureRunning = true
+  }
 
   countdownTimer = setInterval(async () => {
     countdownValue.value -= 1
@@ -205,269 +238,348 @@ function runCountdownAndCapture() {
 }
 
 function goBack() {
-  router.push('/config')
+  // Cancel any running auto-capture
+  if (autoCaptureTimeout) {
+    clearTimeout(autoCaptureTimeout)
+    autoCaptureTimeout = null
+  }
+  autoCaptureRunning = false
+  cancelCountdown()
+
+  // Reset session so user starts fresh from config
+  sessionStore.reset()
+
+  router.push({ path: '/config', query: { source: 'camera' } })
 }
 </script>
 
 <template>
   <div
     v-if="cameraStore.permissionState === 'granted'"
-    class="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 py-5 sm:px-6 md:h-dvh md:overflow-hidden md:py-4 lg:px-10"
+    :class="[ui.page, 'lg:h-dvh lg:overflow-hidden']"
   >
-    <div class="mb-3 flex items-center justify-between gap-4">
-      <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </svg>
-      </button>
-      <div class="flex flex-wrap items-center justify-center gap-2">
-        <span :class="ui.badge">
+    <div :class="[ui.headerWide, '!pt-4 !pb-3 sm:!pt-5 lg:!pt-6']">
+      <div :class="ui.headerGroup">
+        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <div class="min-w-0">
+          <h3 :class="ui.title">Ambil Foto</h3>
+          <p :class="ui.subtitle">
+            {{ shotProgressLabel }} dengan timer {{ sessionStore.countdownSeconds }} detik{{
+              sessionStore.autoCapture ? ' (Otomatis)' : ''
+            }}.
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <span :class="ui.pinkBadge">
           {{ activeLayout?.printFormat.paperSize ?? `${sessionStore.slotCount} Foto` }}
         </span>
-      </div>
-      <button :class="ui.iconButton" aria-label="Ubah setup sesi" @click="router.push('/config')">
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="3" />
-          <path
-            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-          />
-        </svg>
-      </button>
-    </div>
-
-    <div
-      class="camera-preview border-stc-border shadow-stc-sm relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-xl border-2 bg-black"
-    >
-      <video
-        ref="videoRef"
-        autoplay
-        playsinline
-        muted
-        class="absolute inset-0 h-full w-full object-cover"
-      ></video>
-
-      <div v-if="flashVisible" class="absolute inset-0 bg-white/85"></div>
-
-      <div
-        class="border-stc-pink absolute top-4 left-4 size-7 rounded-tl-lg border-t-2 border-l-2"
-      ></div>
-      <div
-        class="border-stc-pink absolute top-4 right-4 size-7 rounded-tr-lg border-t-2 border-r-2"
-      ></div>
-      <div
-        class="border-stc-pink absolute bottom-4 left-4 size-7 rounded-bl-lg border-b-2 border-l-2"
-      ></div>
-      <div
-        class="border-stc-pink absolute right-4 bottom-4 size-7 rounded-br-lg border-r-2 border-b-2"
-      ></div>
-
-      <div
-        v-if="countdownActive"
-        class="bg-stc-text/25 absolute inset-0 flex flex-col items-center justify-center text-center text-white"
-      >
-        <div class="text-[7rem] leading-none font-bold sm:text-[8rem]">
-          {{ countdownValue }}
-        </div>
-        <div class="mt-3 text-sm font-semibold">
-          Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari {{ sessionStore.slotCount }}
-        </div>
         <button
-          class="mt-6 text-sm font-medium text-white/90 underline underline-offset-4"
-          @click="cancelCountdown"
+          :class="ui.iconButton"
+          aria-label="Ubah setup sesi"
+          @click="router.push({ path: '/config', query: { source: 'camera' } })"
         >
-          Batal
-        </button>
-      </div>
-    </div>
-
-    <div class="pt-4">
-      <div class="mb-3 flex flex-wrap items-center justify-center gap-2">
-        <div
-          v-for="index in sessionStore.slotCount"
-          :key="index"
-          :class="[
-            'shadow-stc-xs flex h-12 w-10 items-center justify-center rounded-lg border text-[10px] font-semibold transition-colors duration-150 sm:h-14 sm:w-11',
-            index - 1 === sessionStore.currentShotIndex
-              ? 'border-stc-pink bg-stc-pink-soft text-stc-pink'
-              : sessionStore.shotIds[index - 1]
-                ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
-                : 'border-stc-border text-stc-text-faint bg-white',
-          ]"
-        >
-          {{
-            index - 1 === sessionStore.currentShotIndex
-              ? `${index}/${sessionStore.slotCount}`
-              : index
-          }}
-        </div>
-      </div>
-
-      <div
-        v-if="cameraError"
-        class="border-stc-error/20 bg-stc-error-soft text-stc-error mb-4 rounded-xl border px-4 py-3 text-center text-sm font-semibold"
-      >
-        {{ cameraError }}
-      </div>
-
-      <div class="flex items-center justify-center gap-6">
-        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
-          &#8635;
-        </button>
-        <button
-          class="camera-shutter border-stc-pink shadow-stc-sm hover:bg-stc-pink-soft relative inline-flex size-[76px] items-center justify-center rounded-full border-4 bg-white transition-colors duration-150 sm:size-20"
-          aria-label="Ambil foto"
-          @click="runCountdownAndCapture"
-        >
-          <span class="bg-stc-pink inline-flex size-14 rounded-full sm:size-[60px]"></span>
-        </button>
-        <button :class="ui.iconButton" aria-label="Ganti kamera" @click="handleSwitchCamera">
-          &#9889;
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <div
-    v-else-if="cameraStore.permissionState === 'denied'"
-    class="mx-auto flex min-h-dvh w-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6"
-  >
-    <div :class="[ui.panel, 'w-full max-w-xl px-8 py-10']">
-      <div
-        class="bg-stc-error-soft text-stc-error mx-auto mb-5 flex size-16 items-center justify-center rounded-full"
-      >
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path
-            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-          />
-          <line x1="1" y1="1" x2="23" y2="23" />
-        </svg>
-      </div>
-      <h3 class="text-stc-text text-xl font-bold tracking-tight">Kamera Tidak Diizinkan</h3>
-      <p class="text-stc-text-soft mt-3 text-sm leading-relaxed">
-        Aplikasi membutuhkan akses kamera. Izinkan lewat pengaturan browser lalu coba lagi.
-      </p>
-      <div class="text-stc-text-soft mt-6 space-y-3 text-left text-sm">
-        <div
-          v-for="(step, index) in cameraRecoverySteps"
-          :key="step"
-          class="flex items-start gap-3"
-        >
-          <span
-            class="border-stc-border bg-stc-bg-2 text-stc-text-faint inline-flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-bold"
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
-            {{ index + 1 }}
-          </span>
-          <span>{{ step }}</span>
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <FlowProgress current="capture" source="camera" />
+
+    <div :class="[ui.content, 'flex min-h-0 flex-col !pb-0']">
+      <div :class="[ui.pageContentWide, 'min-h-0 justify-between']">
+        <div
+          class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-xl border bg-black/95"
+        >
+          <video
+            ref="videoRef"
+            autoplay
+            playsinline
+            muted
+            class="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+          ></video>
+
+          <div
+            v-if="flashVisible"
+            class="absolute inset-0 z-20 bg-white/90 transition-opacity duration-100"
+          ></div>
+
+          <!-- Viewfinder corners -->
+          <div class="pointer-events-none absolute inset-5 z-10 hidden sm:block">
+            <div
+              class="border-stc-pink/70 absolute top-0 left-0 size-8 rounded-tl-xl border-t-4 border-l-4"
+            ></div>
+            <div
+              class="border-stc-pink/70 absolute top-0 right-0 size-8 rounded-tr-xl border-t-4 border-r-4"
+            ></div>
+            <div
+              class="border-stc-pink/70 absolute bottom-0 left-0 size-8 rounded-bl-xl border-b-4 border-l-4"
+            ></div>
+            <div
+              class="border-stc-pink/70 absolute right-0 bottom-0 size-8 rounded-br-xl border-r-4 border-b-4"
+            ></div>
+          </div>
+
+          <div
+            v-if="countdownActive"
+            class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
+          >
+            <div class="text-[5rem] leading-none font-bold drop-shadow-2xl sm:text-[7rem]">
+              {{ countdownValue }}
+            </div>
+            <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-bold">
+              Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari {{ sessionStore.slotCount }}
+            </div>
+            <button
+              class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/20 active:scale-95"
+              @click="cancelCountdown"
+            >
+              Batal
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-auto flex w-full flex-col pt-5">
+          <div class="mb-5 flex flex-wrap items-center justify-center gap-2">
+            <div
+              v-for="index in sessionStore.slotCount"
+              :key="index"
+              :class="[
+                'shadow-stc-xs flex h-12 w-10 items-center justify-center rounded-xl border text-[10px] font-bold transition-all duration-300 sm:h-14 sm:w-11 sm:text-xs',
+                index - 1 === sessionStore.currentShotIndex
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm z-10 scale-110'
+                  : sessionStore.shotIds[index - 1]
+                    ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
+                    : 'border-stc-border text-stc-text-faint bg-white',
+              ]"
+            >
+              {{
+                index - 1 === sessionStore.currentShotIndex
+                  ? `${index}/${sessionStore.slotCount}`
+                  : index
+              }}
+            </div>
+          </div>
+
+          <div
+            v-if="cameraError"
+            class="border-stc-error/30 bg-stc-error-soft text-stc-error shadow-stc-xs mx-auto mb-5 max-w-sm rounded-xl border px-4 py-3 text-center text-sm font-semibold"
+          >
+            {{ cameraError }}
+          </div>
+
+          <div class="flex items-center justify-center gap-8 pb-4">
+            <button
+              :class="[ui.iconButton, 'rounded-full']"
+              aria-label="Kembali ke setup sesi"
+              @click="goBack"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <path d="M3 3v5h5" />
+              </svg>
+            </button>
+
+            <button
+              class="camera-shutter group border-stc-border shadow-stc-md hover:border-stc-pink/40 active:border-stc-pink relative inline-flex size-[72px] items-center justify-center rounded-full border-[5px] bg-white transition-all duration-200 hover:scale-105 active:scale-95 sm:size-20"
+              aria-label="Ambil foto"
+              @click="runCountdownAndCapture"
+            >
+              <span
+                class="bg-stc-pink inline-flex size-[52px] rounded-full shadow-inner transition-transform duration-200 group-hover:scale-95 group-active:scale-90 sm:size-[56px]"
+              ></span>
+            </button>
+
+            <button
+              :class="[ui.iconButton, 'rounded-full']"
+              aria-label="Ganti kamera"
+              @click="handleSwitchCamera"
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M17 2.1l4 4-4 4" />
+                <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4" />
+                <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
-      <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button :class="[ui.primaryButton, 'w-full']" @click="setupCamera">Coba Lagi</button>
-        <button :class="[ui.secondaryButton, 'w-full']" @click="router.push('/upload')">
-          Upload Foto Lokal
-        </button>
-      </div>
     </div>
   </div>
 
-  <div
-    v-else-if="cameraStore.permissionState === 'unavailable'"
-    class="mx-auto flex min-h-dvh w-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6"
-  >
-    <div :class="[ui.panel, 'w-full max-w-xl px-8 py-10']">
-      <div
-        class="bg-stc-warning-soft text-stc-warning mx-auto mb-5 flex size-16 items-center justify-center rounded-full"
-      >
-        <svg
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
+  <div v-else-if="cameraStore.permissionState === 'denied'" :class="ui.page">
+    <FlowProgress current="capture" source="camera" />
+
+    <div class="m-auto flex w-full max-w-xl flex-col px-5 py-10">
+      <div :class="[ui.panel, 'w-full px-6 py-10 sm:px-10']">
+        <div :class="[ui.statusIcon, 'bg-stc-error-soft text-stc-error']">
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+            />
+            <line x1="1" y1="1" x2="23" y2="23" />
+          </svg>
+        </div>
+        <h3 class="text-stc-text text-center text-xl font-bold">Kamera Tidak Diizinkan</h3>
+        <p
+          class="text-stc-text-soft mx-auto mt-3 max-w-sm text-center text-[0.9375rem] leading-relaxed font-medium"
         >
-          <path
-            d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-          />
-          <line x1="1" y1="1" x2="23" y2="23" />
-          <path d="M9.5 9.5L14.5 14.5" />
-        </svg>
-      </div>
-      <h3 class="text-stc-text text-xl font-bold tracking-tight">Tidak Ada Kamera</h3>
-      <p class="text-stc-text-soft mt-3 text-sm leading-relaxed">
-        Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.
-      </p>
-      <div class="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <button :class="[ui.primaryButton, 'w-full']" @click="router.push('/upload')">
-          Upload Foto Lokal
-        </button>
-        <button :class="[ui.secondaryButton, 'w-full']" @click="router.push('/')">Kembali</button>
+          Aplikasi membutuhkan akses kamera. Izinkan lewat pengaturan browser lalu coba lagi.
+        </p>
+        <div
+          class="bg-stc-bg-2 text-stc-text-soft mt-8 space-y-3 rounded-xl p-5 text-sm font-medium"
+        >
+          <div
+            v-for="(step, index) in cameraRecoverySteps"
+            :key="step"
+            class="flex items-center gap-3"
+          >
+            <span
+              class="text-stc-text shadow-stc-xs flex size-7 shrink-0 items-center justify-center rounded-full bg-white font-bold"
+            >
+              {{ index + 1 }}
+            </span>
+            <span>{{ step }}</span>
+          </div>
+        </div>
+        <div class="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button :class="ui.primaryButton" @click="setupCamera">Coba Lagi</button>
+          <button :class="ui.secondaryButton" @click="router.push('/upload')">
+            Upload Foto Lokal
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div
-    v-else
-    class="mx-auto flex min-h-dvh w-full max-w-3xl flex-col items-center justify-center px-4 py-10 text-center sm:px-6"
-  >
-    <div :class="[ui.panel, 'w-full max-w-md px-8 py-10']">
-      <div
-        class="border-r-stc-pink/60 border-t-stc-pink mx-auto mb-5 size-12 animate-spin rounded-full border-4 border-transparent"
-      ></div>
-      <h3 class="text-stc-text text-xl font-bold tracking-tight">Menyiapkan Kamera...</h3>
-      <p class="text-stc-text-soft mt-3 text-sm leading-relaxed">Memuat preview perangkat.</p>
+  <div v-else-if="cameraStore.permissionState === 'unavailable'" :class="ui.page">
+    <FlowProgress current="capture" source="camera" />
+
+    <div class="m-auto flex w-full max-w-xl flex-col px-5 py-10">
+      <div :class="[ui.panel, 'w-full px-6 py-10 text-center sm:px-10']">
+        <div
+          class="bg-stc-warning-soft text-stc-warning shadow-stc-xs mx-auto mb-6 flex size-16 items-center justify-center rounded-xl"
+        >
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+            />
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M9.5 9.5L14.5 14.5" />
+          </svg>
+        </div>
+        <h3 class="text-stc-text text-xl font-bold">Tidak Ada Kamera</h3>
+        <p
+          class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
+        >
+          Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.
+        </p>
+        <div class="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <button :class="ui.primaryButton" @click="router.push('/upload')">
+            Upload Foto Lokal
+          </button>
+          <button :class="ui.secondaryButton" @click="router.push('/')">Kembali</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div v-else :class="ui.page">
+    <FlowProgress current="capture" source="camera" />
+
+    <div class="m-auto flex w-full max-w-md flex-col px-5 py-10">
+      <div :class="[ui.panelSoft, 'w-full px-6 py-12 text-center']">
+        <div
+          class="border-r-stc-pink/20 border-t-stc-pink mx-auto mb-6 size-12 animate-spin rounded-full border-[4px] border-transparent"
+        ></div>
+        <h3 class="text-stc-text text-xl font-bold">Menyiapkan Kamera...</h3>
+        <p class="text-stc-text-soft mt-2 text-sm font-medium">Memuat preview perangkat.</p>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .camera-preview {
-  max-width: min(1040px, calc((100dvh - 15rem) * 4 / 3));
+  max-width: min(1040px, calc((100dvh - 20rem) * 4 / 3));
+  max-height: calc(100dvh - 20rem);
 }
 
 @media (max-width: 767px) {
   .camera-preview {
     max-width: 1040px;
+    max-height: none;
   }
 }
 
 @media (max-height: 720px) and (min-width: 768px) {
   .camera-preview {
-    max-width: min(900px, calc((100dvh - 13.75rem) * 4 / 3));
-  }
-
-  .camera-shutter {
-    width: 4.25rem;
-    height: 4.25rem;
+    max-width: min(900px, calc((100dvh - 16rem) * 4 / 3));
+    max-height: calc(100dvh - 16rem);
   }
 }
 </style>

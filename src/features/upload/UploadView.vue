@@ -7,6 +7,8 @@ import { getImageDimensions, openImagePicker, validateFiles } from '@/services/u
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
+import StripPreview from '@/components/prototype/StripPreview.vue'
+import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
@@ -65,7 +67,7 @@ async function handleFileSelect() {
 }
 
 function goBack() {
-  router.push('/')
+  router.push({ path: '/config', query: { source: 'upload' } })
 }
 
 function removeAt(index: number) {
@@ -127,12 +129,12 @@ onBeforeUnmount(() => resetPreviewUrls())
       <div :class="ui.headerGroup">
         <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="goBack">
           <svg
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -143,8 +145,7 @@ onBeforeUnmount(() => resetPreviewUrls())
         <div class="min-w-0">
           <h3 :class="ui.title">Upload Foto</h3>
           <p :class="ui.subtitle">
-            Pilih tepat {{ sessionStore.slotCount }} foto untuk
-            {{ activeLayout?.printFormat.label ?? 'format strip yang aktif' }}.
+            Pilih tepat {{ sessionStore.slotCount }} foto untuk strip Anda.
           </p>
         </div>
       </div>
@@ -153,95 +154,151 @@ onBeforeUnmount(() => resetPreviewUrls())
       }}</span>
     </div>
 
+    <FlowProgress current="capture" source="upload" />
+
     <div :class="ui.content">
-      <div :class="[ui.contentWrap, 'gap-6']">
-        <div class="space-y-3">
-          <p class="text-stc-text-soft text-sm leading-relaxed">
-            Gunakan format JPG, PNG, atau WebP maksimal 10 MB per file. Semua foto akan diproses
-            lokal di perangkat ini.
-          </p>
-        </div>
-
-        <button
-          class="group border-stc-border-strong shadow-stc-xs hover:border-stc-pink hover:bg-stc-pink-soft flex min-h-72 flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-white px-6 py-10 text-center transition-colors duration-150"
-          :disabled="isProcessing"
-          @click="handleFileSelect"
-        >
-          <div
-            class="bg-stc-pink-soft text-stc-pink mb-4 flex size-16 items-center justify-center rounded-2xl"
-          >
-            <svg
-              width="26"
-              height="26"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
+      <div
+        :class="[
+          ui.pageContentWide,
+          'grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_300px] lg:items-start',
+        ]"
+      >
+        <section class="min-w-0 space-y-6">
+          <div class="max-w-2xl space-y-2">
+            <p :class="ui.sectionLabel">Upload Lokal</p>
+            <h2 :class="ui.sectionTitle">Masukkan foto sesuai slot.</h2>
+            <p :class="ui.sectionCopy">
+              JPG, PNG, atau WebP maksimal 10 MB per file. Semua foto diproses lokal di perangkat
+              ini untuk menjaga privasi.
+            </p>
           </div>
-          <h4 class="text-stc-text text-lg font-semibold">
-            {{ isProcessing ? 'Memproses...' : 'Pilih Foto' }}
-          </h4>
-          <p class="text-stc-text-faint mt-2 text-sm">
-            {{ isProcessing ? 'Menyiapkan preview' : 'JPG, PNG, WebP • Maks 10 MB per file' }}
-          </p>
-        </button>
-
-        <div class="flex flex-wrap gap-3">
-          <template v-for="(url, index) in previewUrls" :key="url">
-            <div
-              class="group border-stc-border shadow-stc-xs relative h-24 w-20 overflow-hidden rounded-xl border bg-white"
-            >
-              <img :src="url" :alt="`Upload ${index + 1}`" class="h-full w-full object-cover" />
-              <button
-                class="bg-stc-error shadow-stc-xs hover:bg-stc-error-strong absolute top-1 right-1 inline-flex size-6 items-center justify-center rounded-full border border-white/80 text-xs font-bold text-white transition-colors duration-150"
-                :aria-label="`Hapus foto ${index + 1}`"
-                :disabled="isProcessing"
-                @click.stop="removeAt(index)"
-              >
-                ×
-              </button>
-            </div>
-          </template>
 
           <button
-            v-if="selectedFiles.length < sessionStore.slotCount"
-            class="border-stc-pink bg-stc-pink-soft text-stc-pink flex h-24 w-20 items-center justify-center rounded-xl border border-dashed text-sm font-semibold transition-colors duration-150 hover:bg-white"
+            class="group border-stc-border-strong shadow-stc-xs hover:border-stc-pink hover:bg-stc-pink-soft hover:shadow-stc-sm focus-visible:ring-stc-pink flex min-h-[280px] w-full max-w-[38rem] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white px-5 py-8 text-center transition-all duration-200 outline-none hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:min-h-[330px] sm:px-6 sm:py-10"
             :disabled="isProcessing"
             @click="handleFileSelect"
           >
-            +{{ sessionStore.slotCount - selectedFiles.length }}
-          </button>
-        </div>
-
-        <div
-          v-if="errors.length > 0"
-          class="border-stc-error/20 bg-stc-error-soft shadow-stc-xs rounded-2xl border p-5"
-        >
-          <p class="text-stc-error mb-3 text-xs font-bold tracking-[0.16em] uppercase">
-            Masalah Upload
-          </p>
-          <div class="space-y-2">
             <div
-              v-for="(error, index) in errors"
-              :key="error"
-              class="text-stc-error flex items-start gap-3 text-sm"
+              class="bg-stc-pink-soft text-stc-pink shadow-stc-xs mb-5 flex size-16 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 sm:size-20"
             >
-              <span
-                class="text-stc-error mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold"
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
               >
-                {{ index + 1 }}
-              </span>
-              <span>{{ error }}</span>
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+            </div>
+            <h4
+              class="text-stc-text group-hover:text-stc-pink-strong text-xl font-bold transition-colors"
+            >
+              {{ isProcessing ? 'Memproses...' : 'Pilih Foto Lokal' }}
+            </h4>
+            <p
+              class="text-stc-text-faint group-hover:text-stc-pink/80 mt-2 text-sm font-medium transition-colors"
+            >
+              {{
+                isProcessing
+                  ? 'Menyiapkan preview'
+                  : `${sessionStore.slotCount} file untuk sekali render`
+              }}
+            </p>
+          </button>
+
+          <div v-if="previewUrls.length > 0" class="flex flex-wrap gap-4">
+            <template v-for="(url, index) in previewUrls" :key="url">
+              <div
+                class="border-stc-border shadow-stc-sm relative h-28 w-24 overflow-hidden rounded-xl border-2 bg-white"
+              >
+                <img
+                  :src="url"
+                  :alt="`Upload ${index + 1}`"
+                  class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                />
+                <button
+                  class="bg-stc-error shadow-stc-xs hover:bg-stc-error-strong absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full border-[2px] border-white text-sm font-bold text-white transition-all duration-200 outline-none hover:scale-110 active:scale-90"
+                  :aria-label="`Hapus foto ${index + 1}`"
+                  :disabled="isProcessing"
+                  @click.stop="removeAt(index)"
+                >
+                  &times;
+                </button>
+              </div>
+            </template>
+
+            <button
+              v-if="selectedFiles.length < sessionStore.slotCount"
+              class="border-stc-pink bg-stc-pink-soft text-stc-pink hover:shadow-stc-sm flex h-28 w-24 items-center justify-center rounded-xl border-2 border-dashed text-lg font-bold transition-all duration-200 outline-none hover:-translate-y-1 hover:bg-white active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
+              :disabled="isProcessing"
+              @click="handleFileSelect"
+            >
+              +{{ sessionStore.slotCount - selectedFiles.length }}
+            </button>
+          </div>
+
+          <div
+            v-if="errors.length > 0"
+            class="border-stc-error/30 bg-stc-error-soft shadow-stc-xs rounded-xl border p-5 sm:p-6"
+          >
+            <p class="text-stc-error mb-4 text-[0.6875rem] font-bold uppercase">Masalah Upload</p>
+            <div class="space-y-3">
+              <div
+                v-for="(error, index) in errors"
+                :key="error"
+                class="text-stc-error flex items-start gap-3 text-sm font-medium"
+              >
+                <span
+                  class="text-stc-error shadow-stc-xs mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold"
+                >
+                  {{ index + 1 }}
+                </span>
+                <span class="leading-relaxed">{{ error }}</span>
+              </div>
             </div>
           </div>
-        </div>
+        </section>
+
+        <aside class="lg:sticky lg:top-8" aria-label="Ringkasan format upload">
+          <div :class="[ui.panel, 'p-5 sm:p-6']">
+            <div class="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p :class="ui.sectionLabel">Slot</p>
+                <h3 class="text-stc-text mt-1 text-lg font-bold">
+                  {{ activeLayout?.printFormat.label ?? `${sessionStore.slotCount} Foto` }}
+                </h3>
+              </div>
+              <span :class="ui.badge">{{ sessionStore.slotCount }} Foto</span>
+            </div>
+
+            <div class="mx-auto max-w-[190px]">
+              <StripPreview
+                :slot-count="sessionStore.slotCount"
+                title="Classic"
+                :badge="activeLayout?.printFormat.paperSize"
+                footer="Stecute"
+                variant="mini"
+              />
+            </div>
+
+            <div class="mt-6 space-y-3">
+              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
+                <span class="text-stc-text-soft text-sm font-semibold">Format</span>
+                <span class="text-stc-text text-sm font-bold">JPG/PNG/WebP</span>
+              </div>
+              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
+                <span class="text-stc-text-soft text-sm font-semibold">Batas file</span>
+                <span class="text-stc-text text-sm font-bold">10 MB</span>
+              </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </div>

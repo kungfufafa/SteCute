@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import type { Session, Shot } from '@/db/schema'
 
 export type SessionStatus =
   | 'idle'
@@ -18,17 +19,13 @@ export const useSessionStore = defineStore('session', () => {
   const captureSource = ref<'camera' | 'upload' | null>(null)
   const layoutId = ref<string>('strip-3-vertical')
   const templateId = ref<string>('classic')
+  const autoCapture = ref<boolean>(false)
   const countdownSeconds = ref<number>(3)
   const slotCount = ref<number>(3)
   const currentShotIndex = ref<number>(0)
   const shotIds = ref<string[]>([])
   const renderId = ref<string | null>(null)
   const errorMessage = ref<string | null>(null)
-
-  const isCapturing = computed(() => sessionStatus.value === 'capturing')
-  const isReviewing = computed(() => sessionStatus.value === 'reviewing')
-  const isRendering = computed(() => sessionStatus.value === 'rendering')
-  const isCompleted = computed(() => sessionStatus.value === 'completed')
 
   function startSession(id: string, source: 'camera' | 'upload', slots: number) {
     sessionId.value = id
@@ -41,8 +38,36 @@ export const useSessionStore = defineStore('session', () => {
     sessionStatus.value = source === 'camera' ? 'capturing' : 'uploading'
   }
 
-  function setConfiguring() {
-    sessionStatus.value = 'configuring'
+  function restoreFromSession(session: Session, shots: Shot[] = []) {
+    const shotIdByOrder = new Map(shots.map((shot) => [shot.order, shot.id]))
+    const firstMissingOrder = Array.from({ length: session.slotCount }, (_, index) => index).find(
+      (order) => !shotIdByOrder.has(order),
+    )
+
+    sessionId.value = session.id
+    captureSource.value = session.captureSource
+    layoutId.value = session.layoutId
+    templateId.value = session.templateId
+    slotCount.value = session.slotCount
+    currentShotIndex.value = firstMissingOrder ?? Math.max(0, session.slotCount - 1)
+    shotIds.value = Array.from(
+      { length: session.slotCount },
+      (_, index) => shotIdByOrder.get(index) ?? '',
+    )
+    renderId.value = session.finalRenderId
+    errorMessage.value = null
+
+    if (session.finalRenderId || session.status === 'completed') {
+      sessionStatus.value = 'completed'
+      return
+    }
+
+    sessionStatus.value =
+      shots.length >= session.slotCount
+        ? 'reviewing'
+        : session.captureSource === 'camera'
+          ? 'capturing'
+          : 'uploading'
   }
 
   function setCapturing() {
@@ -98,18 +123,15 @@ export const useSessionStore = defineStore('session', () => {
     captureSource,
     layoutId,
     templateId,
+    autoCapture,
     countdownSeconds,
     slotCount,
     currentShotIndex,
     shotIds,
     renderId,
     errorMessage,
-    isCapturing,
-    isReviewing,
-    isRendering,
-    isCompleted,
     startSession,
-    setConfiguring,
+    restoreFromSession,
     setCapturing,
     setReviewing,
     setRendering,

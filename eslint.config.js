@@ -22,6 +22,7 @@ const browserGlobals = {
   OffscreenCanvas: 'readonly',
   URL: 'readonly',
   clearInterval: 'readonly',
+  clearTimeout: 'readonly',
   confirm: 'readonly',
   console: 'readonly',
   createImageBitmap: 'readonly',
@@ -29,6 +30,7 @@ const browserGlobals = {
   document: 'readonly',
   navigator: 'readonly',
   setInterval: 'readonly',
+  setTimeout: 'readonly',
   window: 'readonly',
 }
 

@@ -21,21 +21,14 @@ function handleCancel() {
 </script>
 
 <template>
-  <div class="bg-stc-bg flex min-h-svh flex-col items-center justify-center p-4">
-    <div
-      class="border-stc-border shadow-stc-xs w-full max-w-sm rounded-2xl border bg-white p-6 text-center"
-    >
-      <h2 class="text-stc-text mb-2 text-lg font-semibold">Reset Sesi?</h2>
+  <div :class="[ui.page, 'items-center justify-center p-4']">
+    <div :class="[ui.panelSoft, 'w-full max-w-sm p-6 text-center']">
+      <h2 class="text-stc-text mb-2 text-lg font-bold">Reset Sesi?</h2>
       <p class="text-stc-text-soft mb-6 text-sm">
         Semua foto di sesi ini akan dibuang. Tindakan ini tidak bisa dibatalkan.
       </p>
       <div class="space-y-2">
-        <button
-          :class="[ui.secondaryButton, 'bg-stc-error hover:bg-stc-error-strong w-full text-white']"
-          @click="handleReset"
-        >
-          Reset Sesi
-        </button>
+        <button :class="[ui.dangerButton, 'w-full']" @click="handleReset">Reset Sesi</button>
         <button :class="[ui.secondaryButton, 'w-full']" @click="handleCancel">Batal</button>
       </div>
     </div>

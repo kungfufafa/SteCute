@@ -53,7 +53,7 @@ const containerShadowClass = computed(() =>
       class="flex items-center justify-between px-4 pt-3 pb-2"
       :class="variant === 'gallery' ? 'px-3 pt-2.5 pb-1.5' : ''"
     >
-      <span class="text-stc-text-soft text-[11px] font-semibold tracking-[0.2em] uppercase">
+      <span class="text-stc-text-soft text-[11px] font-semibold uppercase">
         {{ title }}
       </span>
       <span
@@ -96,7 +96,7 @@ const containerShadowClass = computed(() =>
 
     <div
       v-if="footer"
-      class="text-stc-text-soft px-4 pb-3 text-center text-[10px] font-semibold tracking-[0.18em] uppercase"
+      class="text-stc-text-soft px-4 pb-3 text-center text-[10px] font-semibold uppercase"
       :class="variant === 'gallery' ? 'px-3 pb-2.5 text-[9px]' : ''"
     >
       {{ footer }}

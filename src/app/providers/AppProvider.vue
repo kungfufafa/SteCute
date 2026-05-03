@@ -13,23 +13,16 @@ function handleOffline() {
   appStore.setOfflineMode(true)
 }
 
-function handleBeforeInstallPrompt(e: Event) {
-  e.preventDefault()
-  appStore.setInstallPromptAvailable(true)
-}
 
 onMounted(() => {
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
-  window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
   capabilityStore.detectCapabilities()
-  appStore.setAppReady(true)
 })
 
 onUnmounted(() => {
   window.removeEventListener('online', handleOnline)
   window.removeEventListener('offline', handleOffline)
-  window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
 })
 </script>
 

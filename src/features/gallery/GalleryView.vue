@@ -70,16 +70,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="ui.page">
-    <div :class="ui.header">
+    <div :class="ui.headerWide">
       <div :class="ui.headerGroup">
         <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="goBack">
           <svg
-            width="18"
-            height="18"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
+            stroke-width="2.5"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -89,43 +89,47 @@ onBeforeUnmount(() => {
         </button>
         <div class="min-w-0">
           <h3 :class="ui.title">Galeri</h3>
-          <p :class="ui.subtitle">10 hasil render terakhir tersimpan lokal di perangkat ini.</p>
+          <p :class="ui.subtitle">10 hasil render terakhir tersimpan lokal.</p>
         </div>
       </div>
       <span :class="ui.badge">{{ galleryStore.recentRenders.length }} item</span>
     </div>
 
     <div :class="ui.content">
-      <div :class="[ui.contentWrap, 'gap-6']">
-        <div
-          v-if="galleryStore.recentRenders.length === 0"
-          class="border-stc-border shadow-stc-xs mx-auto w-full max-w-xl rounded-2xl border bg-white px-8 py-12 text-center"
-        >
-          <div
-            class="bg-stc-pink-soft text-stc-pink mx-auto mb-5 flex size-16 items-center justify-center rounded-full text-2xl"
-          >
-            □
+      <div :class="[ui.pageContentWide, 'gap-8']">
+        <div v-if="galleryStore.recentRenders.length === 0" :class="ui.emptyPanel">
+          <div :class="ui.surfaceIcon">
+            <svg
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
           </div>
-          <h4 class="text-stc-text text-xl font-bold tracking-tight">Belum Ada Hasil</h4>
-          <p class="text-stc-text-soft mt-3 text-sm leading-relaxed">
+          <h4 class="text-stc-text text-xl font-bold">Belum Ada Hasil</h4>
+          <p
+            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
+          >
             Strip yang sudah dirender akan muncul di sini dan tetap tersedia saat offline.
           </p>
-          <button
-            :class="[ui.primaryButton, 'mt-6 w-full sm:w-auto sm:min-w-56']"
-            @click="router.push('/')"
-          >
+          <button :class="[ui.primaryButton, 'mt-8 sm:min-w-56']" @click="router.push('/')">
             Mulai Foto
           </button>
         </div>
 
-        <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <div
             v-for="(render, index) in galleryStore.recentRenders"
             :key="render.id"
-            :class="[
-              'group border-stc-border shadow-stc-xs overflow-hidden rounded-xl border bg-white',
-              index % 3 === 1 ? 'sm:col-span-2 lg:col-span-1' : '',
-            ]"
+            class="group border-stc-border/80 shadow-stc-sm hover:shadow-stc-md overflow-hidden rounded-xl border bg-white transition-all duration-300 hover:-translate-y-1"
           >
             <div
               class="bg-stc-bg-2 overflow-hidden"
@@ -134,28 +138,28 @@ onBeforeUnmount(() => {
               <img
                 :src="renderUrls[render.id]"
                 :alt="`Render ${index + 1}`"
-                class="h-full w-full object-cover"
+                class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
             </div>
-            <div class="border-stc-border space-y-3 border-t bg-white px-4 py-3">
+            <div class="border-stc-border relative z-10 space-y-4 border-t bg-white px-5 py-4">
               <div>
-                <div class="text-stc-text-faint text-xs font-semibold tracking-[0.16em] uppercase">
+                <div class="text-stc-text-faint text-[0.6875rem] font-bold uppercase">
                   {{ formatDate(render.createdAt) }}
                 </div>
-                <div class="text-stc-text-soft mt-1 text-sm">
+                <div class="text-stc-text-soft mt-1.5 text-[0.9375rem] font-medium">
                   {{ formatBytes(render.sizeBytes) }}
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid grid-cols-2 gap-3">
                 <button
-                  class="border-stc-border text-stc-text shadow-stc-xs hover:bg-stc-bg-2 inline-flex min-h-10 items-center justify-center rounded-xl border bg-white px-3 py-2 text-xs font-semibold transition-colors duration-150"
+                  class="border-stc-border text-stc-text shadow-stc-xs hover:border-stc-border-strong hover:bg-stc-bg-2 focus-visible:ring-stc-pink inline-flex min-h-11 items-center justify-center rounded-xl border bg-white px-3 py-2 text-xs font-bold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95"
                   :aria-label="`Download render ${index + 1}`"
                   @click="handleDownload(render.id)"
                 >
                   Download
                 </button>
                 <button
-                  class="bg-stc-error shadow-stc-xs hover:bg-stc-error-strong inline-flex min-h-10 items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold text-white transition-colors duration-150"
+                  class="bg-stc-error shadow-stc-xs hover:bg-stc-error-strong focus-visible:ring-stc-error inline-flex min-h-11 items-center justify-center rounded-xl px-3 py-2 text-xs font-bold text-white transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95"
                   :aria-label="`Hapus render ${index + 1}`"
                   @click="handleDelete(render.id)"
                 >
@@ -166,11 +170,11 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div v-if="galleryStore.recentRenders.length > 0" class="mt-auto pb-2">
+        <div v-if="galleryStore.recentRenders.length > 0" :class="ui.bottomActions">
           <button
             :class="[
               ui.secondaryButton,
-              'text-stc-error hover:bg-stc-error-soft w-full sm:w-auto sm:min-w-48',
+              'text-stc-error hover:bg-stc-error-soft border-stc-error/20 hover:border-stc-error/40 w-full sm:ml-auto sm:w-auto sm:min-w-48',
             ]"
             @click="handleClearAll"
           >

@@ -60,6 +60,13 @@ test.describe('real browser upload flow', () => {
 
     await expect(page).toHaveURL('/review')
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
+    await expect(page.getByText('Ganti Foto')).toHaveCount(3)
+
+    await page.reload()
+    await expect(page).toHaveURL('/review')
+    await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
+    await expect(page.getByText('Ganti Foto')).toHaveCount(3)
+
     await page.getByRole('button', { name: 'Buat Hasil' }).click()
 
     await expect(page).toHaveURL('/output', { timeout: 20_000 })
@@ -77,9 +84,9 @@ test.describe('real browser upload flow', () => {
       .toEqual({ width: 1200, height: 2740 })
     await expect(page.getByRole('button', { name: 'PNG' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'JPG' })).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Download' })).toBeVisible()
-    await page.getByRole('button', { name: 'Opsi lain' }).click()
-    await page.getByRole('button', { name: 'Lihat Galeri' }).click()
+    await expect(page.getByRole('button', { name: 'Unduh ke Perangkat' })).toBeVisible()
+    await page.getByRole('button', { name: 'Lihat opsi tambahan' }).click()
+    await page.getByRole('button', { name: 'Galeri' }).click()
 
     await expect(page).toHaveURL('/gallery')
     await expect(page.getByText('1 item')).toBeVisible()

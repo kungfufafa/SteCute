@@ -55,9 +55,6 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
     cameraStore.setPermissionState('granted')
     cameraStore.setStreamReady(true)
 
-    const devices = await enumerateDevices()
-    cameraStore.setAvailableDevices(devices)
-
     const videoTrack = stream.getVideoTracks()[0]
     if (videoTrack) {
       cameraStore.setActiveDevice(videoTrack.getSettings().deviceId ?? null)
@@ -129,6 +126,9 @@ export function captureFrame(videoEl: HTMLVideoElement): Promise<CapturedFrame> 
       reject(new Error('Failed to get canvas context'))
       return
     }
+    // Flip horizontally to match mirrored preview
+    ctx.translate(crop.sw, 0)
+    ctx.scale(-1, 1)
     ctx.drawImage(videoEl, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh)
     canvas.toBlob(
       (blob) => {

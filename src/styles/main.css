@@ -86,7 +86,7 @@
   --leading-normal: 1.55;
   --leading-relaxed: 1.7;
   /* Tracking */
-  --tracking-label: 0.16em;
+  --tracking-label: 0;
 }
 
 *,
@@ -119,6 +119,17 @@ body {
 #app {
   min-height: 100vh;
   min-height: 100dvh;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+.stc-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
 :focus-visible {

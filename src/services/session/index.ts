@@ -16,6 +16,11 @@ const sessionRepo = new SessionRepository()
 const shotRepo = new ShotRepository()
 const renderRepo = new RenderRepository()
 
+export interface SessionSnapshot {
+  session: Session
+  shots: Shot[]
+}
+
 function normalizeDecorationConfig(input?: Partial<DecorationConfig>): DecorationConfig {
   return {
     filterId: input?.filterId ?? 'normal',
@@ -26,10 +31,6 @@ function normalizeDecorationConfig(input?: Partial<DecorationConfig>): Decoratio
     showDateTime: input?.showDateTime ?? false,
     logoText: input?.logoText ?? '',
   }
-}
-
-export function createDecorationConfig(input?: Partial<DecorationConfig>): DecorationConfig {
-  return normalizeDecorationConfig(input)
 }
 
 export function createDefaultDecorationConfig(
@@ -106,6 +107,43 @@ export async function getSessionShots(sessionId: string): Promise<Shot[]> {
   return shotRepo.getBySession(sessionId)
 }
 
+export async function getSessionSnapshot(sessionId: string): Promise<SessionSnapshot | null> {
+  const session = await sessionRepo.getById(sessionId)
+
+  if (!session) return null
+
+  return {
+    session,
+    shots: await getSessionShots(session.id),
+  }
+}
+
+export async function getReviewSessionSnapshot(
+  currentSessionId: string | null,
+): Promise<SessionSnapshot | null> {
+  if (currentSessionId) {
+    const snapshot = await getSessionSnapshot(currentSessionId)
+
+    if (snapshot && snapshot.shots.length >= snapshot.session.slotCount) {
+      return snapshot
+    }
+  }
+
+  const sessions = await sessionRepo.getRecent()
+
+  for (const session of sessions) {
+    if (session.status === 'discarded' || session.finalRenderId) continue
+
+    const shots = await getSessionShots(session.id)
+
+    if (shots.length >= session.slotCount) {
+      return { session, shots }
+    }
+  }
+
+  return null
+}
+
 export async function resetSessionData(sessionId: string): Promise<void> {
   await shotRepo.deleteBySession(sessionId)
   await sessionRepo.delete(sessionId)
@@ -153,8 +191,4 @@ export async function renderAndStoreSession(params: {
 export async function getRenderBlobById(renderId: string): Promise<Blob | null> {
   const render = await renderRepo.getById(renderId)
   return render?.blob ?? null
-}
-
-export async function loadSessionRecord(sessionId: string): Promise<Session | undefined> {
-  return sessionRepo.getById(sessionId)
 }
