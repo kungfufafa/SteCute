@@ -6,9 +6,9 @@ export const ui = {
 
   // Header
   header:
-    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 pb-5 pt-5 sm:px-6 md:px-8 lg:pt-8',
+    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 md:px-8 lg:py-8',
   headerWide:
-    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 pb-5 pt-5 sm:px-6 md:px-8 lg:pt-8',
+    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 md:px-8 lg:py-8',
   headerGroup: 'flex min-w-0 flex-1 items-center gap-3 sm:gap-4',
   title: 'text-lg font-bold leading-tight text-stc-text sm:text-xl',
   subtitle: 'mt-1 max-w-[34rem] text-xs font-medium leading-relaxed text-stc-text-soft sm:text-sm',

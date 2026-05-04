@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { useAppStore, useCapabilityStore } from '@/stores'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
+import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -16,7 +17,8 @@ const showcaseImages = [
   {
     src: '/images/1769149454852.png',
     alt: 'Preview strip Mono',
-    baseClass: 'absolute top-10 -right-2 w-[48%] rotate-12 hover:rotate-6 z-10 sm:-right-4 sm:top-12',
+    baseClass:
+      'absolute top-10 -right-2 w-[48%] rotate-12 hover:rotate-6 z-10 sm:-right-4 sm:top-12',
   },
   {
     src: '/images/1770039834020.png',
@@ -76,7 +78,7 @@ function startWithUpload() {
       <section class="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
         <p :class="[ui.sectionLabel, 'text-stc-pink mb-3 sm:mb-4']">Photo booth lokal</p>
         <h1
-          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] tracking-tight font-extrabold sm:text-[3.5rem] lg:text-[4rem]"
+          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] font-extrabold tracking-tight sm:text-[3.5rem] lg:text-[4rem]"
         >
           Stecute Photo Booth
         </h1>
@@ -97,7 +99,9 @@ function startWithUpload() {
           </div>
         </div>
 
-        <div class="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:mt-10 lg:justify-start">
+        <div
+          class="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:mt-10 lg:justify-start"
+        >
           <div
             class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
           >
@@ -160,7 +164,9 @@ function startWithUpload() {
         aria-label="Preview Stecute"
       >
         <div class="relative flex-1 overflow-hidden">
-          <div class="absolute top-6 left-1/2 flex w-[260px] -translate-x-1/2 justify-center sm:top-10 sm:w-[320px]">
+          <div
+            class="absolute top-6 left-1/2 flex w-[260px] -translate-x-1/2 justify-center sm:top-10 sm:w-[320px]"
+          >
             <img
               v-for="image in showcaseImages"
               :key="image.src"
@@ -193,5 +199,7 @@ function startWithUpload() {
         </div>
       </section>
     </main>
+
+    <PublicLinksFooter />
   </div>
 </template>

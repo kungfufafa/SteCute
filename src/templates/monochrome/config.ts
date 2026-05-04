@@ -22,11 +22,11 @@ export const monoTemplate: TemplateConfig = {
   frameAsset: '/assets/frames/mono.png',
   defaultFrameColor: '#303030',
   label: {
-    text: 'stecute',
+    text: '',
     fontSize: 36,
     align: 'center',
   },
-  footerLogo: null,
+  footerLogo: '/icons.svg',
   supports: {
     stickers: false,
     frameColor: false,

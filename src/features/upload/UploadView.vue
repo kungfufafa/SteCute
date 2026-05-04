@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { createDefaultDecorationConfig, createSession, saveShot } from '@/services/session'
-import { useSessionStore } from '@/stores'
+import { useCustomTemplateStore, useSessionStore } from '@/stores'
 import { getImageDimensions, openImagePicker, validateFiles } from '@/services/upload'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
@@ -12,8 +12,14 @@ import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
-const activeLayout = getLayoutById(sessionStore.layoutId)
-const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
+const customTemplateStore = useCustomTemplateStore()
+const activeLayout =
+  customTemplateStore.getLayoutById(sessionStore.layoutId) ?? getLayoutById(sessionStore.layoutId)
+const activeTemplate = computed(
+  () =>
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId),
+)
 const errors = ref<string[]>([])
 const selectedFiles = ref<File[]>([])
 const previewUrls = ref<string[]>([])
@@ -88,7 +94,7 @@ async function processUpload() {
       templateId: sessionStore.templateId,
       slotCount: sessionStore.slotCount,
       captureSource: 'upload',
-      decoration: createDefaultDecorationConfig(getTemplateById(sessionStore.templateId)),
+      decoration: createDefaultDecorationConfig(activeTemplate.value),
     })
 
     sessionStore.startSession(sessionId, 'upload', sessionStore.slotCount)

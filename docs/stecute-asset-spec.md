@@ -61,6 +61,8 @@ public/
 - semua asset harus punya nama file stabil dan deskriptif
 - semua asset harus lolos review lisensi
 - blanko raster harus punya photo window transparan atau layer overlay terpisah; placeholder warna solid hanya boleh dipakai sebagai panduan produksi, bukan asset final yang langsung dirender
+- custom blanko dari user wajib PNG atau WebP lokal dengan alpha channel; JPG tidak diterima untuk blanko karena tidak bisa membawa window transparan
+- custom blanko upload disimpan sebagai asset Blob di IndexedDB dan direferensikan sebagai template lokal reusable di browser/perangkat yang sama
 
 ### 3.3 Aturan ukuran
 
@@ -92,6 +94,7 @@ Setiap template harus memiliki:
 - fallback color palette
 - daftar layout yang didukung bila template tidak cocok untuk semua layout
 - slot coordinate per layout bila memakai blanko raster dengan artboard khusus
+- untuk custom upload, jumlah window transparan menjadi jumlah slot layout custom
 
 ### 4.3 Template decisions
 
@@ -118,8 +121,8 @@ Setiap template harus memiliki:
 
 #### Raster blanko sample lokal
 
-- `public/templates/1777041071745-IMG_1107.png` dapat dipakai sebagai template strip `3 foto` karena area foto sudah transparan dan slot dapat dipetakan eksplisit.
-- `public/templates/1777562621419-Template_4R.png` tidak masuk pilihan v1 karena memakai format 4R dengan `5` slot, sedangkan layout v1 terkunci pada `2`, `3`, `4`, dan `6` pose strip.
+- Sample raster di `public/templates/` tidak otomatis menjadi template aktif.
+- Template raster baru harus didaftarkan lewat config eksplisit atau diunggah sebagai custom template lokal.
 - Sebelum rilis publik, nama file sample harus diganti menjadi stabil dan status lisensi/ownership harus dikonfirmasi.
 
 ---

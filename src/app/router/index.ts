@@ -49,6 +49,35 @@ const router = createRouter({
       component: () => import('@/features/gallery/GalleryView.vue'),
     },
     {
+      path: '/privacyscreen',
+      name: 'privacy-screen',
+      redirect: '/privacy',
+    },
+    {
+      path: '/privacy',
+      name: 'privacy',
+      component: () => import('@/features/public-info/PublicInfoView.vue'),
+      props: { pageId: 'privacy' },
+    },
+    {
+      path: '/terms',
+      name: 'terms',
+      component: () => import('@/features/public-info/PublicInfoView.vue'),
+      props: { pageId: 'terms' },
+    },
+    {
+      path: '/faq',
+      name: 'faq',
+      component: () => import('@/features/public-info/PublicInfoView.vue'),
+      props: { pageId: 'faq' },
+    },
+    {
+      path: '/about',
+      name: 'about',
+      component: () => import('@/features/public-info/PublicInfoView.vue'),
+      props: { pageId: 'about' },
+    },
+    {
       path: '/:pathMatch(.*)*',
       name: 'not-found',
       redirect: '/',

@@ -37,8 +37,9 @@ Fitur yang wajib ada:
 
 - landing page dan app shell
 - alur kamera dan upload lokal
-- format output adaptif untuk varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto`
-- pilihan template bundled sebelum capture, dengan `Classic` sebagai default aman
+- format output adaptif untuk varian standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, plus template-defined layout lokal
+- pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
+- upload blanko strip lokal sebelum capture
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -56,8 +57,10 @@ Fitur yang wajib ada:
 Template aktif v1 wajib menghasilkan render final yang clean dan konsisten:
 
 - `Classic`: blanko putih clean, foto 4:3 landscape, padding/gap putih rapi, footer memakai logo bundled `icons.svg`
-- `Youth` dan `Mono`: generated blanko lokal yang tetap mengikuti layout v1 dan tidak membuka kustomisasi manual pasca-capture
-- Template blanko raster lokal boleh ditampilkan hanya bila punya slot coordinate, artboard, dan layout support yang eksplisit. Template yang hanya cocok untuk `3 foto` tidak boleh muncul saat layout `2`, `4`, atau `6 foto` dipilih.
+- `Youth` dan `Mono`: generated blanko lokal yang tetap mengikuti layout v1, memakai branding footer compact setara `Classic`, dan tidak membuka kustomisasi manual pasca-capture
+- Template blanko raster lokal boleh membawa native layout sendiri bila punya slot coordinate dan artboard eksplisit. Contoh: blanko 4R dengan `5` slot boleh tampil sebagai format `5 foto`, bukan dipaksa ke `2/3/4/6`.
+- Custom blanko upload berjalan lokal-only, menerima PNG atau WebP maksimum `10 MB`, dan jumlah area foto transparan dideteksi sebagai slot layout custom.
+- Custom blanko upload disimpan ke IndexedDB sebagai template lokal reusable untuk browser/perangkat yang sama; tidak menjadi template publik antar perangkat tanpa backend.
 
 Template default menetapkan visual render tanpa override manual setelah sesi dimulai.
 Border keras dan garis aksen dekoratif tidak boleh menjadi treatment default; output harus terasa seperti photobooth/blanko, bukan kartu UI.
@@ -153,6 +156,12 @@ Baseline output:
 - `4 foto`: `1200 x 3570`
 - `6 foto`: `1200 x 5230`
 
+Template-defined output:
+
+- Canvas mengikuti artboard blanko dan dinormalisasi ke lebar target `1200 px`.
+- Tinggi canvas dihitung dari rasio blanko.
+- Slot foto mengikuti koordinat blanko, bukan ukuran layout standar.
+
 Prinsip ukuran output:
 
 - tinggi canvas harus mengikuti jumlah foto agar hasil simpan tidak tampak seperti kertas kosong terlalu panjang
@@ -204,7 +213,7 @@ Aturan:
 ### 5.2 Batas ukuran file
 
 - maksimum `10 MB` per file
-- maksimum `6 file` per sesi sesuai layout maksimum
+- jumlah file harus sama dengan slot layout aktif; standar maksimum `6 file`, custom blanko mengikuti hasil deteksi window transparan
 
 ### 5.3 Validasi upload
 

@@ -92,6 +92,7 @@ export interface TemplateRecord {
   version: string
   config: TemplateConfig
   isBundled: boolean
+  assetBlob?: Blob
   updatedAt: number
 }
 
@@ -117,6 +118,7 @@ export interface TemplateConfig {
     photoRadius: number
     photoShadow: boolean
   }
+  nativeLayout?: LayoutConfig
   supportedLayoutIds?: string[]
   layoutOverrides?: Record<
     string,

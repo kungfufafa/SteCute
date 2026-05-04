@@ -17,8 +17,8 @@ test.describe('Stecute app smoke', () => {
     await page.getByRole('button', { name: 'Mulai Foto' }).click()
 
     await expect(page).toHaveURL('/config?source=camera')
-    await expect(page.getByRole('heading', { name: 'Pilih Jumlah Foto' })).toBeVisible()
-    await expect(page.getByText('Strip', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
+    await expect(page.getByText('Pilih paket strip.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Buka Kamera' })).toBeVisible()
   })
 
@@ -41,6 +41,45 @@ test.describe('Stecute app smoke', () => {
     await expect(page.getByRole('heading', { name: 'Galeri' })).toBeVisible()
     await expect(page.getByText('Belum Ada Hasil')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mulai Foto' })).toBeVisible()
+  })
+
+  test('exposes public transparency pages', async ({ page }) => {
+    const pages = [
+      {
+        path: '/privacy',
+        link: 'Kebijakan Privasi',
+        heading: 'Kebijakan Privasi',
+        text: 'Flow inti memproses foto di browser',
+      },
+      {
+        path: '/terms',
+        link: 'Syarat & Ketentuan',
+        heading: 'Syarat dan Ketentuan',
+        text: 'Syarat ini menjelaskan aturan dasar penggunaan Stecute',
+      },
+      {
+        path: '/faq',
+        link: 'FAQ',
+        heading: 'FAQ',
+        text: 'Apakah foto saya diupload ke server?',
+      },
+      {
+        path: '/about',
+        link: 'Tentang',
+        heading: 'Tentang Stecute',
+        text: 'Stecute adalah aplikasi web photo booth offline-first',
+      },
+    ]
+
+    await page.goto('/')
+
+    for (const item of pages) {
+      await page.getByRole('link', { name: item.link }).last().click()
+      await expect(page).toHaveURL(item.path)
+      await expect(page.getByRole('heading', { name: item.heading, level: 1 })).toBeVisible()
+      await expect(page.getByText(item.text)).toBeVisible()
+      await page.goto('/')
+    }
   })
 
   test('redirects unknown route to landing', async ({ page }) => {

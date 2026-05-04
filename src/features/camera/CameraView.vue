@@ -9,7 +9,7 @@ import {
 } from '@/services/session'
 import { getTemplateById } from '@/templates'
 import { getLayoutById } from '@/layouts'
-import { useCameraStore, useSessionStore } from '@/stores'
+import { useCameraStore, useCustomTemplateStore, useSessionStore } from '@/stores'
 import {
   captureFrame,
   enumerateDevices,
@@ -23,6 +23,7 @@ import FlowProgress from '@/components/common/FlowProgress.vue'
 const router = useRouter()
 const cameraStore = useCameraStore()
 const sessionStore = useSessionStore()
+const customTemplateStore = useCustomTemplateStore()
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 const countdownActive = ref(false)
@@ -34,8 +35,16 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
 let autoCaptureRunning = false
 
-const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
-const activeLayout = computed(() => getLayoutById(sessionStore.layoutId))
+const activeTemplate = computed(
+  () =>
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId),
+)
+const activeLayout = computed(
+  () =>
+    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
+    getLayoutById(sessionStore.layoutId),
+)
 const shotProgressLabel = computed(
   () => `Foto ${sessionStore.currentShotIndex + 1} dari ${sessionStore.slotCount}`,
 )
@@ -324,7 +333,7 @@ function goBack() {
             autoplay
             playsinline
             muted
-            class="absolute inset-0 h-full w-full object-cover scale-x-[-1]"
+            class="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
           ></video>
 
           <div

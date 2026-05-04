@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { getReviewSessionSnapshot, resetSessionData, saveShot } from '@/services/session'
 import { getImageDimensions, openImagePicker, validateFile } from '@/services/upload'
 import { getTemplateById } from '@/templates'
-import { useSessionStore } from '@/stores'
+import { useCustomTemplateStore, useSessionStore } from '@/stores'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
@@ -12,8 +12,17 @@ import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
-const activeLayout = computed(() => getLayoutById(sessionStore.layoutId))
-const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
+const customTemplateStore = useCustomTemplateStore()
+const activeLayout = computed(
+  () =>
+    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
+    getLayoutById(sessionStore.layoutId),
+)
+const activeTemplate = computed(
+  () =>
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId),
+)
 
 const shotUrls = ref<string[]>([])
 const reviewError = ref<string | null>(null)

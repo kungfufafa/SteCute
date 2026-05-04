@@ -8,12 +8,13 @@ import {
 } from '@/services/session'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
-import { useSessionStore } from '@/stores'
+import { useCustomTemplateStore, useSessionStore } from '@/stores'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
+const customTemplateStore = useCustomTemplateStore()
 const isRendering = ref(false)
 
 onMounted(async () => {
@@ -25,8 +26,11 @@ onMounted(async () => {
 
   sessionStore.setRendering()
   const sessionId = sessionStore.sessionId
-  const layout = getLayoutById(sessionStore.layoutId)
-  const template = getTemplateById(sessionStore.templateId)
+  const layout =
+    customTemplateStore.getLayoutById(sessionStore.layoutId) ?? getLayoutById(sessionStore.layoutId)
+  const template =
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId)
 
   if (!sessionId || !layout || !template) {
     sessionStore.setError('Session data is incomplete')

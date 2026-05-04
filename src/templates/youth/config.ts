@@ -22,11 +22,11 @@ export const youthTemplate: TemplateConfig = {
   frameAsset: '/assets/frames/youth.png',
   defaultFrameColor: '#fff7fb',
   label: {
-    text: 'stecute',
+    text: '',
     fontSize: 40,
     align: 'center',
   },
-  footerLogo: null,
+  footerLogo: '/icons.svg',
   supports: {
     stickers: false,
     frameColor: false,

@@ -73,7 +73,7 @@ Keputusan utama:
 - Tidak memakai login agar friction minimum.
 - Tidak bergantung pada backend untuk fitur inti agar offline-first benar-benar terasa.
 - PWA dipilih karena paling efisien untuk web installability dan cache offline.
-- Format output dan template dibuat data-driven agar varian `2 foto`, `3 foto`, `4 foto`, dan `6 foto` bisa didukung tanpa mengubah core engine.
+- Format output dan template dibuat data-driven agar varian standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto` serta template-defined layout bisa didukung tanpa mengubah core engine.
 - Output actions dibuat capability-based agar save, share, dan print hanya muncul bila browser mendukung.
 - Tauri diposisikan sebagai extension phase jika nanti dibutuhkan kiosk native atau integrasi OS lebih dalam.
 
@@ -414,7 +414,7 @@ Contoh isi:
 |---|---|---|
 | id | string | layout id |
 | name | string | nama layout |
-| slotCount | number | 2, 3, 4, atau 6 |
+| slotCount | number | jumlah slot; standar v1 2, 3, 4, 6, dan template-defined dapat berbeda |
 | aspectRatio | string | contoh 6x2-strip |
 | config | json | slot layout config |
 | isBundled | boolean | asset bawaan |
@@ -535,12 +535,15 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 
 ### 8.4 Aturan engine
 
-- Layout menentukan jumlah slot: 2, 3, 4, atau 6.
+- Layout menentukan jumlah slot. Layout standar tetap 2, 3, 4, dan 6; blanko/template boleh membawa native layout dengan jumlah slot berbeda.
 - Semua asset template, frame default, dan overlay inti harus precache.
 - Template tidak boleh memuat script eksternal.
 - Template boleh memakai blanko image lokal/bundled; renderer harus fallback ke generated blanko bila image belum ada.
-- Blanko raster yang memiliki artboard atau slot berbeda dari layout dasar wajib mendefinisikan `layoutOverrides` per `layoutId`. UI hanya menampilkan template yang `supportedLayoutIds`-nya cocok dengan layout aktif.
+- Blanko raster yang memiliki artboard atau slot berbeda dari layout dasar wajib mendefinisikan `layoutOverrides` per `layoutId`. UI hanya menampilkan paket blanko yang memiliki pasangan layout/template valid.
+- Blanko raster yang tidak cocok dengan layout standar sebaiknya mendefinisikan `nativeLayout`, sehingga muncul sebagai paket blanko sendiri dengan jumlah slot bawaan template.
 - Untuk blanko PNG dengan lubang transparan di area foto, renderer menggambar foto lebih dulu lalu menggambar blanko sebagai `overlay`, agar dekorasi foreground tidak tertutup foto.
+- Custom blanko upload dibuat sebagai runtime template lokal. App membaca alpha channel untuk mendeteksi connected component transparan, mengabaikan area transparan yang menyentuh tepi artboard, lalu membuat native layout dengan `slotCount` dari jumlah window yang ditemukan.
+- Runtime custom template memakai object URL saat dirender, tetapi asset asli dan config template disimpan di IndexedDB sebagai template lokal reusable. Saat app dimuat ulang, asset Blob dibuat ulang menjadi object URL baru. Template ini tidak menjadi dependency backend dan tidak tersedia antar perangkat tanpa sinkronisasi terpisah.
 - Flow v1 memakai `Classic` sebagai default, tetapi boleh menampilkan pilihan template bundled sebelum capture selama tidak menambah langkah kustomisasi pasca-capture.
 - Perubahan layout baru cukup menambah config dan asset.
 - Perubahan template baru cukup menambah config dan asset.

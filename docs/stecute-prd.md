@@ -40,7 +40,7 @@ Dokumen pendamping yang menjadi referensi final untuk implementasi:
 Berdasarkan pola dari aplikasi referensi, kebutuhan inti pasar untuk produk photo booth digital adalah:
 
 - Pengambilan beberapa foto berurutan dengan timer singkat.
-- Format output utama adalah photo strip adaptif dengan pilihan `2 foto`, `3 foto`, `4 foto`, atau `6 foto`; tinggi hasil simpan mengikuti jumlah foto agar tidak ada ruang kosong berlebihan.
+- Format output utama menyediakan layout standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, lalu dapat diperluas oleh blanko/template yang membawa layout sendiri seperti `5 foto` atau jumlah slot lain.
 - Template default yang clean dan konsisten tanpa memperlambat alur inti.
 - Output yang langsung bisa diunduh, disimpan, dibagikan, atau dicetak ringan.
 - Pengalaman yang ringan, instan, estetik, dan cocok untuk event maupun penggunaan personal.
@@ -141,7 +141,7 @@ Kebutuhan utama:
 - Tanpa login dan tanpa friksi akun.
 - Offline-first dan local-first, cocok untuk event dan koneksi buruk.
 - Privacy by default: foto diproses lokal dan tidak wajib diunggah ke server.
-- Format cetak utama memakai varian adaptif `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, dengan `6 foto` tetap memakai strip tinggi penuh.
+- Format cetak utama memakai varian adaptif standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, dengan dukungan template-defined layout untuk blanko yang jumlah slotnya berbeda.
 - Template default `Classic` memberi hasil clean seperti photobooth, dengan pilihan template bundled sebelum capture tanpa langkah kustomisasi tambahan setelah review.
 - Output siap pakai: download, save to device, share sheet, dan print ringan bila browser mendukung.
 - Dapat diinstal sebagai PWA untuk pengalaman yang terasa seperti aplikasi.
@@ -156,13 +156,13 @@ Kebutuhan utama:
 2. Permintaan izin kamera saat dibutuhkan.
 3. Opsi sumber foto: kamera atau upload foto lokal.
 4. Pemilihan kamera depan atau belakang jika tersedia.
-5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto` dengan tinggi canvas mengikuti jumlah foto.
+5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto`, plus layout dari blanko/template lokal dengan tinggi canvas mengikuti artboard.
 6. Countdown default 3 detik untuk flow kamera.
 7. Capture berurutan sesuai jumlah slot layout.
 8. Review hasil per sesi.
 9. Retake seluruh sesi.
 10. Retake per-shot sebelum render final.
-11. Template default `Classic` dengan visual photobooth clean dan pilihan template bundled yang kompatibel dengan layout aktif.
+11. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
 12. Render hasil final photo strip.
 13. Download hasil PNG.
 14. Save to device melalui flow browser yang tersedia.
@@ -178,7 +178,7 @@ Kebutuhan utama:
 
 - Kustomisasi manual pasca-capture: filter, frame color, sticker, date/time, dan logo text.
 - Preview live filter yang lebih kaya.
-- Upload custom background lokal.
+- Upload custom background lokal di luar blanko strip.
 - Sound on or off.
 - Auto-reset sesudah export untuk event mode.
 - Idle screen atau attract screen.
@@ -252,15 +252,20 @@ Acceptance criteria:
 
 ### FR-03 Session configuration
 
-- Pengguna memilih jumlah foto sebelum sesi dimulai.
+- Pengguna memilih blanko/paket strip sebelum sesi dimulai; jumlah foto mengikuti layout dari paket tersebut.
 - Sumber foto berasal dari entry point awal: `Mulai Foto` atau `Upload Lokal`.
-- Template dapat dipilih sebelum sesi dimulai; `Classic` tetap default agar flow tetap singkat.
+- Template dapat dipilih sebagai bagian dari paket blanko sebelum sesi dimulai; `Classic` tetap default agar flow tetap singkat.
+- Pengguna dapat mengunggah blanko strip lokal sebelum sesi dimulai.
+- Blanko upload tersimpan sebagai template lokal di perangkat/browser yang sama agar bisa dipakai ulang pada sesi berikutnya.
 
 Acceptance criteria:
 
 - Minimal tersedia hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` dengan ukuran output yang fit terhadap jumlah foto.
+- Template public atau blanko custom boleh menambahkan layout non-standar bila membawa slot coordinate sendiri.
 - Default aktif memakai template `Classic`.
-- Template yang memakai blanko raster khusus hanya tampil bila kompatibel dengan layout aktif.
+- Template yang memakai blanko raster khusus tampil sebagai paket blanko sendiri dengan jumlah slot yang dibawa template tersebut.
+- Blanko custom harus berupa PNG atau WebP lokal dengan area foto transparan; jumlah slot dideteksi dari blanko.
+- Template lokal hasil upload tidak dibagikan ke perangkat lain tanpa mekanisme backend/sinkronisasi terpisah.
 
 ### FR-04 Countdown and capture
 
@@ -272,7 +277,7 @@ Acceptance criteria:
 
 - Pengguna tahu foto ke berapa yang sedang diambil.
 - Jeda antar shot konsisten.
-- Hasil cetak `2 foto`, `3 foto`, `4 foto`, dan `6 foto` menghasilkan jumlah shot yang benar dan tinggi output sesuai jumlah foto.
+- Hasil cetak standar dan template-defined menghasilkan jumlah shot yang benar dan tinggi output sesuai layout aktif.
 
 ### FR-05 Upload local images
 
@@ -443,8 +448,8 @@ Acceptance criteria:
 ### Phase 1 - MVP publik
 
 - PWA offline-first.
-- Format cetak adaptif dengan varian `2 foto`, `3 foto`, `4 foto`, `6 foto`.
-- Template default Classic dan pilihan template bundled yang kompatibel dengan layout aktif.
+- Format cetak adaptif dengan varian standar `2 foto`, `3 foto`, `4 foto`, `6 foto`, plus template-defined layout lokal.
+- Template default Classic, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
 - Upload foto lokal.
 - Gallery 10 hasil terakhir.
 - Error state permission kamera.

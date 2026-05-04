@@ -9,7 +9,7 @@ import {
 } from '@/services/session'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
-import { useSessionStore } from '@/stores'
+import { useCustomTemplateStore, useSessionStore } from '@/stores'
 import { renderStrip } from '@/services/render'
 import {
   detectOutputCapabilities,
@@ -25,12 +25,21 @@ import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const sessionStore = useSessionStore()
+const customTemplateStore = useCustomTemplateStore()
 const capabilities = detectOutputCapabilities()
 const isBusy = ref(false)
 const showMoreActions = ref(false)
 
-const activeTemplate = computed(() => getTemplateById(sessionStore.templateId))
-const layout = computed(() => getLayoutById(sessionStore.layoutId))
+const activeTemplate = computed(
+  () =>
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId),
+)
+const layout = computed(
+  () =>
+    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
+    getLayoutById(sessionStore.layoutId),
+)
 const previewUrl = ref<string | null>(null)
 const outputBlob = shallowRef<Blob | null>(null)
 
@@ -45,7 +54,9 @@ async function getOutputBlob(): Promise<Blob> {
   if (outputBlob.value) return outputBlob.value
 
   const activeLayout = layout.value
-  const template = getTemplateById(sessionStore.templateId)
+  const template =
+    customTemplateStore.getTemplateById(sessionStore.templateId) ??
+    getTemplateById(sessionStore.templateId)
   const sessionId = sessionStore.sessionId
 
   if (!activeLayout || !template || !sessionId) {
