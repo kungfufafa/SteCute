@@ -91,16 +91,23 @@ function replaceAppContent(html, appContent) {
 function createStaticAppContent(route, pages) {
   if (route.id === 'landing') {
     return `<main class="seo-fallback">
-      <h1>Stecute Photo Booth</h1>
-      <p>Photo booth web offline-first untuk membuat photo strip lokal dari kamera atau upload foto, tanpa login.</p>
-      <ul>
-        <li>Foto diproses lokal di browser.</li>
-        <li>Layout 2, 3, 4, dan 6 pose.</li>
-        <li>Template Classic, Youth, dan Mono.</li>
-        <li>Output utama PNG dengan gallery lokal terbatas.</li>
-        <li>Mode offline tersedia setelah cache awal berhasil.</li>
-      </ul>
-      <p><a href="/about">Tentang Stecute</a> <a href="/faq">FAQ</a> <a href="/privacy">Kebijakan Privasi</a></p>
+      <div class="seo-fallback__inner">
+        <h1>Stecute Photo Booth</h1>
+        <p>Photo booth web offline-first untuk membuat photo strip lokal dari kamera atau upload foto, tanpa login.</p>
+        <nav class="seo-fallback__actions" aria-label="Mulai Stecute">
+          <a href="/config?source=camera">Mulai Foto</a>
+          <a href="/config?source=upload">Upload Lokal</a>
+          <a href="/gallery">Galeri</a>
+        </nav>
+        <ul>
+          <li>Foto diproses lokal di browser.</li>
+          <li>Layout 2, 3, 4, dan 6 pose.</li>
+          <li>Template Classic, Youth, dan Mono.</li>
+          <li>Output utama PNG dengan gallery lokal terbatas.</li>
+          <li>Mode offline tersedia setelah cache awal berhasil.</li>
+        </ul>
+        <p class="seo-fallback__links"><a href="/about">Tentang Stecute</a> <a href="/faq">FAQ</a> <a href="/privacy">Kebijakan Privasi</a> <a href="/terms">Syarat & Ketentuan</a></p>
+      </div>
     </main>`
   }
 

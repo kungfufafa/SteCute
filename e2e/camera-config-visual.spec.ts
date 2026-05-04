@@ -12,13 +12,11 @@ test.describe('config and camera visual smoke', () => {
   test('keeps config clear, camera framed at 4:3, and countdown unblurred', async ({ page }) => {
     await page.goto('/config?source=camera')
 
-    await expect(page.getByRole('heading', { name: 'Pilih Jumlah Foto' })).toBeVisible()
-    await expect(page.getByText('Strip', { exact: true })).toBeVisible()
-    await expect(page.getByText('Preview dan hasil akhir memakai layout yang sama.')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Pilih paket strip.' })).toBeVisible()
+    await expect(page.getByText('Blanko Strip', { exact: true })).toBeVisible()
+    await expect(page.getByText('Upload PNG/WebP, jumlah area transparan akan dideteksi otomatis.')).toBeVisible()
 
-    const layoutButton = page.getByRole('button', {
-      name: /3 Foto, strip Fit 3 foto, slot foto rasio 4:3/,
-    })
+    const layoutButton = page.getByRole('button', { name: 'Classic 3 foto' })
     await expect(layoutButton).toBeVisible()
 
     const layoutRadius = await layoutButton.evaluate((button) =>

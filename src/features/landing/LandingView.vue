@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useAppStore, useCapabilityStore } from '@/stores'
+import { useAppStore } from '@/app/store/useAppStore'
+import { useCapabilityStore } from '@/app/store/useCapabilityStore'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
@@ -10,19 +11,28 @@ const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
 const showcaseImages = [
   {
-    src: '/images/1759243291185.png',
+    src: '/images/classic-strip-preview.webp',
     alt: 'Preview strip Classic',
+    width: 204,
+    height: 612,
+    priority: 'low',
     baseClass: 'absolute top-6 -left-2 w-[48%] -rotate-12 hover:-rotate-6 z-10 sm:-left-4 sm:top-8',
   },
   {
-    src: '/images/1769149454852.png',
+    src: '/images/mono-strip-preview.webp',
     alt: 'Preview strip Mono',
+    width: 204,
+    height: 612,
+    priority: 'low',
     baseClass:
       'absolute top-10 -right-2 w-[48%] rotate-12 hover:rotate-6 z-10 sm:-right-4 sm:top-12',
   },
   {
-    src: '/images/1770039834020.png',
+    src: '/images/youth-strip-preview.webp',
     alt: 'Preview strip Youth',
+    width: 241,
+    height: 723,
+    priority: 'low',
     baseClass: 'relative w-[56%] z-20 shadow-stc-lg',
   },
 ] as const
@@ -42,7 +52,14 @@ function startWithUpload() {
   <div :class="ui.page">
     <nav :class="ui.headerWide">
       <div :class="ui.headerGroup">
-        <img class="block h-auto w-[116px] md:w-[132px]" src="/icons.svg" alt="Stecute" />
+        <img
+          class="block h-auto w-[116px] md:w-[132px]"
+          src="/icons.svg"
+          alt="Stecute"
+          width="442"
+          height="123"
+          decoding="async"
+        />
       </div>
       <div class="flex items-center gap-3">
         <button
@@ -51,8 +68,14 @@ function startWithUpload() {
         >
           Upload Lokal
         </button>
-        <button :class="ui.iconButton" @click="router.push('/gallery')" title="Galeri">
+        <button
+          :class="ui.iconButton"
+          aria-label="Buka galeri"
+          title="Galeri"
+          @click="router.push('/gallery')"
+        >
           <svg
+            aria-hidden="true"
             width="20"
             height="20"
             viewBox="0 0 24 24"
@@ -78,7 +101,7 @@ function startWithUpload() {
       <section class="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
         <p :class="[ui.sectionLabel, 'text-stc-pink mb-3 sm:mb-4']">Photo booth lokal</p>
         <h1
-          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] font-extrabold tracking-tight sm:text-[3.5rem] lg:text-[4rem]"
+          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] font-bold tracking-[0] sm:text-[3.5rem] lg:text-[4rem]"
         >
           Stecute Photo Booth
         </h1>
@@ -109,6 +132,7 @@ function startWithUpload() {
               class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
               <svg
+                aria-hidden="true"
                 class="size-3"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -127,6 +151,7 @@ function startWithUpload() {
               class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
               <svg
+                aria-hidden="true"
                 class="size-3"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -145,6 +170,7 @@ function startWithUpload() {
               class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
             >
               <svg
+                aria-hidden="true"
                 class="size-3"
                 fill="none"
                 viewBox="0 0 24 24"
@@ -172,7 +198,11 @@ function startWithUpload() {
               :key="image.src"
               :src="image.src"
               :alt="image.alt"
+              :width="image.width"
+              :height="image.height"
               loading="lazy"
+              decoding="async"
+              :fetchpriority="image.priority"
               :class="[
                 image.baseClass,
                 'shadow-stc-md rounded-xl border-[4px] border-white bg-white transition-transform duration-500 hover:-translate-y-2',

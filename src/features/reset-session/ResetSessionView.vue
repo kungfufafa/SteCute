@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { useSessionStore } from '@/stores'
+import { useSessionStore } from '@/app/store/useSessionStore'
 import { resetSessionData } from '@/services/session'
 import { ui } from '@/ui/styles'
 

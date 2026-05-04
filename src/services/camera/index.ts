@@ -1,4 +1,4 @@
-import { useCameraStore } from '@/stores'
+import { useCameraStore } from '@/app/store/useCameraStore'
 
 export type FacingMode = 'user' | 'environment'
 

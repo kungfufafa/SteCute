@@ -10,7 +10,7 @@ const uploadFixtures = [
 
 async function openUploadFlow(page: Page) {
   await page.goto('/config?source=upload')
-  await page.getByRole('button', { name: /3 Foto, strip Fit 3 foto, slot foto rasio 4:3/ }).click()
+  await expect(page.getByRole('heading', { name: 'Pilih paket strip.' })).toBeVisible()
   await page.getByRole('button', { name: 'Pilih Foto' }).click()
   await expect(page).toHaveURL('/upload')
 }

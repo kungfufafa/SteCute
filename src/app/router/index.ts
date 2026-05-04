@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { applySeo, getAppSeo, getIndexableSeo } from '@/app/seo'
 import type { SeoRoute } from '@/app/seo'
+import LandingView from '@/features/landing/LandingView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,7 +9,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'landing',
-      component: () => import('@/features/landing/LandingView.vue'),
+      component: LandingView,
       meta: { seo: getIndexableSeo('landing') },
     },
     {

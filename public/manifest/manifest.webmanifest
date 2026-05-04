@@ -1,12 +1,16 @@
 {
+  "id": "/",
   "name": "Stecute",
   "short_name": "Stecute",
   "description": "Photo booth web offline-first untuk membuat photo strip lokal tanpa login",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#1a1a2e",
+  "theme_color": "#f45b8d",
   "background_color": "#ffffff",
+  "lang": "id-ID",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icons/icon-192x192.png",
@@ -16,7 +20,8 @@
     {
       "src": "/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/icons/icon-512x512-maskable.png",

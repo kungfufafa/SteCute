@@ -60,6 +60,36 @@
       "version": "1.0.0",
       "checksum": "",
       "license": "internal"
+    },
+    {
+      "id": "preview-classic-strip",
+      "type": "template-preview",
+      "name": "Classic Strip Preview",
+      "path": "/images/classic-strip-preview.webp",
+      "packId": "seo-preview-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-f4f7e74ecd635d92d3062ebdadcc0a70928e690baa4b948afed3b122b661492f",
+      "license": "internal"
+    },
+    {
+      "id": "preview-mono-strip",
+      "type": "template-preview",
+      "name": "Mono Strip Preview",
+      "path": "/images/mono-strip-preview.webp",
+      "packId": "seo-preview-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-282f3ecfaa50ed7a129c8d1f55115054653675aa054bf4412458c0ff85e9230e",
+      "license": "internal"
+    },
+    {
+      "id": "preview-youth-strip",
+      "type": "template-preview",
+      "name": "Youth Strip Preview",
+      "path": "/images/youth-strip-preview.webp",
+      "packId": "seo-preview-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-3946658de8956f8b0899eb3023f6f9d96d464d1e7d4e773093671013630fd011",
+      "license": "internal"
     }
   ],
   "stickers": {

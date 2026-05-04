@@ -8,7 +8,8 @@ import {
 } from '@/services/session'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
-import { useCustomTemplateStore, useSessionStore } from '@/stores'
+import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
+import { useSessionStore } from '@/app/store/useSessionStore'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useGalleryStore } from '@/stores'
+import { useGalleryStore } from '@/app/store/useGalleryStore'
 import { downloadBlob, generateFilename } from '@/services/output'
 import { formatBytes, formatDate } from '@/utils/format'
 import { ui } from '@/ui/styles'

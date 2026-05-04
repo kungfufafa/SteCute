@@ -9,7 +9,9 @@ import {
 } from '@/services/session'
 import { getTemplateById } from '@/templates'
 import { getLayoutById } from '@/layouts'
-import { useCameraStore, useCustomTemplateStore, useSessionStore } from '@/stores'
+import { useCameraStore } from '@/app/store/useCameraStore'
+import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
+import { useSessionStore } from '@/app/store/useSessionStore'
 import {
   captureFrame,
   enumerateDevices,
@@ -326,7 +328,7 @@ function goBack() {
     <div :class="[ui.content, 'flex min-h-0 flex-col !pb-0']">
       <div :class="[ui.pageContentWide, 'min-h-0 justify-between']">
         <div
-          class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-4xl overflow-hidden rounded-xl border bg-black/95"
+          class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-4xl shrink-0 overflow-hidden rounded-xl border bg-black/95"
         >
           <video
             ref="videoRef"

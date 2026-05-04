@@ -27,7 +27,14 @@ function startWithCamera() {
     <header :class="ui.headerWide">
       <div :class="ui.headerGroup">
         <RouterLink to="/" class="shrink-0" aria-label="Stecute beranda">
-          <img class="block h-auto w-[116px] md:w-[132px]" src="/icons.svg" alt="Stecute" />
+          <img
+            class="block h-auto w-[116px] md:w-[132px]"
+            src="/icons.svg"
+            alt="Stecute"
+            width="442"
+            height="123"
+            decoding="async"
+          />
         </RouterLink>
       </div>
 
@@ -67,7 +74,7 @@ function startWithCamera() {
           <div class="max-w-3xl">
             <p :class="[ui.sectionLabel, 'text-stc-pink']">{{ page.eyebrow }}</p>
             <h1
-              class="text-stc-text mt-4 max-w-2xl text-4xl leading-[1.08] font-extrabold tracking-tight sm:text-5xl"
+              class="text-stc-text mt-4 max-w-2xl text-4xl leading-[1.08] font-bold tracking-[0] sm:text-5xl"
             >
               {{ page.title }}
             </h1>
@@ -87,7 +94,7 @@ function startWithCamera() {
               class="border-stc-border/80 scroll-mt-6 border-t py-6 sm:py-7"
             >
               <div class="mb-5 max-w-3xl">
-                <h2 class="text-stc-text text-xl leading-tight font-extrabold sm:text-2xl">
+                <h2 class="text-stc-text text-xl leading-tight font-bold sm:text-2xl">
                   {{ section.title }}
                 </h2>
                 <p
@@ -98,9 +105,7 @@ function startWithCamera() {
                 </p>
               </div>
 
-              <div
-                class="border-stc-border/80 max-w-4xl divide-y divide-stc-border/80 border-y"
-              >
+              <div class="border-stc-border/80 divide-stc-border/80 max-w-4xl divide-y border-y">
                 <details v-for="item in section.items" :key="item.question" class="group">
                   <summary
                     class="text-stc-text flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-bold"
@@ -137,9 +142,9 @@ function startWithCamera() {
             <section
               v-else
               :id="section.id"
-              class="border-stc-border/80 scroll-mt-6 grid gap-4 border-t py-6 sm:py-7 lg:grid-cols-[minmax(12rem,0.32fr)_minmax(0,0.68fr)] lg:gap-10"
+              class="border-stc-border/80 grid scroll-mt-6 gap-4 border-t py-6 sm:py-7 lg:grid-cols-[minmax(12rem,0.32fr)_minmax(0,0.68fr)] lg:gap-10"
             >
-              <h2 class="text-stc-text text-xl leading-tight font-extrabold sm:text-2xl">
+              <h2 class="text-stc-text text-xl leading-tight font-bold sm:text-2xl">
                 {{ section.title }}
               </h2>
 

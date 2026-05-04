@@ -1,17 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { RouterView } from 'vue-router'
 import OfflineBanner from '@/components/common/OfflineBanner.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
-import { useRegisterSW } from 'virtual:pwa-register/vue'
 
 const updatePromptRef = ref<InstanceType<typeof UpdatePrompt> | null>(null)
 
-useRegisterSW({
-  onNeedRefresh() {
-    updatePromptRef.value?.promptUpdate()
-  },
+function scheduleServiceWorkerRegistration() {
+  globalThis.setTimeout(() => {
+    void import('virtual:pwa-register').then(({ registerSW }) => {
+      registerSW({
+        onNeedRefresh() {
+          updatePromptRef.value?.promptUpdate()
+        },
+      })
+    })
+  }, 4000)
+}
+
+onMounted(() => {
+  scheduleServiceWorkerRegistration()
 })
 </script>
 

@@ -1,20 +1,23 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+
+function cta(page: Page, name: string) {
+  return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
+}
 
 test.describe('Stecute app smoke', () => {
   test('loads landing with final CTA and desktop-friendly hero', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('img', { name: 'Stecute' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Mulai Foto' })).toBeVisible()
-    await expect(page.getByText('Tanpa Login')).toBeVisible()
-    await expect(page.getByText('Privasi Terjaga')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Upload Lokal' }).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
+    await expect(cta(page, 'Mulai Foto')).toBeVisible()
+    await expect(cta(page, 'Upload Lokal')).toBeVisible()
+    await expect(page.getByText('Foto diproses lokal di browser.')).toBeVisible()
   })
 
   test('navigates to session config from landing', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('button', { name: 'Mulai Foto' }).click()
+    await cta(page, 'Mulai Foto').click()
 
     await expect(page).toHaveURL('/config?source=camera')
     await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
@@ -25,7 +28,7 @@ test.describe('Stecute app smoke', () => {
   test('navigates to upload view from landing', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('button', { name: 'Upload Lokal' }).first().click()
+    await cta(page, 'Upload Lokal').click()
 
     await expect(page).toHaveURL('/config?source=upload')
     await page.getByRole('button', { name: 'Pilih Foto' }).click()
@@ -49,13 +52,13 @@ test.describe('Stecute app smoke', () => {
         path: '/privacy',
         link: 'Kebijakan Privasi',
         heading: 'Kebijakan Privasi',
-        text: 'Flow inti memproses foto di browser',
+        text: 'Stecute memproses foto di browser',
       },
       {
         path: '/terms',
         link: 'Syarat & Ketentuan',
         heading: 'Syarat dan Ketentuan',
-        text: 'Syarat ini menjelaskan aturan dasar penggunaan Stecute',
+        text: 'Aturan dasar memakai Stecute',
       },
       {
         path: '/faq',
@@ -67,7 +70,7 @@ test.describe('Stecute app smoke', () => {
         path: '/about',
         link: 'Tentang',
         heading: 'Tentang Stecute',
-        text: 'Stecute adalah aplikasi web photo booth offline-first',
+        text: 'Stecute adalah photo booth web offline-first',
       },
     ]
 
@@ -86,6 +89,6 @@ test.describe('Stecute app smoke', () => {
     await page.goto('/unknown-page')
 
     await expect(page).toHaveURL('/')
-    await expect(page.getByRole('button', { name: 'Mulai Foto' })).toBeVisible()
+    await expect(cta(page, 'Mulai Foto')).toBeVisible()
   })
 })

@@ -10,16 +10,22 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'icons/*.png', 'manifest/manifest.webmanifest'],
+      includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
+        id: '/',
         name: 'Stecute',
         short_name: 'Stecute',
         description: 'Photo booth web offline-first untuk membuat photo strip lokal tanpa login',
-        theme_color: '#1a1a2e',
+        lang: 'id-ID',
+        dir: 'ltr',
+        theme_color: '#f45b8d',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        scope: '/',
+        categories: ['photo', 'entertainment'],
+        prefer_related_applications: false,
         icons: [
           {
             src: '/icons/icon-192x192.png',
@@ -30,6 +36,7 @@ export default defineConfig({
             src: '/icons/icon-512x512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: '/icons/icon-512x512-maskable.png',
@@ -41,6 +48,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
+        globIgnores: ['**/images/*.png'],
         runtimeCaching: [],
       },
     }),
@@ -62,5 +70,18 @@ export default defineConfig({
   },
   build: {
     target: 'esnext',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/vue') || id.includes('node_modules/@vue')) {
+            return 'vendor-vue'
+          }
+
+          if (id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
+            return 'vendor-app'
+          }
+        },
+      },
+    },
   },
 })

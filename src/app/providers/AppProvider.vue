@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted } from 'vue'
-import { useAppStore, useCapabilityStore, useCustomTemplateStore } from '@/stores'
+import { useAppStore } from '@/app/store/useAppStore'
+import { useCapabilityStore } from '@/app/store/useCapabilityStore'
 
 const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
-const customTemplateStore = useCustomTemplateStore()
 
 function handleOnline() {
   appStore.setOfflineMode(false)
@@ -18,7 +18,6 @@ onMounted(() => {
   window.addEventListener('online', handleOnline)
   window.addEventListener('offline', handleOffline)
   capabilityStore.detectCapabilities()
-  void customTemplateStore.loadPersistedTemplates()
 })
 
 onUnmounted(() => {

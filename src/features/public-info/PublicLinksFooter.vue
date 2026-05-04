@@ -13,7 +13,16 @@ import { publicNavItems } from '@/features/public-info/content'
         class="inline-flex w-fit rounded-lg transition-opacity hover:opacity-90"
         aria-label="Stecute beranda"
       >
-        <img class="h-auto w-[104px] sm:w-[112px]" src="/icons.svg" alt="Stecute" loading="lazy" />
+        <img
+          class="h-auto w-[104px] sm:w-[112px]"
+          src="/icons.svg"
+          alt=""
+          width="442"
+          height="123"
+          loading="lazy"
+          decoding="async"
+          aria-hidden="true"
+        />
       </RouterLink>
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:gap-6">
