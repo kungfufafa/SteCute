@@ -5,8 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b --noEmit && vite build",
+    "build": "npm run seo:assets && vue-tsc -b --noEmit && vite build && npm run seo:pages",
     "preview": "vite preview",
+    "seo:assets": "node scripts/generate-seo-assets.mjs",
+    "seo:pages": "node scripts/write-seo-pages.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

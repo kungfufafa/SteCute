@@ -11,6 +11,7 @@ Tanggal: 2026-03-20
 - Scope v1 terkunci
 - Semua open question sudah diputuskan
 - Copy landing, error, dan privacy final
+- Copy SEO halaman publik final
 - Support contact tersedia
 
 ## 2. Desain
@@ -31,6 +32,7 @@ Tanggal: 2026-03-20
 - Offline relaunch pass
 - Storage cleanup pass
 - Service worker update flow aman
+- SEO metadata, robots, sitemap, dan canonical public routes pass
 
 ## 4. Security
 
@@ -52,6 +54,7 @@ Tanggal: 2026-03-20
 ## 6. Operasional
 
 - Production build disimpan
+- Production URL untuk SEO canonical dan sitemap sudah benar
 - Rollback plan siap
 - Monitoring aktif
 - Legal pages aktif
@@ -59,4 +62,3 @@ Tanggal: 2026-03-20
 ## 7. Go/No-Go
 
 Release hanya `GO` jika tidak ada blocker severity tinggi.
-

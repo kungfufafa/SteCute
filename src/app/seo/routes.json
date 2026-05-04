@@ -1,0 +1,111 @@
+{
+  "siteName": "Stecute",
+  "siteUrl": "https://stecute.mekayastudio.com",
+  "locale": "id_ID",
+  "language": "id-ID",
+  "defaultImage": "/images/1770039834020.png",
+  "indexable": [
+    {
+      "id": "landing",
+      "path": "/",
+      "title": "Stecute Photo Booth - Photo Strip Lokal Tanpa Login",
+      "description": "Stecute adalah photo booth web offline-first untuk membuat photo strip dari kamera atau upload lokal, tanpa login, dengan hasil tersimpan di perangkat.",
+      "schema": "webApplication",
+      "changefreq": "weekly",
+      "priority": 1,
+      "lastmod": "2026-05-04"
+    },
+    {
+      "id": "about",
+      "path": "/about",
+      "title": "Tentang Stecute - Photo Booth Web Offline-First",
+      "description": "Kenali Stecute, aplikasi photo booth web lokal untuk capture, upload, review, retake, render PNG, dan gallery lokal terbatas.",
+      "schema": "webPage",
+      "changefreq": "monthly",
+      "priority": 0.8,
+      "lastmod": "2026-05-04"
+    },
+    {
+      "id": "faq",
+      "path": "/faq",
+      "title": "FAQ Stecute - Kamera, Offline, Privasi, dan Photo Strip",
+      "description": "Jawaban umum tentang cara kerja Stecute, pemrosesan foto lokal, mode offline, upload JPG PNG WebP, gallery 10 hasil terakhir, share, dan print.",
+      "schema": "faq",
+      "changefreq": "monthly",
+      "priority": 0.75,
+      "lastmod": "2026-05-04"
+    },
+    {
+      "id": "privacy",
+      "path": "/privacy",
+      "title": "Kebijakan Privasi Stecute - Foto Diproses Lokal",
+      "description": "Kebijakan privasi Stecute menjelaskan pemrosesan foto di browser, penyimpanan lokal, batas gallery, dan kontrol hapus data pengguna.",
+      "schema": "webPage",
+      "changefreq": "yearly",
+      "priority": 0.6,
+      "lastmod": "2026-05-04"
+    },
+    {
+      "id": "terms",
+      "path": "/terms",
+      "title": "Syarat dan Ketentuan Stecute",
+      "description": "Aturan dasar penggunaan Stecute sebagai photo booth web lokal tanpa login untuk personal, acara kecil, dan booth sederhana.",
+      "schema": "webPage",
+      "changefreq": "yearly",
+      "priority": 0.55,
+      "lastmod": "2026-05-04"
+    }
+  ],
+  "appRoutes": [
+    {
+      "id": "config",
+      "path": "/config",
+      "title": "Atur Sesi - Stecute",
+      "description": "Atur layout, template, dan sumber foto untuk sesi Stecute.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "camera",
+      "path": "/camera",
+      "title": "Ambil Foto - Stecute",
+      "description": "Ambil beberapa pose dari kamera browser untuk membuat photo strip lokal.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "upload",
+      "path": "/upload",
+      "title": "Upload Lokal - Stecute",
+      "description": "Pilih foto lokal untuk disusun menjadi photo strip Stecute.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "review",
+      "path": "/review",
+      "title": "Review Foto - Stecute",
+      "description": "Review, susun, dan retake foto sebelum render final.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "render",
+      "path": "/render",
+      "title": "Render Photo Strip - Stecute",
+      "description": "Render photo strip Stecute secara lokal di browser.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "output",
+      "path": "/output",
+      "title": "Hasil Photo Strip - Stecute",
+      "description": "Download, save, share, atau print hasil photo strip Stecute sesuai kemampuan browser.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "gallery",
+      "path": "/gallery",
+      "title": "Galeri Lokal - Stecute",
+      "description": "Galeri lokal Stecute berisi hasil render terakhir yang tersimpan di perangkat.",
+      "robots": "noindex,nofollow"
+    }
+  ],
+  "legacyNoindexPaths": ["/capture", "/privacyscreen"]
+}

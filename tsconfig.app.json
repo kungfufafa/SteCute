@@ -5,6 +5,7 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
     "jsx": "preserve",
     "jsxImportSource": "vue",
     "strict": true,
@@ -26,10 +27,6 @@
       "@assets/*": ["./src/assets/*"]
     }
   },
-  "include": [
-    "env.d.ts",
-    "src/**/*",
-    "src/**/*.vue"
-  ],
+  "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": ["src/**/*.d.ts", "src/**/__tests__/*", "src/workers/**"]
 }

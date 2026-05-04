@@ -1,25 +1,83 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/Poppins-Medium.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/src/assets/fonts/Poppins-Bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <!--stecute-seo-static-->
+    <title>Stecute Photo Booth - Photo Strip Lokal Tanpa Login</title>
+    <meta
+      name="description"
+      content="Stecute adalah photo booth web offline-first untuk membuat photo strip dari kamera atau upload lokal, tanpa login, dengan hasil tersimpan di perangkat."
+    />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://stecute.mekayastudio.com/" />
+    <meta property="og:site_name" content="Stecute" />
+    <meta property="og:locale" content="id_ID" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Stecute Photo Booth - Photo Strip Lokal Tanpa Login" />
+    <meta
+      property="og:description"
+      content="Stecute adalah photo booth web offline-first untuk membuat photo strip dari kamera atau upload lokal, tanpa login, dengan hasil tersimpan di perangkat."
+    />
+    <meta property="og:url" content="https://stecute.mekayastudio.com/" />
+    <meta property="og:image" content="https://stecute.mekayastudio.com/images/1770039834020.png" />
+    <meta property="og:image:alt" content="Preview photo strip Stecute" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Stecute Photo Booth - Photo Strip Lokal Tanpa Login" />
+    <meta
+      name="twitter:description"
+      content="Stecute adalah photo booth web offline-first untuk membuat photo strip dari kamera atau upload lokal, tanpa login, dengan hasil tersimpan di perangkat."
+    />
+    <meta
+      name="twitter:image"
+      content="https://stecute.mekayastudio.com/images/1770039834020.png"
+    />
+    <script id="stecute-jsonld" type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "name": "Stecute Photo Booth - Photo Strip Lokal Tanpa Login",
+        "description": "Stecute adalah photo booth web offline-first untuk membuat photo strip dari kamera atau upload lokal, tanpa login, dengan hasil tersimpan di perangkat.",
+        "url": "https://stecute.mekayastudio.com/",
+        "inLanguage": "id-ID",
+        "@type": "WebApplication",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires a modern browser with camera, canvas, and storage support.",
+        "featureList": [
+          "Photo booth browser tanpa login",
+          "Capture kamera atau upload lokal",
+          "Review dan retake per-shot",
+          "Render PNG lokal",
+          "Gallery lokal terbatas",
+          "Mode offline setelah cache awal"
+        ]
+      }
+    </script>
+    <!--/stecute-seo-static-->
+    <meta name="theme-color" content="#1a1a2e" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
+    <link rel="manifest" href="/manifest/manifest.webmanifest" />
+  </head>
 
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link rel="preload" href="/src/assets/fonts/Poppins-Medium.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preload" href="/src/assets/fonts/Poppins-Bold.woff2" as="font" type="font/woff2" crossorigin />
-  <meta name="description"
-    content="Stecute is an offline-first photo booth app for capturing, customizing, and saving photo strips locally. No login required." />
-  <meta name="theme-color" content="#1a1a2e" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <link rel="apple-touch-icon" href="/icons/icon-192x192.svg" />
-  <link rel="manifest" href="/manifest/manifest.webmanifest" />
-  <title>SteCute</title>
-</head>
-
-<body>
-  <div id="app"></div>
-  <script type="module" src="/src/main.ts"></script>
-</body>
-
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
 </html>

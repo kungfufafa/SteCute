@@ -34,6 +34,12 @@ const browserGlobals = {
   window: 'readonly',
 }
 
+const nodeGlobals = {
+  URL: 'readonly',
+  console: 'readonly',
+  process: 'readonly',
+}
+
 export default [
   {
     ignores: [
@@ -66,6 +72,12 @@ export default [
       parserOptions: {
         parser: tseslint.parser,
       },
+    },
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: nodeGlobals,
     },
   },
   {

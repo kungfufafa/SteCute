@@ -4,3 +4,30 @@
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+
+/config
+  X-Robots-Tag: noindex, nofollow
+
+/camera
+  X-Robots-Tag: noindex, nofollow
+
+/upload
+  X-Robots-Tag: noindex, nofollow
+
+/capture
+  X-Robots-Tag: noindex, nofollow
+
+/review
+  X-Robots-Tag: noindex, nofollow
+
+/render
+  X-Robots-Tag: noindex, nofollow
+
+/output
+  X-Robots-Tag: noindex, nofollow
+
+/gallery
+  X-Robots-Tag: noindex, nofollow
+
+/privacyscreen
+  X-Robots-Tag: noindex, nofollow

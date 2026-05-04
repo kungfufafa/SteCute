@@ -14,8 +14,7 @@ export default defineConfig({
       manifest: {
         name: 'Stecute',
         short_name: 'Stecute',
-        description:
-          'Stecute is an offline-first photo booth app for capturing, customizing, and saving photo strips locally',
+        description: 'Photo booth web offline-first untuk membuat photo strip lokal tanpa login',
         theme_color: '#1a1a2e',
         background_color: '#ffffff',
         display: 'standalone',

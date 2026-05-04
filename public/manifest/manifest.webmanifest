@@ -1,7 +1,7 @@
 {
   "name": "Stecute",
   "short_name": "Stecute",
-  "description": "Stecute is an offline-first photo booth app for capturing, customizing, and saving photo strips locally",
+  "description": "Photo booth web offline-first untuk membuat photo strip lokal tanpa login",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
