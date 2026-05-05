@@ -188,6 +188,17 @@ class StecuteDB extends Dexie {
       assets: 'id, type, packId',
       eventPresets: 'id',
     })
+
+    this.version(2).stores({
+      appSettings: 'key',
+      sessions: 'id, status, captureSource, layoutId, startedAt',
+      shots: 'id, sessionId, order, [sessionId+order]',
+      renders: 'id, sessionId, createdAt',
+      layouts: 'id, slotCount',
+      templates: 'id',
+      assets: 'id, type, packId',
+      eventPresets: 'id',
+    })
   }
 }
 

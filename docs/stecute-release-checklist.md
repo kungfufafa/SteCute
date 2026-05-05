@@ -46,8 +46,8 @@ Tanggal: 2026-03-20
 
 - Chrome desktop pass
 - Edge desktop pass
-- Chrome Android pass
-- Safari iPhone/iPad pass
+- Chrome Android physical device pass
+- Safari iPhone/iPad physical device pass
 - Unsupported browser flow pass
 - Error states pass
 

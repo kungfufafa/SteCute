@@ -1,10 +1,21 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { createDefaultDecorationConfig, createSession, saveShot } from '@/services/session'
+import {
+  createDefaultDecorationConfig,
+  createSession,
+  resetSessionData,
+  saveShot,
+} from '@/services/session'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
-import { getImageDimensions, openImagePicker, validateFiles } from '@/services/upload'
+import {
+  createStoredImageBlob,
+  getImageDimensions,
+  openImagePicker,
+  validateFiles,
+} from '@/services/upload'
+import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
@@ -102,7 +113,7 @@ async function processUpload() {
 
     for (const [index, file] of selectedFiles.value.entries()) {
       const size = await getImageDimensions(file)
-      const blob = new Blob([await file.arrayBuffer()], { type: file.type })
+      const blob = await createStoredImageBlob(file)
       const shotId = await saveShot({
         sessionId,
         order: index,
@@ -119,10 +130,13 @@ async function processUpload() {
   } catch (error) {
     console.error(`Upload failed: ${describeError(error)}`)
     if (sessionId) {
-      const { resetSessionData } = await import('@/services/session')
       await resetSessionData(sessionId).catch(() => {})
     }
-    errors.value = ['Gagal memproses foto. Silakan coba lagi.']
+    errors.value = [
+      isStorageQuotaError(error)
+        ? getStorageErrorMessage(error)
+        : 'Gagal memproses foto. Silakan coba lagi.',
+    ]
   } finally {
     isProcessing.value = false
   }

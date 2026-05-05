@@ -2,7 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getReviewSessionSnapshot, resetSessionData, saveShot } from '@/services/session'
-import { getImageDimensions, openImagePicker, validateFile } from '@/services/upload'
+import {
+  createStoredImageBlob,
+  getImageDimensions,
+  openImagePicker,
+  validateFile,
+} from '@/services/upload'
+import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { getTemplateById } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
@@ -86,16 +92,24 @@ async function retakeShot(index: number) {
     }
 
     const dimensions = await getImageDimensions(file)
-    const blob = new Blob([await file.arrayBuffer()], { type: file.type })
+    const blob = await createStoredImageBlob(file)
 
-    await saveShot({
-      sessionId,
-      order: index,
-      sourceType: 'upload',
-      blob,
-      width: dimensions.width,
-      height: dimensions.height,
-    })
+    try {
+      await saveShot({
+        sessionId,
+        order: index,
+        sourceType: 'upload',
+        blob,
+        width: dimensions.width,
+        height: dimensions.height,
+      })
+    } catch (error) {
+      console.error('Failed to save retaken photo:', error)
+      reviewError.value = isStorageQuotaError(error)
+        ? getStorageErrorMessage(error)
+        : 'Gagal menyimpan foto pengganti. Coba lagi.'
+      return
+    }
 
     await loadShotUrls()
     return

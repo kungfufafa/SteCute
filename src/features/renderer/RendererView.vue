@@ -10,6 +10,7 @@ import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
+import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
@@ -57,7 +58,11 @@ onMounted(async () => {
   } catch (error) {
     console.error('Render failed:', error)
     isRendering.value = false
-    sessionStore.setError('Gagal memproses foto. Silakan coba lagi.')
+    sessionStore.setError(
+      isStorageQuotaError(error)
+        ? getStorageErrorMessage(error)
+        : 'Gagal memproses foto. Silakan coba lagi.',
+    )
     router.push('/review')
   }
 })

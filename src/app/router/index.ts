@@ -2,6 +2,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { applySeo, getAppSeo, getIndexableSeo } from '@/app/seo'
 import type { SeoRoute } from '@/app/seo'
 import LandingView from '@/features/landing/LandingView.vue'
+import CameraView from '@/features/camera/CameraView.vue'
+import UploadView from '@/features/upload/UploadView.vue'
+import SessionConfigView from '@/features/session-config/SessionConfigView.vue'
+import ReviewView from '@/features/review/ReviewView.vue'
+import RendererView from '@/features/renderer/RendererView.vue'
+import OutputView from '@/features/output/OutputView.vue'
+import GalleryView from '@/features/gallery/GalleryView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -15,19 +22,19 @@ const router = createRouter({
     {
       path: '/camera',
       name: 'camera',
-      component: () => import('@/features/camera/CameraView.vue'),
+      component: CameraView,
       meta: { seo: getAppSeo('camera') },
     },
     {
       path: '/upload',
       name: 'upload',
-      component: () => import('@/features/upload/UploadView.vue'),
+      component: UploadView,
       meta: { seo: getAppSeo('upload') },
     },
     {
       path: '/config',
       name: 'config',
-      component: () => import('@/features/session-config/SessionConfigView.vue'),
+      component: SessionConfigView,
       meta: { seo: getAppSeo('config') },
     },
     {
@@ -38,25 +45,25 @@ const router = createRouter({
     {
       path: '/review',
       name: 'review',
-      component: () => import('@/features/review/ReviewView.vue'),
+      component: ReviewView,
       meta: { seo: getAppSeo('review') },
     },
     {
       path: '/render',
       name: 'render',
-      component: () => import('@/features/renderer/RendererView.vue'),
+      component: RendererView,
       meta: { seo: getAppSeo('render') },
     },
     {
       path: '/output',
       name: 'output',
-      component: () => import('@/features/output/OutputView.vue'),
+      component: OutputView,
       meta: { seo: getAppSeo('output') },
     },
     {
       path: '/gallery',
       name: 'gallery',
-      component: () => import('@/features/gallery/GalleryView.vue'),
+      component: GalleryView,
       meta: { seo: getAppSeo('gallery') },
     },
     {

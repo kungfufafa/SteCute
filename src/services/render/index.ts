@@ -24,7 +24,108 @@ interface DecodedImage {
   close?: () => void
 }
 
+interface RenderWorkerShot {
+  buffer: ArrayBuffer
+  type: string
+}
+
+interface RenderWorkerMessage {
+  type: 'render'
+  layout: LayoutConfig
+  template: TemplateConfig
+  shots: RenderWorkerShot[]
+  decoration: DecorationConfig
+  format: 'image/png' | 'image/jpeg'
+  quality?: number
+}
+
+interface RenderWorkerResult {
+  type: 'result' | 'error'
+  buffer?: ArrayBuffer
+  mimeType?: string
+  error?: string
+  width?: number
+  height?: number
+}
+
 export async function renderStrip(job: RenderJob): Promise<RenderResult> {
+  if (canUseRenderWorker()) {
+    try {
+      return await renderStripInWorker(job)
+    } catch (error) {
+      console.warn('Render worker failed; falling back to main thread.', error)
+    }
+  }
+
+  return renderStripOnMainThread(job)
+}
+
+function canUseRenderWorker(): boolean {
+  return typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
+}
+
+async function renderStripInWorker(job: RenderJob): Promise<RenderResult> {
+  const worker = new Worker(new URL('../../workers/render.worker.ts', import.meta.url), {
+    type: 'module',
+  })
+  const shots = await Promise.all(
+    job.shots.map(async (shot) => ({
+      buffer: await shot.blob.arrayBuffer(),
+      type: shot.blob.type,
+    })),
+  )
+  const transfer = shots.map((shot) => shot.buffer)
+
+  try {
+    return await new Promise<RenderResult>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        reject(new Error('Render worker timed out'))
+      }, 30_000)
+
+      worker.onmessage = (event: MessageEvent<RenderWorkerResult>) => {
+        window.clearTimeout(timeout)
+
+        if (event.data.type === 'error') {
+          reject(new Error(event.data.error ?? 'Render worker failed'))
+          return
+        }
+
+        if (!event.data.buffer || !event.data.width || !event.data.height) {
+          reject(new Error('Render worker returned an incomplete result'))
+          return
+        }
+
+        resolve({
+          blob: new Blob([event.data.buffer], { type: event.data.mimeType ?? job.format }),
+          width: event.data.width,
+          height: event.data.height,
+        })
+      }
+
+      worker.onerror = (event) => {
+        window.clearTimeout(timeout)
+        reject(new Error(event.message || 'Render worker failed'))
+      }
+
+      worker.postMessage(
+        {
+          type: 'render',
+          layout: job.layout,
+          template: job.template,
+          shots,
+          decoration: job.decoration,
+          format: job.format,
+          quality: job.quality,
+        } satisfies RenderWorkerMessage,
+        transfer,
+      )
+    })
+  } finally {
+    worker.terminate()
+  }
+}
+
+async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
   const { layout, template, shots, decoration, format, quality } = job
   const renderLayout = resolveTemplateLayout(layout, template)
 
@@ -303,16 +404,57 @@ function drawPhotoBacking(
 
 async function decodeImageBlob(blob: Blob): Promise<DecodedImage> {
   if (typeof createImageBitmap === 'function') {
-    const bitmap = await createImageBitmap(blob)
+    try {
+      const bitmap = await createImageBitmap(blob)
 
-    return {
-      source: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      close: () => bitmap.close(),
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        close: () => bitmap.close(),
+      }
+    } catch {
+      // Fall through to Data URL/object URL decoding for WebKit offline Blob quirks.
     }
   }
 
+  try {
+    return await decodeImageBlobViaDataUrl(blob)
+  } catch {
+    return decodeImageBlobViaObjectUrl(blob)
+  }
+}
+
+function decodeImageBlobViaDataUrl(blob: Blob): Promise<DecodedImage> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.onload = () => {
+      if (typeof reader.result !== 'string') {
+        reject(new Error('Failed to read image blob as data URL'))
+        return
+      }
+
+      const image = new Image()
+
+      image.onload = () => {
+        resolve({
+          source: image,
+          width: image.naturalWidth,
+          height: image.naturalHeight,
+        })
+      }
+
+      image.onerror = () => reject(new Error('Failed to decode image data URL'))
+      image.src = reader.result
+    }
+
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read image blob'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+function decodeImageBlobViaObjectUrl(blob: Blob): Promise<DecodedImage> {
   const url = URL.createObjectURL(blob)
 
   return new Promise((resolve, reject) => {
@@ -566,7 +708,12 @@ async function drawTemplateLabel(
   layout: LayoutConfig,
 ) {
   if (template.footerLogo) {
-    await drawFooterLogo(ctx, canvasWidth, canvasHeight, layout, template.footerLogo)
+    try {
+      await drawFooterLogo(ctx, canvasWidth, canvasHeight, layout, template.footerLogo)
+    } catch (error) {
+      console.warn(`Falling back to text footer for template "${template.id}".`, error)
+      drawBrandFooterText(ctx, canvasWidth, canvasHeight, template)
+    }
     return
   }
 
@@ -584,6 +731,21 @@ async function drawTemplateLabel(
         ? canvasWidth - 90
         : canvasWidth / 2
   ctx.fillText(template.label.text, x, canvasHeight - 120)
+  ctx.restore()
+}
+
+function drawBrandFooterText(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  template: TemplateConfig,
+) {
+  ctx.save()
+  ctx.fillStyle = template.textColor
+  ctx.globalAlpha = template.id === 'mono' ? 0.78 : 0.72
+  ctx.font = `700 ${Math.max(34, template.label.fontSize * 0.55)}px Poppins, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.fillText('Stecute', canvasWidth / 2, canvasHeight - 86)
   ctx.restore()
 }
 

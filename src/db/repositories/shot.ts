@@ -18,7 +18,7 @@ export class ShotRepository {
   }
 
   async getBySessionAndOrder(sessionId: string, order: number): Promise<Shot | undefined> {
-    const shot = await db.shots.where({ sessionId, order }).first()
+    const shot = await db.shots.where('[sessionId+order]').equals([sessionId, order]).first()
     return shot ? restoreShotBlob(shot) : undefined
   }
 

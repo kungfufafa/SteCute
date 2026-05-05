@@ -19,6 +19,7 @@ import {
   stopCamera,
   switchCamera,
 } from '@/services/camera'
+import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
@@ -153,22 +154,32 @@ async function handleCapture() {
   const order = sessionStore.currentShotIndex
   const hadShotAtOrder = !!(await getSessionShots(sessionId)).find((shot) => shot.order === order)
 
-  const shotId = await saveShot({
-    sessionId,
-    order,
-    sourceType: 'camera',
-    blob: frame.blob,
-    width: frame.width,
-    height: frame.height,
-  })
+  let shots: Awaited<ReturnType<typeof getSessionShots>>
 
-  if (hadShotAtOrder) {
-    sessionStore.replaceShotId(order, shotId)
-  } else {
-    sessionStore.addShotId(shotId)
+  try {
+    const shotId = await saveShot({
+      sessionId,
+      order,
+      sourceType: 'camera',
+      blob: frame.blob,
+      width: frame.width,
+      height: frame.height,
+    })
+
+    if (hadShotAtOrder) {
+      sessionStore.replaceShotId(order, shotId)
+    } else {
+      sessionStore.addShotId(shotId)
+    }
+
+    shots = await getSessionShots(sessionId)
+  } catch (error) {
+    console.error('Failed to save captured photo:', error)
+    cameraError.value = isStorageQuotaError(error)
+      ? getStorageErrorMessage(error)
+      : 'Gagal menyimpan foto lokal. Coba ambil foto lagi.'
+    return
   }
-
-  const shots = await getSessionShots(sessionId)
 
   if (shots.length >= sessionStore.slotCount) {
     sessionStore.setReviewing()

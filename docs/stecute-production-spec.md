@@ -369,7 +369,7 @@ Jika estimasi storage melebihi threshold:
 - tampilkan warning
 - sarankan hapus gallery lama
 - jika simpan gagal, jangan hilangkan render di memori sampai user memilih aksi lain
-- jika browser gagal menulis Blob/File ke IndexedDB tetapi masih mendukung binary structured clone, retry sebagai ArrayBuffer internal dan kembalikan ke Blob saat dibaca aplikasi
+- persistence API aplikasi tetap mengembalikan `Blob`, tetapi storage internal boleh memakai `ArrayBuffer` binary sebagai jalur utama untuk menghindari perbedaan IndexedDB Blob/File di Safari/WebKit dan browser lain
 
 ### 10.3 Database versioning
 

@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/app/store/useAppStore'
 import { useCapabilityStore } from '@/app/store/useCapabilityStore'
+import { requestPersistentStorage } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
@@ -9,6 +11,13 @@ import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
 const router = useRouter()
 const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
+const offlineStatusText = computed(() => {
+  if (appStore.offlineReady) return appStore.offlineMode ? '100% Offline.' : 'Siap Offline.'
+  if (appStore.serviceWorkerStatus === 'unsupported') return 'Offline terbatas.'
+  if (appStore.serviceWorkerStatus === 'error') return 'Cache offline perlu dicek.'
+
+  return 'Menyiapkan offline.'
+})
 const showcaseImages = [
   {
     src: '/images/classic-strip-preview.webp',
@@ -40,10 +49,12 @@ const showcaseImages = [
 capabilityStore.detectCapabilities()
 
 function startWithCamera() {
+  void requestPersistentStorage()
   router.push({ path: '/config', query: { source: 'camera' } })
 }
 
 function startWithUpload() {
+  void requestPersistentStorage()
   router.push({ path: '/config', query: { source: 'upload' } })
 }
 </script>
@@ -110,7 +121,7 @@ function startWithUpload() {
           class="text-stc-text-soft mt-6 max-w-[34rem] text-[1rem] leading-relaxed font-medium sm:text-[1.0625rem] lg:max-w-[31rem]"
         >
           Buka kamera, ambil beberapa pose, lalu simpan photo strip langsung di perangkat.
-          {{ appStore.offlineMode ? '100% Offline.' : 'Siap Offline.' }}
+          {{ offlineStatusText }}
         </p>
 
         <div class="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">

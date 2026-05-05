@@ -1,3 +1,5 @@
+import { readBlobAsArrayBuffer } from '@/utils/blob'
+
 export interface IndexedDbBlobFallback {
   __stecuteBlobFallback: 'array-buffer'
   type: string
@@ -32,13 +34,25 @@ function shouldRetryBlobAsArrayBuffer(error: unknown): boolean {
   return /Blob\/File data|DataCloneError|could not be cloned/i.test(getErrorText(error))
 }
 
+function shouldPreferArrayBufferStorage(): boolean {
+  return true
+}
+
+async function createArrayBufferFallback(blob: Blob): Promise<IndexedDbBlobFallback> {
+  return {
+    __stecuteBlobFallback: 'array-buffer',
+    type: blob.type,
+    data: await readBlobAsArrayBuffer(blob),
+  }
+}
+
 export function restoreIndexedDbBlob(value: IndexedDbBlobValue): Blob {
   if (value instanceof Blob) {
     return value
   }
 
   if (isIndexedDbBlobFallback(value)) {
-    return new Blob([value.data], { type: value.type })
+    return new Blob([new Uint8Array(value.data.slice(0))], { type: value.type })
   }
 
   throw new Error('Stored image data is not readable.')
@@ -48,6 +62,10 @@ export async function writeBlobWithFallback<T>(
   blob: Blob,
   write: (blob: Blob) => Promise<T>,
 ): Promise<T> {
+  if (shouldPreferArrayBufferStorage()) {
+    return write((await createArrayBufferFallback(blob)) as unknown as Blob)
+  }
+
   try {
     return await write(blob)
   } catch (error) {
@@ -55,12 +73,6 @@ export async function writeBlobWithFallback<T>(
       throw error
     }
 
-    const fallback: IndexedDbBlobFallback = {
-      __stecuteBlobFallback: 'array-buffer',
-      type: blob.type,
-      data: await blob.arrayBuffer(),
-    }
-
-    return write(fallback as unknown as Blob)
+    return write((await createArrayBufferFallback(blob)) as unknown as Blob)
   }
 }

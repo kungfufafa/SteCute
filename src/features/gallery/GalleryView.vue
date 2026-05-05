@@ -1,14 +1,21 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAppStore } from '@/app/store/useAppStore'
 import { useGalleryStore } from '@/app/store/useGalleryStore'
+import { useSessionStore } from '@/app/store/useSessionStore'
 import { downloadBlob, generateFilename } from '@/services/output'
+import { clearAllLocalData, getStorageState, type StorageState } from '@/services/storage'
 import { formatBytes, formatDate } from '@/utils/format'
 import { ui } from '@/ui/styles'
 
 const router = useRouter()
+const appStore = useAppStore()
 const galleryStore = useGalleryStore()
+const sessionStore = useSessionStore()
 const renderUrls = ref<Record<string, string>>({})
+const storageState = ref<StorageState | null>(null)
+const localDataMessage = ref<string | null>(null)
 
 onMounted(() => {
   void loadGallery()
@@ -37,6 +44,7 @@ function revokeRenderUrls() {
 
 async function loadGallery() {
   await galleryStore.loadRecent()
+  storageState.value = await getStorageState()
   revokeRenderUrls()
 
   renderUrls.value = Object.fromEntries(
@@ -52,6 +60,28 @@ async function removeAndReload(id: string) {
 async function clearAndReload() {
   await galleryStore.clearAll()
   revokeRenderUrls()
+  storageState.value = await getStorageState()
+}
+
+async function handleClearAllLocalData() {
+  const confirmed = confirm(
+    'Hapus semua data lokal Stecute? Gallery, sesi, blanko upload, setting, dan cache offline akan dibersihkan. Aplikasi perlu internet lagi untuk cache ulang.',
+  )
+
+  if (!confirmed) return
+
+  try {
+    await clearAllLocalData()
+    sessionStore.reset()
+    appStore.markOfflineCacheCleared()
+    galleryStore.recentRenders = []
+    revokeRenderUrls()
+    storageState.value = await getStorageState()
+    localDataMessage.value = 'Semua data lokal berhasil dihapus.'
+  } catch (error) {
+    console.error('Failed to clear local data:', error)
+    localDataMessage.value = 'Gagal menghapus semua data lokal. Coba lagi dari pengaturan browser.'
+  }
 }
 
 async function handleDownload(renderId: string) {
@@ -97,6 +127,23 @@ onBeforeUnmount(() => {
 
     <div :class="ui.content">
       <div :class="[ui.pageContentWide, 'gap-8']">
+        <div
+          v-if="storageState?.shouldWarn || localDataMessage"
+          class="border-stc-warning/30 bg-stc-warning-soft text-stc-text shadow-stc-xs rounded-xl border px-4 py-3 text-sm font-semibold"
+        >
+          <template v-if="storageState?.shouldWarn">
+            Penyimpanan lokal mulai tinggi
+            <span v-if="storageState.quotaBytes">
+              ({{ formatBytes(storageState.usageBytes) }} dari
+              {{ formatBytes(storageState.quotaBytes) }}).
+            </span>
+            Hapus hasil lama jika render berikutnya gagal disimpan.
+          </template>
+          <template v-else>
+            {{ localDataMessage }}
+          </template>
+        </div>
+
         <div v-if="galleryStore.recentRenders.length === 0" :class="ui.emptyPanel">
           <div :class="ui.surfaceIcon">
             <svg
@@ -179,6 +226,24 @@ onBeforeUnmount(() => {
             @click="handleClearAll"
           >
             Hapus Semua
+          </button>
+        </div>
+
+        <div
+          class="border-stc-border/70 bg-white shadow-stc-xs rounded-xl border px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4"
+        >
+          <div class="min-w-0">
+            <p class="text-stc-text text-sm font-bold">Data lokal aplikasi</p>
+            <p class="text-stc-text-soft mt-1 text-xs leading-relaxed font-medium">
+              Bersihkan gallery, sesi, blanko upload, setting, dan cache offline yang bisa dihapus
+              aplikasi.
+            </p>
+          </div>
+          <button
+            class="border-stc-error/30 text-stc-error hover:bg-stc-error-soft focus-visible:ring-stc-error mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border bg-white px-4 py-2.5 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] sm:mt-0 sm:w-auto sm:shrink-0"
+            @click="handleClearAllLocalData"
+          >
+            Hapus Semua Data
           </button>
         </div>
       </div>

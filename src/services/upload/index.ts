@@ -1,3 +1,5 @@
+import { readBlobAsArrayBuffer } from '@/utils/blob'
+
 export interface UploadConstraints {
   maxFileSize: number // bytes
   maxFiles: number
@@ -47,7 +49,151 @@ export function validateFile(file: File): ValidationResult {
   return validateFiles([file], 1)
 }
 
-export function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  const headerDimensions = await getImageDimensionsFromHeader(file)
+  if (headerDimensions) return headerDimensions
+
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file)
+      const dimensions = { width: bitmap.width, height: bitmap.height }
+      bitmap.close()
+      return dimensions
+    } catch {
+      // Fall back to object URL decoding for browsers with partial ImageBitmap support.
+    }
+  }
+
+  return getImageDimensionsViaObjectUrl(file)
+}
+
+export async function createStoredImageBlob(file: File): Promise<Blob> {
+  try {
+    return new Blob([await readBlobAsArrayBuffer(file)], { type: file.type })
+  } catch {
+    return file.slice(0, file.size, file.type)
+  }
+}
+
+async function getImageDimensionsFromHeader(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
+  const view = new DataView(await readBlobAsArrayBuffer(file))
+
+  if (isPng(view)) {
+    return {
+      width: view.getUint32(16, false),
+      height: view.getUint32(20, false),
+    }
+  }
+
+  if (isJpeg(view)) {
+    return getJpegDimensions(view)
+  }
+
+  if (isWebp(view)) {
+    return getWebpDimensions(view)
+  }
+
+  return null
+}
+
+function isPng(view: DataView): boolean {
+  return (
+    view.byteLength >= 24 &&
+    view.getUint32(0, false) === 0x89504e47 &&
+    view.getUint32(4, false) === 0x0d0a1a0a
+  )
+}
+
+function isJpeg(view: DataView): boolean {
+  return view.byteLength >= 4 && view.getUint16(0, false) === 0xffd8
+}
+
+function getJpegDimensions(view: DataView): { width: number; height: number } | null {
+  let offset = 2
+  const sofMarkers = new Set([
+    0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
+  ])
+
+  while (offset + 9 < view.byteLength) {
+    if (view.getUint8(offset) !== 0xff) {
+      offset += 1
+      continue
+    }
+
+    const marker = view.getUint8(offset + 1)
+    const segmentLength = view.getUint16(offset + 2, false)
+
+    if (sofMarkers.has(marker)) {
+      return {
+        height: view.getUint16(offset + 5, false),
+        width: view.getUint16(offset + 7, false),
+      }
+    }
+
+    if (segmentLength < 2) return null
+    offset += 2 + segmentLength
+  }
+
+  return null
+}
+
+function isWebp(view: DataView): boolean {
+  return view.byteLength >= 30 && readAscii(view, 0, 4) === 'RIFF' && readAscii(view, 8, 4) === 'WEBP'
+}
+
+function getWebpDimensions(view: DataView): { width: number; height: number } | null {
+  let offset = 12
+
+  while (offset + 8 <= view.byteLength) {
+    const chunkType = readAscii(view, offset, 4)
+    const chunkSize = view.getUint32(offset + 4, true)
+    const dataOffset = offset + 8
+
+    if (chunkType === 'VP8X' && dataOffset + 10 <= view.byteLength) {
+      return {
+        width: 1 + readUint24(view, dataOffset + 4),
+        height: 1 + readUint24(view, dataOffset + 7),
+      }
+    }
+
+    if (chunkType === 'VP8L' && dataOffset + 5 <= view.byteLength) {
+      const bits = view.getUint32(dataOffset + 1, true)
+      return {
+        width: 1 + (bits & 0x3fff),
+        height: 1 + ((bits >> 14) & 0x3fff),
+      }
+    }
+
+    if (chunkType === 'VP8 ' && dataOffset + 10 <= view.byteLength) {
+      return {
+        width: view.getUint16(dataOffset + 6, true) & 0x3fff,
+        height: view.getUint16(dataOffset + 8, true) & 0x3fff,
+      }
+    }
+
+    offset = dataOffset + chunkSize + (chunkSize % 2)
+  }
+
+  return null
+}
+
+function readAscii(view: DataView, offset: number, length: number): string {
+  let text = ''
+
+  for (let index = 0; index < length; index++) {
+    text += String.fromCharCode(view.getUint8(offset + index))
+  }
+
+  return text
+}
+
+function readUint24(view: DataView, offset: number): number {
+  return view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+}
+
+function getImageDimensionsViaObjectUrl(file: File): Promise<{ width: number; height: number }> {
   const url = URL.createObjectURL(file)
 
   return new Promise((resolve, reject) => {

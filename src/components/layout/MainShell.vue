@@ -1,26 +1,52 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { RouterView } from 'vue-router'
+import { useAppStore } from '@/app/store/useAppStore'
 import OfflineBanner from '@/components/common/OfflineBanner.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
 
 const updatePromptRef = ref<InstanceType<typeof UpdatePrompt> | null>(null)
+const appStore = useAppStore()
 
-function scheduleServiceWorkerRegistration() {
-  globalThis.setTimeout(() => {
-    void import('virtual:pwa-register').then(({ registerSW }) => {
-      registerSW({
-        onNeedRefresh() {
-          updatePromptRef.value?.promptUpdate()
-        },
-      })
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    appStore.setServiceWorkerUnsupported()
+    return
+  }
+
+  appStore.setServiceWorkerRegistering()
+
+  try {
+    const { registerSW } = await import('virtual:pwa-register')
+
+    registerSW({
+      immediate: true,
+      onOfflineReady() {
+        appStore.setOfflineReady()
+      },
+      onNeedRefresh() {
+        appStore.setServiceWorkerUpdateAvailable()
+        updatePromptRef.value?.promptUpdate()
+      },
+      onRegisteredSW(_, registration) {
+        if (!registration) return
+
+        void navigator.serviceWorker.ready
+          .then(() => appStore.setOfflineReady())
+          .catch((error) => appStore.setServiceWorkerError(error))
+      },
+      onRegisterError(error) {
+        appStore.setServiceWorkerError(error)
+      },
     })
-  }, 4000)
+  } catch (error) {
+    appStore.setServiceWorkerError(error)
+  }
 }
 
 onMounted(() => {
-  scheduleServiceWorkerRegistration()
+  void registerServiceWorker()
 })
 </script>
 

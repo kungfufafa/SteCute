@@ -691,6 +691,7 @@ Aturan:
 
 - `index.html`
 - JS and CSS bundles
+- core flow route code untuk config, camera/upload, review, render, output, dan gallery
 - manifest
 - app icons
 - bundled layouts
@@ -816,8 +817,8 @@ Aturan tambahan:
 ### 13.4 Performance notes
 
 - Gunakan `createImageBitmap` bila tersedia.
-- Hindari base64 sebagai format penyimpanan utama; pilih Blob.
-- Jika browser tertentu gagal menyimpan Blob/File ke IndexedDB, persistence layer boleh retry sebagai ArrayBuffer binary dan mengembalikannya sebagai Blob di API aplikasi.
+- Hindari base64 sebagai format penyimpanan utama; gunakan binary Blob/ArrayBuffer.
+- Persistence API aplikasi mengembalikan `Blob`, tetapi IndexedDB boleh menyimpan payload gambar sebagai `ArrayBuffer` internal untuk stabilitas lintas browser dan menghindari Blob/File yang tidak bisa dibaca ulang saat offline.
 - Hindari render ulang penuh bila hanya preview UI berubah.
 - Batasi kompleksitas template aktif untuk device lemah jika perlu.
 
@@ -940,8 +941,8 @@ Gunakan Playwright untuk:
 ### 17.4 Manual QA matrix
 
 - Chrome desktop
-- Chrome Android
-- Safari iPhone atau iPad
+- Chrome Android physical device
+- Safari iPhone atau iPad physical device
 - Edge desktop
 - Tablet Android
 - Firefox modern best-effort
