@@ -8,6 +8,7 @@ import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
 
 const updatePromptRef = ref<InstanceType<typeof UpdatePrompt> | null>(null)
 const appStore = useAppStore()
+let applyServiceWorkerUpdate: ((reloadPage?: boolean) => Promise<void>) | null = null
 
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
@@ -20,14 +21,14 @@ async function registerServiceWorker() {
   try {
     const { registerSW } = await import('virtual:pwa-register')
 
-    registerSW({
+    applyServiceWorkerUpdate = registerSW({
       immediate: true,
       onOfflineReady() {
         appStore.setOfflineReady()
       },
       onNeedRefresh() {
         appStore.setServiceWorkerUpdateAvailable()
-        updatePromptRef.value?.promptUpdate()
+        updatePromptRef.value?.promptUpdate(() => applyServiceWorkerUpdate?.(true))
       },
       onRegisteredSW(_, registration) {
         if (!registration) return
