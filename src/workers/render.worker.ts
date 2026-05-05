@@ -1,5 +1,11 @@
 import type { DecorationConfig, LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
 import { resolveTemplateLayout } from '@/templates'
+import {
+  drawStecuteLogo,
+  isStecuteLogoAsset,
+  STECUTE_LOGO_HEIGHT,
+  STECUTE_LOGO_WIDTH,
+} from '@/services/render/logo'
 
 interface RenderWorkerShot {
   buffer: ArrayBuffer
@@ -568,20 +574,26 @@ async function drawFooterLogo(
   const lastSlot = layout.slots[layout.slots.length - 1]
   if (!lastSlot) return
 
-  const logo = await loadImageSource(src)
   const footerTop = lastSlot.y + lastSlot.height
   const footerHeight = canvasHeight - footerTop
   const logoWidth = Math.min(canvasWidth * 0.3, 340)
-  const logoHeight = logoWidth * (logo.height / logo.width)
+  const logo = isStecuteLogoAsset(src) ? null : await loadImageSource(src)
+  const logoHeight = logo
+    ? logoWidth * (logo.height / logo.width)
+    : logoWidth * (STECUTE_LOGO_HEIGHT / STECUTE_LOGO_WIDTH)
   const x = (canvasWidth - logoWidth) / 2
   const y = footerTop + Math.max(0, (footerHeight - logoHeight) / 2)
 
   ctx.save()
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(logo.source, x, y, logoWidth, logoHeight)
+  if (logo) {
+    ctx.drawImage(logo.source, x, y, logoWidth, logoHeight)
+  } else {
+    drawStecuteLogo(ctx, x, y, logoWidth, logoHeight)
+  }
   ctx.restore()
-  logo.close?.()
+  logo?.close?.()
 }
 
 function drawBrandFooterText(

@@ -16,6 +16,7 @@ const sessionStore = useSessionStore()
 const renderUrls = ref<Record<string, string>>({})
 const storageState = ref<StorageState | null>(null)
 const localDataMessage = ref<string | null>(null)
+const showLocalDataOptions = ref(false)
 
 onMounted(() => {
   void loadGallery()
@@ -32,7 +33,7 @@ function handleDelete(id: string) {
 }
 
 function handleClearAll() {
-  if (confirm('Hapus semua photo strip tersimpan? Tindakan ini tidak bisa dibatalkan.')) {
+  if (confirm('Kosongkan galeri? Semua photo strip tersimpan akan dihapus.')) {
     void clearAndReload()
   }
 }
@@ -65,7 +66,7 @@ async function clearAndReload() {
 
 async function handleClearAllLocalData() {
   const confirmed = confirm(
-    'Hapus semua data lokal Stecute? Gallery, sesi, blanko upload, setting, dan cache offline akan dibersihkan. Aplikasi perlu internet lagi untuk cache ulang.',
+    'Bersihkan semua data lokal Stecute? Galeri, sesi, blanko upload, setting, dan cache offline akan dihapus. Aplikasi perlu internet lagi untuk cache ulang.',
   )
 
   if (!confirmed) return
@@ -82,6 +83,10 @@ async function handleClearAllLocalData() {
     console.error('Failed to clear local data:', error)
     localDataMessage.value = 'Gagal menghapus semua data lokal. Coba lagi dari pengaturan browser.'
   }
+}
+
+function toggleLocalDataOptions() {
+  showLocalDataOptions.value = !showLocalDataOptions.value
 }
 
 async function handleDownload(renderId: string) {
@@ -225,26 +230,44 @@ onBeforeUnmount(() => {
             ]"
             @click="handleClearAll"
           >
-            Hapus Semua
+            Kosongkan Galeri
           </button>
         </div>
 
-        <div
-          class="border-stc-border/70 bg-white shadow-stc-xs rounded-xl border px-4 py-4 sm:flex sm:items-center sm:justify-between sm:gap-4"
-        >
-          <div class="min-w-0">
-            <p class="text-stc-text text-sm font-bold">Data lokal aplikasi</p>
-            <p class="text-stc-text-soft mt-1 text-xs leading-relaxed font-medium">
-              Bersihkan gallery, sesi, blanko upload, setting, dan cache offline yang bisa dihapus
-              aplikasi.
-            </p>
+        <div class="border-stc-border/70 bg-white shadow-stc-xs rounded-xl border px-4 py-4">
+          <div class="sm:flex sm:items-center sm:justify-between sm:gap-4">
+            <div class="min-w-0">
+              <p class="text-stc-text text-sm font-bold">Data lokal aplikasi</p>
+              <p class="text-stc-text-soft mt-1 text-xs leading-relaxed font-medium">
+                Opsi lanjutan untuk reset cache offline, sesi, blanko upload, dan setting.
+              </p>
+            </div>
+            <button
+              class="border-stc-border text-stc-text hover:bg-stc-bg-2 focus-visible:ring-stc-pink mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border bg-white px-4 py-2.5 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] sm:mt-0 sm:w-auto sm:shrink-0"
+              :aria-expanded="showLocalDataOptions"
+              aria-controls="local-data-options"
+              @click="toggleLocalDataOptions"
+            >
+              {{ showLocalDataOptions ? 'Tutup Opsi Data' : 'Kelola Data Lokal' }}
+            </button>
           </div>
-          <button
-            class="border-stc-error/30 text-stc-error hover:bg-stc-error-soft focus-visible:ring-stc-error mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border bg-white px-4 py-2.5 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] sm:mt-0 sm:w-auto sm:shrink-0"
-            @click="handleClearAllLocalData"
+
+          <div
+            v-if="showLocalDataOptions"
+            id="local-data-options"
+            class="border-stc-border mt-4 border-t pt-4 sm:flex sm:items-center sm:justify-between sm:gap-4"
           >
-            Hapus Semua Data
-          </button>
+            <p class="text-stc-text-soft text-xs leading-relaxed font-medium">
+              Pakai ini hanya jika ingin mengulang aplikasi dari awal. Galeri dan cache offline ikut
+              hilang.
+            </p>
+            <button
+              class="border-stc-error/30 text-stc-error hover:bg-stc-error-soft focus-visible:ring-stc-error mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border bg-white px-4 py-2.5 text-sm font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98] sm:mt-0 sm:w-auto sm:shrink-0"
+              @click="handleClearAllLocalData"
+            >
+              Bersihkan Semua Data Lokal
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
 import { resolveTemplateLayout } from '@/templates'
+import { STECUTE_LOGO_HEIGHT, STECUTE_LOGO_WIDTH } from '@/services/render/logo'
 
 const props = withDefaults(
   defineProps<{
@@ -184,7 +185,7 @@ function footerLogoStyle() {
   const footerTop = lastSlot.y + lastSlot.height
   const footerHeight = layout.canvas.height - footerTop
   const logoWidth = Math.min(layout.canvas.width * 0.3, 340)
-  const logoHeight = logoWidth * (123 / 442)
+  const logoHeight = logoWidth * (STECUTE_LOGO_HEIGHT / STECUTE_LOGO_WIDTH)
   const y = footerTop + Math.max(0, (footerHeight - logoHeight) / 2)
 
   return {

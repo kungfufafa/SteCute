@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
             v-if="previewUrl"
             :src="previewUrl"
             alt="Rendered strip"
-            class="rendered-strip border-stc-border shadow-stc-md block h-auto rounded-xl border bg-white"
+            class="rendered-strip block h-auto"
           />
           <StripCanvasPreview
             v-else
