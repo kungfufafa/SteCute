@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import type { SlotConfig } from '@/db/schema'
+import type { Shot, SlotConfig } from '@/db/schema'
 import { getReviewSessionSnapshot, resetSessionData, saveShot } from '@/services/session'
 import {
   createAdjustedImageBlob,
@@ -71,6 +71,7 @@ const renderLayout = computed(() => {
 })
 
 const shotUrls = ref<string[]>([])
+const loadedShots = ref<Shot[]>([])
 const reviewError = ref<string | null>(null)
 const isLoadingReview = ref(true)
 const replacementUpload = ref<ReplacementUpload | null>(null)
@@ -144,6 +145,7 @@ async function loadShotUrls() {
 
   sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
   revokeShotUrls()
+  loadedShots.value = snapshot.shots
   shotUrls.value = snapshot.shots.map((shot) => URL.createObjectURL(shot.blob))
   reviewError.value = null
   isLoadingReview.value = false
@@ -387,8 +389,10 @@ function proceedToRender() {
           v-else
           :layout="activeLayout"
           :template-config="activeTemplate"
+          :shots="loadedShots"
           :shot-urls="shotUrls"
           :filter-id="sessionStore.filterId"
+          :camera-effect-id="sessionStore.cameraEffectId"
           interactive
           fit-viewport
           @retake="retakeShot"

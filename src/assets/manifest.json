@@ -62,6 +62,156 @@
       "license": "internal"
     },
     {
+      "id": "overlay-heart-small-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Heart Small",
+      "path": "src/assets/camera-effects/photo-booth/smallHeart.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-9a242da54b5977c925d71f96144926a283eeccbaeba495058d2e8113642062ec",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-heart-medium-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Heart Medium",
+      "path": "src/assets/camera-effects/photo-booth/mediumHeart.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-e271f17c50f118695a56fab7e1fc03a6ce93fb9fab8a9c50523f866c45037101",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-heart-large-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Heart Large",
+      "path": "src/assets/camera-effects/photo-booth/largeHeart.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-d4a44fea9df9889efd66bfa536fd48467908f972a6aaee1ad41997d2727398e3",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-small-0-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Small 0",
+      "path": "src/assets/camera-effects/photo-booth/birdSmall0.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-0d7c3bb3831dc6385164be4142854a087f34a8c660de0117f99960b932e97d47",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-small-1-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Small 1",
+      "path": "src/assets/camera-effects/photo-booth/birdSmall1.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-c65921f62d6c9188dbd6c6485902c2f663a59a830bdd80bbe8b9306caad5663f",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-small-2-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Small 2",
+      "path": "src/assets/camera-effects/photo-booth/birdSmall2.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-e30a0de97d445e3fd12724203a962675742ef6eb81c109ab962973ba263db8dc",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-small-3-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Small 3",
+      "path": "src/assets/camera-effects/photo-booth/birdSmall3.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-0ed916402ab082e3abdc9f7832859b3aaab8069fe6aa48d658930596fa13514d",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-medium-0-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Medium 0",
+      "path": "src/assets/camera-effects/photo-booth/birdMedium0.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-dfbb374ec564c7b320d07c59edd5b1b441b269437ae7e9e617f6c4c4cc6bd17a",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-medium-1-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Medium 1",
+      "path": "src/assets/camera-effects/photo-booth/birdMedium1.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-fa74e0e7414ee7c778b5e8be48236133c0e0d14b11091eaa32f616dc00fc3197",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-medium-2-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Medium 2",
+      "path": "src/assets/camera-effects/photo-booth/birdMedium2.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-f56cab2f8118591e55ed4de10c6f1ec7a6655badbd66d2d2833a0bac2b58368a",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-medium-3-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Medium 3",
+      "path": "src/assets/camera-effects/photo-booth/birdMedium3.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-affad8a2df55f32de3bca285cf9ab501d1f4d2cd29a37f2cb6f343f7baf1235c",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-large-0-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Large 0",
+      "path": "src/assets/camera-effects/photo-booth/birdLarge0.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-02b5d87ec3fcbc7e5fb62d823342a653adbae85975032033552afdb20f8e0be1",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-large-1-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Large 1",
+      "path": "src/assets/camera-effects/photo-booth/birdLarge1.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-9f7212d9e9f1fe7511b998be2f3dff1d676040f09ec7de04a7ed7c8ae058aa62",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-large-2-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Large 2",
+      "path": "src/assets/camera-effects/photo-booth/birdLarge2.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-c5f2d0357408ea06ee1fb18b67f7083582c79463c4cecef5a9fc952cd0b13ed6",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
+      "id": "overlay-bird-large-3-photo-booth",
+      "type": "overlay",
+      "name": "Photo Booth Bird Large 3",
+      "path": "src/assets/camera-effects/photo-booth/birdLarge3.png",
+      "packId": "photo-booth-overlays-v1",
+      "version": "1.0.0",
+      "checksum": "sha256-65edf3ec73864e9db8469591353f27b6788e063daf2ed4f25b47a2c4d513c842",
+      "license": "apple-photo-booth-local-resource-review-required"
+    },
+    {
       "id": "preview-classic-strip",
       "type": "template-preview",
       "name": "Classic Strip Preview",

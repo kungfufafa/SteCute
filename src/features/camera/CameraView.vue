@@ -20,9 +20,17 @@ import {
   stopCamera,
   switchCamera,
 } from '@/services/camera'
+import {
+  CAMERA_EFFECTS,
+  getCameraEffectById,
+  isFaceTrackingEffect,
+} from '@/services/camera-effects'
+import type { FaceBounds } from '@/services/face-tracking'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
 import { ui } from '@/ui/styles'
+import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
+import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
@@ -35,6 +43,8 @@ const countdownActive = ref(false)
 const countdownValue = ref(0)
 const flashVisible = ref(false)
 const cameraError = ref<string | null>(null)
+const latestOverlayFaces = ref<FaceBounds[]>([])
+const latestOverlayFrameMs = ref(0)
 let stream: MediaStream | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
@@ -60,7 +70,12 @@ const cameraRecoverySteps = [
   'Muat ulang halaman',
 ]
 const filterOptions = PHOTO_FILTERS
+const cameraEffectOptions = CAMERA_EFFECTS
+const FILTER_INLINE_LIMIT = 6
+const CAMERA_EFFECT_INLINE_LIMIT = 4
 const selectedFilter = computed(() => getPhotoFilterById(sessionStore.filterId))
+const selectedCameraEffect = computed(() => getCameraEffectById(sessionStore.cameraEffectId))
+const activeOptionPicker = ref<'filter' | 'overlay' | null>(null)
 const videoFilterStyle = computed(() => ({ filter: selectedFilter.value.cssFilter }))
 const canChangeFilter = computed(
   () =>
@@ -68,10 +83,59 @@ const canChangeFilter = computed(
     sessionStore.currentShotIndex === 0 &&
     !sessionStore.shotIds.some(Boolean),
 )
+const isCurrentEffectFaceTracking = computed(() =>
+  isFaceTrackingEffect(sessionStore.cameraEffectId),
+)
+const inlineFilterOptions = computed(() =>
+  getInlineOptions(filterOptions, FILTER_INLINE_LIMIT, sessionStore.filterId),
+)
+const hiddenFilterOptions = computed(() =>
+  getHiddenOptions(filterOptions, inlineFilterOptions.value),
+)
+const inlineCameraEffectOptions = computed(() =>
+  getInlineOptions(cameraEffectOptions, CAMERA_EFFECT_INLINE_LIMIT, sessionStore.cameraEffectId),
+)
+const hiddenCameraEffectOptions = computed(() =>
+  getHiddenOptions(cameraEffectOptions, inlineCameraEffectOptions.value),
+)
 
 onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown)
   void setupCamera()
 })
+
+function getInlineOptions<T extends { id: string }>(
+  options: T[],
+  limit: number,
+  selectedId: string,
+): T[] {
+  if (options.length <= limit) return options
+
+  const initialOptions = options.slice(0, limit)
+  if (initialOptions.some((option) => option.id === selectedId)) return initialOptions
+
+  const selectedOption = options.find((option) => option.id === selectedId)
+  if (!selectedOption) return initialOptions
+
+  return [...options.slice(0, limit - 1), selectedOption]
+}
+
+function getHiddenOptions<T extends { id: string }>(options: T[], visibleOptions: T[]): T[] {
+  const visibleIds = new Set(visibleOptions.map((option) => option.id))
+  return options.filter((option) => !visibleIds.has(option.id))
+}
+
+function openOptionPicker(kind: 'filter' | 'overlay') {
+  activeOptionPicker.value = kind
+}
+
+function closeOptionPicker() {
+  activeOptionPicker.value = null
+}
+
+function handleGlobalKeydown(event: Event) {
+  if ('key' in event && event.key === 'Escape') closeOptionPicker()
+}
 
 async function setupCamera() {
   sessionStore.setCapturing()
@@ -95,6 +159,7 @@ async function setupCamera() {
       captureSource: 'camera',
       decoration: createDefaultDecorationConfig(activeTemplate.value, {
         filterId: sessionStore.filterId,
+        cameraEffectId: sessionStore.cameraEffectId,
       }),
     })
 
@@ -103,7 +168,7 @@ async function setupCamera() {
       sessionStore.sessionStatus = 'capturing'
     }
 
-    await persistSelectedFilter(sessionId)
+    await persistCameraDecoration(sessionId)
   } catch (error) {
     const isDeniedError =
       error instanceof DOMException &&
@@ -121,11 +186,12 @@ async function setupCamera() {
   }
 }
 
-async function persistSelectedFilter(sessionId: string) {
+async function persistCameraDecoration(sessionId: string) {
   await updateSessionDecorationConfig(
     sessionId,
     createDefaultDecorationConfig(activeTemplate.value, {
       filterId: sessionStore.filterId,
+      cameraEffectId: sessionStore.cameraEffectId,
     }),
   )
 }
@@ -138,11 +204,46 @@ async function selectFilter(filterId: string) {
   if (!sessionStore.sessionId) return
 
   try {
-    await persistSelectedFilter(sessionStore.sessionId)
+    await persistCameraDecoration(sessionStore.sessionId)
   } catch (error) {
     console.error('Failed to save camera filter:', error)
     cameraError.value = 'Efek kamera gagal disimpan. Coba pilih efek lagi.'
   }
+}
+
+async function selectFilterFromPicker(filterId: string) {
+  await selectFilter(filterId)
+  closeOptionPicker()
+}
+
+async function selectCameraEffect(effectId: string) {
+  if (!canChangeFilter.value && effectId !== sessionStore.cameraEffectId) return
+
+  sessionStore.setCameraEffectId(effectId)
+  latestOverlayFaces.value = []
+  latestOverlayFrameMs.value = 0
+
+  if (!sessionStore.sessionId) return
+
+  try {
+    await persistCameraDecoration(sessionStore.sessionId)
+  } catch (error) {
+    console.error('Failed to save camera overlay:', error)
+    cameraError.value = 'Overlay kamera gagal disimpan. Coba pilih overlay lagi.'
+  }
+}
+
+async function selectCameraEffectFromPicker(effectId: string) {
+  await selectCameraEffect(effectId)
+  closeOptionPicker()
+}
+
+function updateOverlayFaces(faces: FaceBounds[]) {
+  latestOverlayFaces.value = faces.map((face) => ({ ...face }))
+}
+
+function updateOverlayFrame(frameMs: number) {
+  latestOverlayFrameMs.value = frameMs
 }
 
 function filterSwatchStyle(filterId: string) {
@@ -154,7 +255,17 @@ function filterSwatchStyle(filterId: string) {
   }
 }
 
+function cameraEffectSwatchStyle(effectId: string) {
+  const effect = getCameraEffectById(effectId)
+
+  return {
+    background: effect.previewBackground,
+  }
+}
+
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
+
   if (countdownTimer) {
     clearInterval(countdownTimer)
     countdownTimer = null
@@ -212,6 +323,10 @@ async function handleCapture() {
       blob: frame.blob,
       width: frame.width,
       height: frame.height,
+      faceBounds: isCurrentEffectFaceTracking.value
+        ? latestOverlayFaces.value.map((face) => ({ ...face }))
+        : [],
+      cameraEffectFrameMs: latestOverlayFrameMs.value,
     })
 
     if (hadShotAtOrder) {
@@ -385,121 +500,133 @@ function goBack() {
     <FlowProgress current="capture" source="camera" />
 
     <div :class="[ui.content, 'flex min-h-0 flex-col !pb-0']">
-      <div :class="[ui.pageContentWide, 'min-h-0 justify-between']">
+      <div
+        :class="[
+          ui.pageContentWide,
+          'min-h-0 gap-4 lg:grid lg:grid-cols-[minmax(11.5rem,12.5rem)_minmax(0,1fr)_minmax(11.5rem,12.5rem)] lg:items-start lg:gap-5 xl:grid-cols-[13rem_minmax(0,1fr)_13rem]',
+        ]"
+      >
         <div
-          class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-4xl shrink-0 overflow-hidden rounded-xl border bg-black/95"
+          class="border-stc-border shadow-stc-xs order-2 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
-          <video
-            ref="videoRef"
-            autoplay
-            playsinline
-            muted
-            class="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
-            :style="videoFilterStyle"
-          ></video>
-
-          <div
-            v-if="flashVisible"
-            class="absolute inset-0 z-20 bg-white/90 transition-opacity duration-100"
-          ></div>
-
-          <!-- Viewfinder corners -->
-          <div class="pointer-events-none absolute inset-5 z-10 hidden sm:block">
-            <div
-              class="border-stc-pink/70 absolute top-0 left-0 size-8 rounded-tl-xl border-t-4 border-l-4"
-            ></div>
-            <div
-              class="border-stc-pink/70 absolute top-0 right-0 size-8 rounded-tr-xl border-t-4 border-r-4"
-            ></div>
-            <div
-              class="border-stc-pink/70 absolute bottom-0 left-0 size-8 rounded-bl-xl border-b-4 border-l-4"
-            ></div>
-            <div
-              class="border-stc-pink/70 absolute right-0 bottom-0 size-8 rounded-br-xl border-r-4 border-b-4"
-            ></div>
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <p :class="ui.sectionLabel">Efek Kamera</p>
+            <span class="text-stc-pink text-xs font-bold">{{ selectedFilter.label }}</span>
           </div>
-
           <div
-            v-if="countdownActive"
-            class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
+            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0"
           >
-            <div class="text-[5rem] leading-none font-bold drop-shadow-2xl sm:text-[7rem]">
-              {{ countdownValue }}
-            </div>
-            <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-bold">
-              Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari {{ sessionStore.slotCount }}
-            </div>
             <button
-              class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/20 active:scale-95"
-              @click="cancelCountdown"
+              v-for="filter in inlineFilterOptions"
+              :key="filter.id"
+              type="button"
+              :aria-label="`Pilih efek ${filter.label}`"
+              :aria-pressed="filter.id === sessionStore.filterId"
+              :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
+              :class="[
+                'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
+                filter.id === sessionStore.filterId
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+              ]"
+              @click="selectFilter(filter.id)"
             >
-              Batal
+              <span
+                class="border-stc-border/50 block size-8 rounded-lg border shadow-inner"
+                :style="filterSwatchStyle(filter.id)"
+              ></span>
+              <span class="max-w-full truncate">{{ filter.label }}</span>
+            </button>
+            <button
+              v-if="hiddenFilterOptions.length > 0"
+              type="button"
+              class="border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border bg-white px-2 text-[0.6875rem] font-bold transition-all duration-200 hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:w-full"
+              aria-label="Buka semua efek kamera"
+              @click="openOptionPicker('filter')"
+            >
+              <span
+                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-lg border text-base font-bold"
+                aria-hidden="true"
+              >
+                +
+              </span>
+              <span>More</span>
             </button>
           </div>
         </div>
 
-        <div class="mt-auto flex w-full flex-col pt-5">
+        <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
           <div
-            class="border-stc-border shadow-stc-xs mx-auto mb-4 w-full max-w-4xl rounded-xl border bg-white/95 px-3 py-3 sm:px-4"
+            class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-5xl shrink-0 overflow-hidden rounded-xl border bg-black/95"
           >
-            <div class="mb-2 flex items-center justify-between gap-3">
-              <p :class="ui.sectionLabel">Efek Kamera</p>
-              <span class="text-stc-pink text-xs font-bold">{{ selectedFilter.label }}</span>
+            <video
+              ref="videoRef"
+              autoplay
+              playsinline
+              muted
+              class="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
+              :style="videoFilterStyle"
+            ></video>
+
+            <CameraEffectCanvas
+              v-if="selectedCameraEffect.id !== 'none' && !isCurrentEffectFaceTracking"
+              :effect-id="sessionStore.cameraEffectId"
+              animated
+              class="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+              @frame="updateOverlayFrame"
+            />
+
+            <FaceTrackingOverlay
+              v-if="isCurrentEffectFaceTracking"
+              :video-el="videoRef"
+              :effect-id="sessionStore.cameraEffectId"
+              class="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+              @update:faces="updateOverlayFaces"
+              @update:frame-ms="updateOverlayFrame"
+            />
+
+            <div
+              v-if="flashVisible"
+              class="absolute inset-0 z-20 bg-white/90 transition-opacity duration-100"
+            ></div>
+
+            <!-- Viewfinder corners -->
+            <div class="pointer-events-none absolute inset-5 z-10 hidden sm:block">
+              <div
+                class="border-stc-pink/70 absolute top-0 left-0 size-8 rounded-tl-xl border-t-4 border-l-4"
+              ></div>
+              <div
+                class="border-stc-pink/70 absolute top-0 right-0 size-8 rounded-tr-xl border-t-4 border-r-4"
+              ></div>
+              <div
+                class="border-stc-pink/70 absolute bottom-0 left-0 size-8 rounded-bl-xl border-b-4 border-l-4"
+              ></div>
+              <div
+                class="border-stc-pink/70 absolute right-0 bottom-0 size-8 rounded-br-xl border-r-4 border-b-4"
+              ></div>
             </div>
-            <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+
+            <div
+              v-if="countdownActive"
+              class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
+            >
+              <div class="text-[5rem] leading-none font-bold drop-shadow-2xl sm:text-[7rem]">
+                {{ countdownValue }}
+              </div>
+              <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-bold">
+                Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari
+                {{ sessionStore.slotCount }}
+              </div>
               <button
-                v-for="filter in filterOptions"
-                :key="filter.id"
-                type="button"
-                :aria-label="`Pilih efek ${filter.label}`"
-                :aria-pressed="filter.id === sessionStore.filterId"
-                :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
-                :class="[
-                  'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
-                  filter.id === sessionStore.filterId
-                    ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                    : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
-                ]"
-                @click="selectFilter(filter.id)"
+                class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/20 active:scale-95"
+                @click="cancelCountdown"
               >
-                <span
-                  class="border-stc-border/50 block size-8 rounded-lg border shadow-inner"
-                  :style="filterSwatchStyle(filter.id)"
-                ></span>
-                <span class="max-w-full truncate">{{ filter.label }}</span>
+                Batal
               </button>
             </div>
           </div>
 
-          <div class="mb-5 flex flex-wrap items-center justify-center gap-2">
-            <div
-              v-for="index in sessionStore.slotCount"
-              :key="index"
-              :class="[
-                'shadow-stc-xs flex h-12 w-10 items-center justify-center rounded-xl border text-[10px] font-bold transition-all duration-300 sm:h-14 sm:w-11 sm:text-xs',
-                index - 1 === sessionStore.currentShotIndex
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm z-10 scale-110'
-                  : sessionStore.shotIds[index - 1]
-                    ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
-                    : 'border-stc-border text-stc-text-faint bg-white',
-              ]"
-            >
-              {{
-                index - 1 === sessionStore.currentShotIndex
-                  ? `${index}/${sessionStore.slotCount}`
-                  : index
-              }}
-            </div>
-          </div>
-
-          <div
-            v-if="cameraError"
-            class="border-stc-error/30 bg-stc-error-soft text-stc-error shadow-stc-xs mx-auto mb-5 max-w-sm rounded-xl border px-4 py-3 text-center text-sm font-semibold"
-          >
-            {{ cameraError }}
-          </div>
-
-          <div class="flex items-center justify-center gap-8 pb-4">
+          <div class="flex items-center justify-center gap-8">
             <button
               :class="[ui.iconButton, 'rounded-full']"
               aria-label="Kembali ke setup sesi"
@@ -549,6 +676,194 @@ function goBack() {
                 <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4" />
                 <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
               </svg>
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-center gap-2">
+            <div
+              v-for="index in sessionStore.slotCount"
+              :key="index"
+              :class="[
+                'shadow-stc-xs flex h-12 w-10 items-center justify-center rounded-xl border text-[10px] font-bold transition-all duration-300 sm:h-14 sm:w-11 sm:text-xs',
+                index - 1 === sessionStore.currentShotIndex
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm z-10 scale-110'
+                  : sessionStore.shotIds[index - 1]
+                    ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
+                    : 'border-stc-border text-stc-text-faint bg-white',
+              ]"
+            >
+              {{
+                index - 1 === sessionStore.currentShotIndex
+                  ? `${index}/${sessionStore.slotCount}`
+                  : index
+              }}
+            </div>
+          </div>
+
+          <div
+            v-if="cameraError"
+            class="border-stc-error/30 bg-stc-error-soft text-stc-error shadow-stc-xs mx-auto max-w-sm rounded-xl border px-4 py-3 text-center text-sm font-semibold"
+          >
+            {{ cameraError }}
+          </div>
+        </div>
+
+        <div
+          class="border-stc-border shadow-stc-xs order-3 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
+        >
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <p :class="ui.sectionLabel">Overlay Kamera</p>
+            <span class="text-stc-pink text-xs font-bold">
+              {{ selectedCameraEffect.label }}
+            </span>
+          </div>
+          <div
+            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0"
+          >
+            <button
+              v-for="effect in inlineCameraEffectOptions"
+              :key="effect.id"
+              type="button"
+              :aria-label="`Pilih overlay ${effect.label}`"
+              :aria-pressed="effect.id === sessionStore.cameraEffectId"
+              :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
+              :title="effect.description"
+              :class="[
+                'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
+                effect.id === sessionStore.cameraEffectId
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+              ]"
+              @click="selectCameraEffect(effect.id)"
+            >
+              <span
+                class="border-stc-border/50 relative block size-8 overflow-hidden rounded-lg border shadow-inner"
+                :style="cameraEffectSwatchStyle(effect.id)"
+              >
+                <CameraEffectCanvas
+                  :effect-id="effect.id"
+                  class="pointer-events-none absolute inset-0 h-full w-full"
+                />
+              </span>
+              <span class="max-w-full truncate">{{ effect.label }}</span>
+            </button>
+            <button
+              v-if="hiddenCameraEffectOptions.length > 0"
+              type="button"
+              class="border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border bg-white px-2 text-[0.6875rem] font-bold transition-all duration-200 hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:w-full"
+              aria-label="Buka semua overlay kamera"
+              @click="openOptionPicker('overlay')"
+            >
+              <span
+                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-lg border text-base font-bold"
+                aria-hidden="true"
+              >
+                +
+              </span>
+              <span>More</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="activeOptionPicker"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-black/35 px-4 py-5 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      @click.self="closeOptionPicker"
+    >
+      <div
+        class="border-stc-border shadow-stc-lg max-h-[min(42rem,calc(100dvh-2.5rem))] w-full max-w-2xl overflow-hidden rounded-xl border bg-white"
+      >
+        <div
+          class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
+        >
+          <div class="min-w-0">
+            <p :class="ui.sectionLabel">
+              {{ activeOptionPicker === 'filter' ? 'Efek Kamera' : 'Overlay Kamera' }}
+            </p>
+            <p class="text-stc-text mt-1 truncate text-sm font-bold">
+              {{
+                activeOptionPicker === 'filter' ? selectedFilter.label : selectedCameraEffect.label
+              }}
+            </p>
+          </div>
+          <button
+            :class="ui.iconButton"
+            type="button"
+            aria-label="Tutup"
+            @click="closeOptionPicker"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 sm:p-5">
+          <div v-if="activeOptionPicker === 'filter'" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <button
+              v-for="filter in filterOptions"
+              :key="filter.id"
+              type="button"
+              :aria-label="`Pilih efek ${filter.label}`"
+              :aria-pressed="filter.id === sessionStore.filterId"
+              :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
+              :class="[
+                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.75rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                filter.id === sessionStore.filterId
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+              ]"
+              @click="selectFilterFromPicker(filter.id)"
+            >
+              <span
+                class="border-stc-border/50 block size-9 rounded-lg border shadow-inner"
+                :style="filterSwatchStyle(filter.id)"
+              ></span>
+              <span class="max-w-full truncate">{{ filter.label }}</span>
+            </button>
+          </div>
+
+          <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <button
+              v-for="effect in cameraEffectOptions"
+              :key="effect.id"
+              type="button"
+              :aria-label="`Pilih overlay ${effect.label}`"
+              :aria-pressed="effect.id === sessionStore.cameraEffectId"
+              :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
+              :title="effect.description"
+              :class="[
+                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.75rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                effect.id === sessionStore.cameraEffectId
+                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+              ]"
+              @click="selectCameraEffectFromPicker(effect.id)"
+            >
+              <span
+                class="border-stc-border/50 relative block size-9 overflow-hidden rounded-lg border shadow-inner"
+                :style="cameraEffectSwatchStyle(effect.id)"
+              >
+                <CameraEffectCanvas
+                  :effect-id="effect.id"
+                  class="pointer-events-none absolute inset-0 h-full w-full"
+                />
+              </span>
+              <span class="max-w-full truncate">{{ effect.label }}</span>
             </button>
           </div>
         </div>

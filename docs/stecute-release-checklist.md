@@ -51,6 +51,7 @@ Tanggal: 2026-03-20
 - Unsupported browser flow pass
 - Error states pass
 - Preset filter kamera pass di preview dan hasil render final
+- Preset overlay kamera pass di preview kamera, review, dan hasil render final
 
 ## 6. Operasional
 

@@ -69,7 +69,10 @@ async function getOutputBlob(): Promise<Blob> {
     layout: activeLayout,
     template,
     shots,
-    decoration: createDefaultDecorationConfig(template),
+    decoration: createDefaultDecorationConfig(template, {
+      filterId: sessionStore.filterId,
+      cameraEffectId: sessionStore.cameraEffectId,
+    }),
     format: 'image/png',
   })
 

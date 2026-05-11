@@ -172,11 +172,40 @@ Preset filter kamera masuk v1 sebagai konfigurasi lokal statis. Filter dipilih s
 
 ---
 
-## 7. Deferred sticker inventory
+## 7. Camera overlay inventory
+
+Preset overlay kamera masuk v1 sebagai konfigurasi lokal statis. Overlay dipilih sebelum capture, tampil di preview kamera, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir.
+
+Overlay v1 tidak memakai asset remote dan tidak membuka editor sticker manual pasca-capture.
+Preset `hearts` dan `bluebirds` memakai sprite PNG lokal dari
+`src/assets/camera-effects/photo-booth/`, disalin dari
+`/System/Applications/Photo Booth.app/Contents/Resources/`. Status lisensi asset Photo Booth
+harus dikonfirmasi sebelum distribusi publik di luar perangkat/deployment yang berhak memakai
+asset tersebut.
+
+### 7.1 Overlay v1
+
+- `none`
+- `hearts`
+- `bluebirds`
+
+### 7.2 Overlay implementation rule
+
+- overlay final harus digambar via render engine pada setiap slot foto
+- preview kamera dan preview review memakai canvas lokal dengan sumber gambar bitmap bundled yang sama
+- `hearts` memakai mekanik lovestruck: hati muncul dari area sekitar kepala, mengambang naik, lalu fade/scale dalam loop
+- `bluebirds` memakai mekanik dizzy: `8` burung mengorbit area atas kepala dalam lintasan elips, arah sprite mengikuti tangent gerak, dan frame sayap memakai urutan `0-3`
+- animasi overlay di preview kamera harus dapat dibekukan sebagai snapshot per-shot, sehingga posisi dan fase visual yang dirender final tetap sesuai momen capture
+- overlay tidak boleh bergantung pada layanan eksternal
+- overlay default tidak boleh menutupi lebih dari `25%` area foto
+
+---
+
+## 8. Deferred sticker inventory
 
 Sticker manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diaktifkan kembali, starter pack berikut dapat dipakai sebagai baseline.
 
-### 7.1 Starter pack fase berikutnya
+### 8.1 Starter pack fase berikutnya
 
 - `4` playful shapes
 - `4` stars or sparkles
@@ -185,7 +214,7 @@ Sticker manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diak
 - `2` speech or doodle accent
 - `2` celebration elements
 
-### 7.2 Sticker constraints fase berikutnya
+### 8.2 Sticker constraints fase berikutnya
 
 - maksimum sticker aktif pada satu render: `5`
 - semua sticker harus PNG transparan
@@ -194,9 +223,9 @@ Sticker manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diak
 
 ---
 
-## 8. Frame and overlay inventory
+## 9. Frame and template overlay inventory
 
-### 8.1 Frame inventory
+### 9.1 Frame inventory
 
 Frame minimum v1:
 
@@ -207,17 +236,17 @@ Frame minimum v1:
 - `mono-light`
 - `mono-dark`
 
-### 8.2 Overlay rules
+### 9.2 Template overlay rules
 
-- overlay hanya untuk treatment ringan
-- overlay tidak boleh mengurangi keterbacaan foto
-- opacity default overlay maksimum `20%`
+- template overlay hanya untuk treatment ringan
+- template overlay tidak boleh mengurangi keterbacaan foto
+- opacity default template overlay maksimum `20%`
 
 ---
 
-## 9. Font policy
+## 10. Font policy
 
-### 9.1 Font production
+### 10.1 Font production
 
 Font harus self-hosted.
 
@@ -226,7 +255,7 @@ Pilihan v1:
 - primary UI: `Poppins`
 - fallback: `system-ui`, `sans-serif`
 
-### 9.2 Font files
+### 10.2 Font files
 
 Self-host subset:
 
@@ -239,7 +268,7 @@ Tidak boleh bergantung pada `fonts.googleapis.com` atau CDN lain di production.
 
 ---
 
-## 10. PWA and app icons
+## 11. PWA and app icons
 
 Wajib tersedia:
 
@@ -253,7 +282,7 @@ Semua icon harus konsisten dengan brand dasar Stecute v1.
 
 ---
 
-## 11. Ownership and licensing
+## 12. Ownership and licensing
 
 Semua asset harus punya status jelas:
 
@@ -273,7 +302,7 @@ Tidak ada asset tanpa provenance yang boleh masuk production.
 
 ---
 
-## 12. Asset manifest
+## 13. Asset manifest
 
 Setiap asset bundled harus masuk manifest JSON minimal dengan field:
 
@@ -288,7 +317,7 @@ Setiap asset bundled harus masuk manifest JSON minimal dengan field:
 
 ---
 
-## 13. Release checklist asset
+## 14. Release checklist asset
 
 Sebelum rilis:
 

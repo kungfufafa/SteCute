@@ -39,6 +39,7 @@ onMounted(async () => {
     snapshot?.session.decorationConfig ??
     createDefaultDecorationConfig(template, {
       filterId: sessionStore.filterId,
+      cameraEffectId: sessionStore.cameraEffectId,
     })
 
   if (!sessionId || !layout || !template) {

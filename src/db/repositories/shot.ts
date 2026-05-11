@@ -36,6 +36,8 @@ export class ShotRepository {
     blob: Blob,
     width: number,
     height: number,
+    faceBounds: Shot['faceBounds'] = [],
+    cameraEffectFrameMs = 0,
   ): Promise<void> {
     const existing = await this.getBySessionAndOrder(sessionId, order)
     if (existing) {
@@ -44,6 +46,8 @@ export class ShotRepository {
           blob: storedBlob,
           width,
           height,
+          faceBounds,
+          cameraEffectFrameMs,
           createdAt: Date.now(),
         })
       })

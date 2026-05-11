@@ -60,6 +60,7 @@ export default defineConfig({
       workbox: {
         globPatterns: [
           '**/*.{js,css,html,ico,svg,woff2,webp}',
+          'assets/*.png',
           'icons/*.png',
           'manifest/*.webmanifest',
           'manifest.webmanifest',
@@ -101,6 +102,10 @@ export default defineConfig({
 
           if (id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
             return 'vendor-app'
+          }
+
+          if (id.includes('node_modules/@mediapipe')) {
+            return 'vendor-mediapipe'
           }
         },
       },

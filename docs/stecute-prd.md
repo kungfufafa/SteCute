@@ -159,21 +159,22 @@ Kebutuhan utama:
 5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto`, plus layout dari blanko/template lokal dengan tinggi canvas mengikuti artboard.
 6. Countdown default 3 detik untuk flow kamera.
 7. Preset filter kamera lokal sebelum capture, dengan preview live dan hasil render final memakai efek yang sama.
-8. Capture berurutan sesuai jumlah slot layout.
-9. Review hasil per sesi.
-10. Retake seluruh sesi.
-11. Retake per-shot sebelum render final.
-12. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
-13. Render hasil final photo strip.
-14. Download hasil PNG.
-15. Save to device melalui flow browser yang tersedia.
-16. Native share sheet jika browser mendukung.
-17. Print ringan jika browser mendukung.
-18. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
-19. Dukungan offline setelah initial install atau cache.
-20. Reset session cepat untuk pengguna berikutnya.
-21. Shortcut keyboard dasar untuk desktop.
-22. Basic responsive UI untuk desktop, tablet, mobile.
+8. Preset overlay kamera lokal sebelum capture, seperti hati atau burung, dengan preview live, preview review, dan render final memakai efek yang sama. Ini bukan editor sticker manual pasca-capture.
+9. Capture berurutan sesuai jumlah slot layout.
+10. Review hasil per sesi.
+11. Retake seluruh sesi.
+12. Retake per-shot sebelum render final.
+13. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
+14. Render hasil final photo strip.
+15. Download hasil PNG.
+16. Save to device melalui flow browser yang tersedia.
+17. Native share sheet jika browser mendukung.
+18. Print ringan jika browser mendukung.
+19. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
+20. Dukungan offline setelah initial install atau cache.
+21. Reset session cepat untuk pengguna berikutnya.
+22. Shortcut keyboard dasar untuk desktop.
+23. Basic responsive UI untuk desktop, tablet, mobile.
 
 ### 8.2 Fitur nice-to-have bila sempat dalam MVP+
 
@@ -300,12 +301,14 @@ Acceptance criteria:
 - Pengguna dapat retake seluruh sesi.
 - Pengguna dapat retake per-shot sebelum render final.
 - Pengguna dapat melanjutkan langsung ke render final tanpa langkah kustomisasi tambahan.
+- Jika session memakai preset overlay kamera, preview review dan render final tetap memakai overlay yang sama tanpa penempatan sticker manual.
 
 Acceptance criteria:
 
 - Template default diterapkan pada hasil final tanpa koneksi internet.
 - Retake menghapus hasil sementara session sebelumnya bila pengguna konfirmasi.
 - Retake per-shot tidak menghapus shot lain yang masih valid.
+- Overlay kamera diterapkan konsisten per slot foto dan tetap berjalan offline.
 
 ### FR-07 Photo strip rendering
 

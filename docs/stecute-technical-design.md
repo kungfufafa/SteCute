@@ -363,6 +363,7 @@ Contoh isi:
 - soundEnabled
 - selectedLayoutId
 - selectedTemplateId
+- selectedCameraEffectId
 - galleryRetentionLimit
 
 #### `sessions`
@@ -375,7 +376,7 @@ Contoh isi:
 | layoutId | string | layout aktif |
 | templateId | string | template aktif |
 | slotCount | number | jumlah frame untuk sesi |
-| decorationConfig | json | visual treatment default dari template; field kustomisasi manual disiapkan untuk fase berikutnya |
+| decorationConfig | json | visual treatment default dari template; `filterId` dan `cameraEffectId` dipakai untuk preset kamera v1; field kustomisasi manual disiapkan untuk fase berikutnya |
 | startedAt | number | epoch ms |
 | completedAt | number | epoch ms nullable |
 | finalRenderId | string | relasi hasil akhir |
@@ -391,6 +392,8 @@ Contoh isi:
 | blob | Blob | frame image; boleh memakai fallback ArrayBuffer internal bila browser gagal menulis Blob ke IndexedDB |
 | width | number | pixel |
 | height | number | pixel |
+| faceBounds | json nullable | posisi wajah ternormalisasi saat capture untuk mengunci posisi overlay kamera di review dan render final |
+| cameraEffectFrameMs | number nullable | fase animasi overlay saat shutter ditekan agar PNG final membekukan frame yang sama |
 | createdAt | number | epoch ms |
 
 #### `renders`
@@ -477,6 +480,7 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 - Layout menentukan jumlah slot, ukuran canvas, dan posisi frame.
 - Template menentukan visual treatment yang harus terlihat jelas tetapi natural: blanko/background, surface, accent, default frame color, text style, dan photo treatment.
 - V1 process-first tidak mengekspos decoration layer yang dapat diedit user; renderer memakai visual default dari template.
+- Preset overlay kamera adalah konfigurasi sebelum capture (`cameraEffectId`) dan bukan editor sticker manual pasca-capture.
 
 ### 8.2 Contoh struktur config layout
 
@@ -672,6 +676,8 @@ Gunakan Pinia untuk state runtime. Bagi state menjadi beberapa store.
 - currentShotIndex
 - shotIds
 - renderId
+- filterId
+- cameraEffectId
 
 ### `useGalleryStore`
 
@@ -792,8 +798,9 @@ Gunakan constraints adaptif, contoh:
 5. Crop dan fit ke slot.
 6. Gambar background.
 7. Gambar slot 1..N.
-8. Terapkan background template, photo backing, label template, dan frame default template.
-9. Ekspor Blob final.
+8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `faceBounds` dan `cameraEffectFrameMs` dari tiap shot bila tersedia agar posisi overlay sama dengan momen capture.
+9. Terapkan background template, photo backing, label template, dan frame default template.
+10. Ekspor Blob final.
 
 ### 13.3 Output actions
 

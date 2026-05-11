@@ -43,12 +43,23 @@ test.describe('config and camera visual smoke', () => {
     expect(cameraBox.radius).toBeLessThanOrEqual(12)
 
     await expect(page.getByText('Efek Kamera')).toBeVisible()
+    await expect(page.getByText('Overlay Kamera')).toBeVisible()
     await page.getByRole('button', { name: 'Pilih efek Hangat' }).click()
+    await page.getByRole('button', { name: 'Pilih overlay Hati' }).click()
 
     const videoFilter = await page
       .locator('video')
       .evaluate((video) => getComputedStyle(video).filter)
     expect(videoFilter).toContain('sepia')
+
+    const liveOverlay = page.locator('.camera-preview [data-camera-effect-id="hearts"]')
+    await expect(liveOverlay).toBeVisible()
+    const firstOverlayFrameMs = Number(await liveOverlay.getAttribute('data-overlay-frame-ms'))
+    await page.waitForTimeout(260)
+    const secondOverlayFrameMs = Number(await liveOverlay.getAttribute('data-overlay-frame-ms'))
+    expect(Number.isFinite(firstOverlayFrameMs)).toBe(true)
+    expect(Number.isFinite(secondOverlayFrameMs)).toBe(true)
+    expect(secondOverlayFrameMs).not.toBe(firstOverlayFrameMs)
 
     await page.getByRole('button', { name: 'Ambil foto' }).click()
     const countdownLabel = page.getByText(/Foto ke-/)

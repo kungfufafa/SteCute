@@ -6,11 +6,21 @@ import {
   STECUTE_LOGO_HEIGHT,
   STECUTE_LOGO_WIDTH,
 } from '@/services/render/logo'
+import {
+  drawCameraEffect,
+  isFaceTrackingEffect,
+  drawFaceTrackingEffect,
+  estimateFaceBoundsForStaticRender,
+  preloadCameraEffectAssets,
+} from '@/services/camera-effects'
+import type { FaceBounds } from '@/services/face-tracking'
 import { getPhotoFilterCanvas } from '@/services/filter'
 
 interface RenderWorkerShot {
   buffer: ArrayBuffer
   type: string
+  faceBounds?: FaceBounds[]
+  cameraEffectFrameMs?: number
 }
 
 export interface RenderWorkerMessage {
@@ -52,6 +62,7 @@ self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
     if (!ctx) throw new Error('Could not get 2D canvas context')
 
     await drawTemplateBackground(ctx, canvas.width, canvas.height, template)
+    await preloadCameraEffectAssets(decoration.cameraEffectId)
 
     const frameColor = decoration.frameColor || template.defaultFrameColor
 
@@ -68,6 +79,14 @@ self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
           ? getPhotoFilterCanvas(decoration.filterId)
           : 'none'
       drawImageCover(ctx, image, slot)
+      ctx.filter = 'none'
+      drawCameraEffectInSlot(
+        ctx,
+        slot,
+        decoration.cameraEffectId,
+        shot.faceBounds,
+        shot.cameraEffectFrameMs,
+      )
       image.close?.()
     }
 
@@ -460,6 +479,35 @@ function drawStickers(
     ctx.stroke()
     ctx.restore()
   })
+}
+
+function drawCameraEffectInSlot(
+  ctx: OffscreenCanvasRenderingContext2D,
+  slot: SlotConfig,
+  effectId?: string | null,
+  faceBounds?: FaceBounds[],
+  cameraEffectFrameMs = 0,
+) {
+  if (!effectId || effectId === 'none') return
+
+  ctx.save()
+  roundRect(ctx, slot.x, slot.y, slot.width, slot.height, slot.radius)
+  ctx.clip()
+  ctx.translate(slot.x, slot.y)
+
+  if (isFaceTrackingEffect(effectId)) {
+    const faces =
+      faceBounds && faceBounds.length > 0
+        ? faceBounds
+        : estimateFaceBoundsForStaticRender(slot.width, slot.height)
+    drawFaceTrackingEffect(ctx, slot.width, slot.height, effectId, faces, {
+      timeMs: cameraEffectFrameMs,
+    })
+  } else {
+    drawCameraEffect(ctx, slot.width, slot.height, effectId, { timeMs: cameraEffectFrameMs })
+  }
+
+  ctx.restore()
 }
 
 function drawImageCover(

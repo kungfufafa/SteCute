@@ -2,6 +2,7 @@ import type { DecorationConfig, Render, Session, Shot } from '@/db/schema'
 import { type LayoutConfig, type TemplateConfig } from '@/db/schema'
 import { db } from '@/db/schema'
 import { RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
+import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { normalizePhotoFilterId } from '@/services/filter'
 import { renderStrip } from '@/services/render'
 
@@ -25,6 +26,7 @@ export interface SessionSnapshot {
 function normalizeDecorationConfig(input?: Partial<DecorationConfig>): DecorationConfig {
   return {
     filterId: normalizePhotoFilterId(input?.filterId),
+    cameraEffectId: normalizeCameraEffectId(input?.cameraEffectId),
     frameColor: input?.frameColor ?? '#ffffff',
     selectedStickerIds: Array.isArray(input?.selectedStickerIds)
       ? [...input.selectedStickerIds]
@@ -87,6 +89,8 @@ export async function saveShot(params: {
   blob: Blob
   width: number
   height: number
+  faceBounds?: Shot['faceBounds']
+  cameraEffectFrameMs?: number
 }): Promise<string> {
   const existing = await shotRepo.getBySessionAndOrder(params.sessionId, params.order)
 
@@ -97,6 +101,8 @@ export async function saveShot(params: {
       params.blob,
       params.width,
       params.height,
+      params.faceBounds,
+      params.cameraEffectFrameMs,
     )
 
     return existing.id
@@ -109,6 +115,8 @@ export async function saveShot(params: {
     blob: params.blob,
     width: params.width,
     height: params.height,
+    faceBounds: params.faceBounds ?? [],
+    cameraEffectFrameMs: params.cameraEffectFrameMs ?? 0,
     createdAt: Date.now(),
   })
 }

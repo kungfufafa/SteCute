@@ -22,6 +22,7 @@ export const useSessionStore = defineStore('session', () => {
   const autoCapture = ref<boolean>(false)
   const countdownSeconds = ref<number>(3)
   const filterId = ref<string>('normal')
+  const cameraEffectId = ref<string>('none')
   const slotCount = ref<number>(3)
   const currentShotIndex = ref<number>(0)
   const shotIds = ref<string[]>([])
@@ -50,6 +51,7 @@ export const useSessionStore = defineStore('session', () => {
     layoutId.value = session.layoutId
     templateId.value = session.templateId
     filterId.value = session.decorationConfig.filterId || 'normal'
+    cameraEffectId.value = session.decorationConfig.cameraEffectId || 'none'
     slotCount.value = session.slotCount
     currentShotIndex.value = firstMissingOrder ?? Math.max(0, session.slotCount - 1)
     shotIds.value = Array.from(
@@ -113,6 +115,10 @@ export const useSessionStore = defineStore('session', () => {
     filterId.value = id
   }
 
+  function setCameraEffectId(id: string) {
+    cameraEffectId.value = id
+  }
+
   function reset() {
     sessionId.value = null
     sessionStatus.value = 'idle'
@@ -122,6 +128,7 @@ export const useSessionStore = defineStore('session', () => {
     renderId.value = null
     errorMessage.value = null
     filterId.value = 'normal'
+    cameraEffectId.value = 'none'
   }
 
   return {
@@ -133,6 +140,7 @@ export const useSessionStore = defineStore('session', () => {
     autoCapture,
     countdownSeconds,
     filterId,
+    cameraEffectId,
     slotCount,
     currentShotIndex,
     shotIds,
@@ -150,6 +158,7 @@ export const useSessionStore = defineStore('session', () => {
     replaceShotId,
     setRenderId,
     setFilterId,
+    setCameraEffectId,
     reset,
   }
 })

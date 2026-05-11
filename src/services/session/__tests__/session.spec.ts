@@ -7,6 +7,7 @@ describe('session decoration config', () => {
 
     expect(Array.isArray(result.selectedStickerIds)).toBe(true)
     expect(result.filterId).toBe('normal')
+    expect(result.cameraEffectId).toBe('none')
     expect(result.frameColor).toBe('#ffffff')
     expect(result.showDateTime).toBe(false)
   })
@@ -23,5 +24,14 @@ describe('session decoration config', () => {
     expect(createDefaultDecorationConfig(undefined, { filterId: 'unknown' }).filterId).toBe(
       'normal',
     )
+  })
+
+  it('normalizes supported and unsupported camera overlay overrides', () => {
+    expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'hearts' }).cameraEffectId,
+    ).toBe('hearts')
+    expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'unknown' }).cameraEffectId,
+    ).toBe('none')
   })
 })

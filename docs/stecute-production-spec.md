@@ -41,6 +41,7 @@ Fitur yang wajib ada:
 - pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
 - upload blanko strip lokal sebelum capture
 - preset filter kamera lokal sebelum capture, dengan efek yang sama dipakai di preview kamera, preview review, dan render final
+- preset overlay kamera lokal sebelum capture, yaitu `hearts` dan `bluebirds`, berbasis sprite PNG bundled dari resource Photo Booth lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -87,7 +88,7 @@ Tidak masuk v1:
 - `Preset event dasar` tidak masuk rilis v1. Masuk fase berikutnya.
 - `Print ringan` adalah capability bonus, bukan blocker rilis.
 - `Gallery lokal` menyimpan final render. Raw shots disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
-- `Kustomisasi manual` selain preset filter kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
+- `Kustomisasi manual` selain preset filter dan overlay kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
 
 ---
@@ -360,7 +361,7 @@ Catatan:
 
 ### 9.4 Future customization constraints
 
-- filter v1 hanya memakai preset statis lokal; custom LUT, remote filter, dan filter per-shot masuk fase berikutnya
+- filter dan overlay kamera v1 hanya memakai preset statis lokal; custom LUT, remote filter, overlay custom, dan filter per-shot masuk fase berikutnya
 - `logoText` maksimum `24` karakter jika fitur logo text diaktifkan kembali
 - karakter kontrol dan markup tidak boleh diterima
 - sticker aktif maksimum `5` jika fitur sticker diaktifkan kembali

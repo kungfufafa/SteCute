@@ -23,10 +23,18 @@ export interface Session {
 
 export interface DecorationConfig {
   filterId: string
+  cameraEffectId: string
   frameColor: string
   selectedStickerIds: string[]
   showDateTime: boolean
   logoText: string
+}
+
+export interface ShotFaceBounds {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface Shot {
@@ -37,6 +45,8 @@ export interface Shot {
   blob: Blob
   width: number
   height: number
+  faceBounds?: ShotFaceBounds[]
+  cameraEffectFrameMs?: number
   createdAt: number
 }
 
@@ -190,6 +200,17 @@ class StecuteDB extends Dexie {
     })
 
     this.version(2).stores({
+      appSettings: 'key',
+      sessions: 'id, status, captureSource, layoutId, startedAt',
+      shots: 'id, sessionId, order, [sessionId+order]',
+      renders: 'id, sessionId, createdAt',
+      layouts: 'id, slotCount',
+      templates: 'id',
+      assets: 'id, type, packId',
+      eventPresets: 'id',
+    })
+
+    this.version(3).stores({
       appSettings: 'key',
       sessions: 'id, status, captureSource, layoutId, startedAt',
       shots: 'id, sessionId, order, [sessionId+order]',

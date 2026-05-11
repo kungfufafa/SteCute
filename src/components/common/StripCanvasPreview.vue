@@ -1,24 +1,29 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
+import type { LayoutConfig, SlotConfig, TemplateConfig, Shot } from '@/db/schema'
 import { resolveTemplateLayout } from '@/templates'
 import { STECUTE_LOGO_HEIGHT, STECUTE_LOGO_WIDTH } from '@/services/render/logo'
 import { getPhotoFilterCss } from '@/services/filter'
+import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 
 const props = withDefaults(
   defineProps<{
     layout: LayoutConfig | null | undefined
     templateConfig: TemplateConfig | null | undefined
+    shots?: Shot[]
     shotUrls?: string[]
     interactive?: boolean
     fitViewport?: boolean
     filterId?: string
+    cameraEffectId?: string
   }>(),
   {
+    shots: () => [],
     shotUrls: () => [],
     interactive: false,
     fitViewport: false,
     filterId: 'normal',
+    cameraEffectId: 'none',
   },
 )
 
@@ -248,13 +253,19 @@ function footerLogoStyle() {
           :style="slotPhotoStyle(index)"
           aria-hidden="true"
         ></span>
+        <CameraEffectCanvas
+          :effect-id="cameraEffectId"
+          :face-bounds="shots[index]?.faceBounds"
+          :frame-ms="shots[index]?.cameraEffectFrameMs"
+          class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+        />
         <span
-          class="text-stc-text shadow-stc-xs absolute top-2 left-2 inline-flex min-w-7 items-center justify-center rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold"
+          class="text-stc-text shadow-stc-xs absolute top-2 left-2 z-[2] inline-flex min-w-7 items-center justify-center rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold"
         >
           {{ index + 1 }}
         </span>
         <span
-          class="bg-stc-text/75 absolute inset-x-0 bottom-0 px-3 py-2 text-xs font-semibold text-white/95 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100"
+          class="bg-stc-text/75 absolute inset-x-0 bottom-0 z-[2] px-3 py-2 text-xs font-semibold text-white/95 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100"
         >
           {{ shotUrls[index] ? 'Ganti Foto' : `Foto ${index + 1}` }}
         </span>
@@ -266,6 +277,12 @@ function footerLogoStyle() {
           :style="slotPhotoStyle(index)"
           aria-hidden="true"
         ></span>
+        <CameraEffectCanvas
+          :effect-id="cameraEffectId"
+          :face-bounds="shots[index]?.faceBounds"
+          :frame-ms="shots[index]?.cameraEffectFrameMs"
+          class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
+        />
       </div>
     </template>
 
