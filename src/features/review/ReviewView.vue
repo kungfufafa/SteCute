@@ -163,7 +163,11 @@ function getSlotForIndex(index: number): SlotConfig {
   return renderLayout.value?.slots[index] ?? activeLayout.value?.slots[index] ?? fallbackSlot
 }
 
-function createAutoAdjustment(width: number, height: number, slot: SlotConfig): UploadImageAdjustment {
+function createAutoAdjustment(
+  width: number,
+  height: number,
+  slot: SlotConfig,
+): UploadImageAdjustment {
   return createAutoUploadImageAdjustment(width, height, slot.width, slot.height)
 }
 
@@ -384,16 +388,14 @@ function proceedToRender() {
           :layout="activeLayout"
           :template-config="activeTemplate"
           :shot-urls="shotUrls"
+          :filter-id="sessionStore.filterId"
           interactive
           fit-viewport
           @retake="retakeShot"
           class="transition-transform duration-300 hover:scale-[1.02]"
         />
 
-        <div
-          v-if="replacementUpload"
-          :class="[ui.panel, 'w-full max-w-xl p-4 text-left sm:p-5']"
-        >
+        <div v-if="replacementUpload" :class="[ui.panel, 'w-full max-w-xl p-4 text-left sm:p-5']">
           <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p :class="ui.sectionLabel">Foto Pengganti</p>

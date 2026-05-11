@@ -2,6 +2,7 @@ import type { DecorationConfig, Render, Session, Shot } from '@/db/schema'
 import { type LayoutConfig, type TemplateConfig } from '@/db/schema'
 import { db } from '@/db/schema'
 import { RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
+import { normalizePhotoFilterId } from '@/services/filter'
 import { renderStrip } from '@/services/render'
 
 export interface SessionFlowConfig {
@@ -23,7 +24,7 @@ export interface SessionSnapshot {
 
 function normalizeDecorationConfig(input?: Partial<DecorationConfig>): DecorationConfig {
   return {
-    filterId: input?.filterId ?? 'normal',
+    filterId: normalizePhotoFilterId(input?.filterId),
     frameColor: input?.frameColor ?? '#ffffff',
     selectedStickerIds: Array.isArray(input?.selectedStickerIds)
       ? [...input.selectedStickerIds]
@@ -35,9 +36,11 @@ function normalizeDecorationConfig(input?: Partial<DecorationConfig>): Decoratio
 
 export function createDefaultDecorationConfig(
   template?: Pick<TemplateConfig, 'defaultFrameColor'>,
+  overrides: Partial<DecorationConfig> = {},
 ): DecorationConfig {
   return normalizeDecorationConfig({
     frameColor: template?.defaultFrameColor,
+    ...overrides,
   })
 }
 
@@ -68,6 +71,13 @@ export async function ensureSession(
   }
 
   return createSession(config)
+}
+
+export async function updateSessionDecorationConfig(
+  sessionId: string,
+  decoration: Partial<DecorationConfig>,
+): Promise<void> {
+  await sessionRepo.updateDecorationConfig(sessionId, normalizeDecorationConfig(decoration))
 }
 
 export async function saveShot(params: {

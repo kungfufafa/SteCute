@@ -7,6 +7,7 @@ import {
   STECUTE_LOGO_HEIGHT,
   STECUTE_LOGO_WIDTH,
 } from '@/services/render/logo'
+import { getPhotoFilterCanvas } from '@/services/filter'
 
 export interface RenderJob {
   layout: LayoutConfig
@@ -157,7 +158,7 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
 
     // Apply filter
     if (decoration.filterId && decoration.filterId !== 'normal') {
-      ctx.filter = getCanvasFilter(decoration.filterId)
+      ctx.filter = getPhotoFilterCanvas(decoration.filterId)
     } else {
       ctx.filter = 'none'
     }
@@ -691,19 +692,6 @@ function roundRect(
   ctx.lineTo(x, y + r)
   ctx.quadraticCurveTo(x, y, x + r, y)
   ctx.closePath()
-}
-
-function getCanvasFilter(filterId: string): string {
-  const filterMap: Record<string, string> = {
-    bw: 'grayscale(100%)',
-    warm: 'sepia(30%) saturate(140%) brightness(105%)',
-    cool: 'saturate(80%) hue-rotate(10deg) brightness(105%)',
-    vintage: 'sepia(40%) contrast(90%) brightness(95%) saturate(80%)',
-    fade: 'contrast(85%) brightness(110%) saturate(80%)',
-    film: 'contrast(110%) saturate(85%) brightness(95%) sepia(10%)',
-    rosy: 'sepia(15%) saturate(130%) brightness(105%) hue-rotate(-10deg)',
-  }
-  return filterMap[filterId] ?? 'none'
 }
 
 async function drawTemplateLabel(

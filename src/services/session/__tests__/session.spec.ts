@@ -17,4 +17,11 @@ describe('session decoration config', () => {
     expect(Array.isArray(result.selectedStickerIds)).toBe(true)
     expect(result.selectedStickerIds).toHaveLength(0)
   })
+
+  it('normalizes supported and unsupported filter overrides', () => {
+    expect(createDefaultDecorationConfig(undefined, { filterId: 'warm' }).filterId).toBe('warm')
+    expect(createDefaultDecorationConfig(undefined, { filterId: 'unknown' }).filterId).toBe(
+      'normal',
+    )
+  })
 })

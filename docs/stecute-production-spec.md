@@ -40,6 +40,7 @@ Fitur yang wajib ada:
 - format output adaptif untuk varian standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, plus template-defined layout lokal
 - pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
 - upload blanko strip lokal sebelum capture
+- preset filter kamera lokal sebelum capture, dengan efek yang sama dipakai di preview kamera, preview review, dan render final
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -79,14 +80,14 @@ Tidak masuk v1:
 - marketplace template
 - pembayaran
 - kiosk native wrapper
-- kustomisasi manual pasca-capture: filter, frame color, sticker, toggle `date/time`, dan input `logo text`
+- kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 
 ### 2.4 Keputusan open questions yang dikunci
 
 - `Preset event dasar` tidak masuk rilis v1. Masuk fase berikutnya.
 - `Print ringan` adalah capability bonus, bukan blocker rilis.
 - `Gallery lokal` menyimpan final render. Raw shots disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
-- `Kustomisasi manual` ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
+- `Kustomisasi manual` selain preset filter kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
 
 ---
@@ -238,7 +239,7 @@ App harus menolak file jika:
 - App menyediakan kontrol framing lokal sebelum masuk review agar foto portrait, square, dan ultrawide tetap dapat disesuaikan ke rasio slot aktif.
 - Kontrol framing minimum: clip crop dengan frame tetap, auto crop awal, drag foto langsung di dalam frame, kembalikan posisi untuk foto aktif, ganti foto per slot, dan rapikan semua foto di panel terpisah dari editor foto aktif.
 - Hasil framing disimpan sebagai raw shot sesi lokal dan tetap diproses tanpa backend.
-- Framing upload bukan kustomisasi manual pasca-capture seperti filter, sticker, frame color, date/time, atau logo text.
+- Framing upload bukan kustomisasi manual pasca-capture seperti sticker, frame color, date/time, atau logo text. Preset filter kamera tetap dipilih sebelum capture dan disimpan sebagai konfigurasi sesi.
 
 ---
 
@@ -359,6 +360,7 @@ Catatan:
 
 ### 9.4 Future customization constraints
 
+- filter v1 hanya memakai preset statis lokal; custom LUT, remote filter, dan filter per-shot masuk fase berikutnya
 - `logoText` maksimum `24` karakter jika fitur logo text diaktifkan kembali
 - karakter kontrol dan markup tidak boleh diterima
 - sticker aktif maksimum `5` jika fitur sticker diaktifkan kembali

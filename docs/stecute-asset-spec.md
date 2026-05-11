@@ -145,25 +145,29 @@ Setiap layout harus memiliki:
 
 ---
 
-## 6. Deferred filter inventory
+## 6. Camera filter inventory
 
-Filter manual tidak menjadi asset wajib v1 process-first. Jika kustomisasi diaktifkan kembali, baseline berikut dapat dipakai sebagai inventory awal.
+Preset filter kamera masuk v1 sebagai konfigurasi lokal statis. Filter dipilih sebelum capture, tampil di preview kamera, dan diterapkan kembali oleh render engine saat membuat hasil akhir.
 
-### 6.1 Filter kandidat fase berikutnya
+### 6.1 Filter v1
 
 - `normal`
 - `bw`
+- `noir`
 - `warm`
 - `cool`
 - `vintage`
 - `fade`
 - `film`
 - `rosy`
+- `pop`
+- `instant`
+- `dream`
 
-### 6.2 Filter implementation rule fase berikutnya
+### 6.2 Filter implementation rule
 
 - filter final harus diterapkan via render engine, bukan gambar preview statis
-- preview filter menggunakan thumbnail asset kecil
+- preview filter boleh memakai CSS swatch lokal atau thumbnail asset kecil
 - filter tidak boleh bergantung pada layanan eksternal
 
 ---

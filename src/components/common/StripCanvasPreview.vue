@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
 import { resolveTemplateLayout } from '@/templates'
 import { STECUTE_LOGO_HEIGHT, STECUTE_LOGO_WIDTH } from '@/services/render/logo'
+import { getPhotoFilterCss } from '@/services/filter'
 
 const props = withDefaults(
   defineProps<{
@@ -11,11 +12,13 @@ const props = withDefaults(
     shotUrls?: string[]
     interactive?: boolean
     fitViewport?: boolean
+    filterId?: string
   }>(),
   {
     shotUrls: () => [],
     interactive: false,
     fitViewport: false,
+    filterId: 'normal',
   },
 )
 
@@ -68,6 +71,7 @@ const usesBlankoOverlayImage = computed(
     props.templateConfig?.blanko.mode === 'image' &&
     props.templateConfig.blanko.imageLayer !== 'background',
 )
+const photoFilter = computed(() => getPhotoFilterCss(props.filterId))
 
 function percent(value: number, total: number) {
   return `${(value / total) * 100}%`
@@ -131,7 +135,6 @@ function slotStyle(slot: SlotConfig, index: number) {
   const layout = previewLayout.value
   if (!layout) return {}
 
-  const url = props.shotUrls[index]
   const fallback = placeholderTones[index % placeholderTones.length]
   const style: Record<string, string> = {
     left: percent(slot.x, layout.canvas.width),
@@ -140,8 +143,19 @@ function slotStyle(slot: SlotConfig, index: number) {
     height: percent(slot.height, layout.canvas.height),
     borderRadius: radiusPercent(slot.radius, slot.width, slot.height),
     backgroundColor: fallback,
+  }
+
+  return style
+}
+
+function slotPhotoStyle(index: number) {
+  const url = props.shotUrls[index]
+  const fallback = placeholderTones[index % placeholderTones.length]
+  const style: Record<string, string> = {
+    backgroundColor: fallback,
     backgroundPosition: 'center',
     backgroundSize: 'cover',
+    filter: photoFilter.value,
   }
 
   if (url) {
@@ -230,6 +244,11 @@ function footerLogoStyle() {
         @click="emit('retake', index)"
       >
         <span
+          class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          :style="slotPhotoStyle(index)"
+          aria-hidden="true"
+        ></span>
+        <span
           class="text-stc-text shadow-stc-xs absolute top-2 left-2 inline-flex min-w-7 items-center justify-center rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold"
         >
           {{ index + 1 }}
@@ -241,11 +260,13 @@ function footerLogoStyle() {
         </span>
       </button>
 
-      <div
-        v-else
-        class="bg-stc-bg-3 absolute overflow-hidden"
-        :style="slotStyle(slot, index)"
-      ></div>
+      <div v-else class="bg-stc-bg-3 absolute overflow-hidden" :style="slotStyle(slot, index)">
+        <span
+          class="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          :style="slotPhotoStyle(index)"
+          aria-hidden="true"
+        ></span>
+      </div>
     </template>
 
     <img

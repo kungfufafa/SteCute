@@ -92,7 +92,7 @@ Menjadi aplikasi photo booth web offline-first tanpa login yang paling cepat, ny
 - Pembayaran dan template berbayar.
 - Native print driver.
 - QR delivery yang mengharuskan backend.
-- Kustomisasi manual pasca-capture seperti filter, frame color, sticker, date/time, dan logo text. Fitur ini ditunda sampai alur inti capture-review-render terasa solid.
+- Kustomisasi manual pasca-capture seperti frame color, sticker, date/time, dan logo text. Fitur ini ditunda sampai alur inti capture-review-render terasa solid.
 
 ---
 
@@ -158,26 +158,27 @@ Kebutuhan utama:
 4. Pemilihan kamera depan atau belakang jika tersedia.
 5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto`, plus layout dari blanko/template lokal dengan tinggi canvas mengikuti artboard.
 6. Countdown default 3 detik untuk flow kamera.
-7. Capture berurutan sesuai jumlah slot layout.
-8. Review hasil per sesi.
-9. Retake seluruh sesi.
-10. Retake per-shot sebelum render final.
-11. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
-12. Render hasil final photo strip.
-13. Download hasil PNG.
-14. Save to device melalui flow browser yang tersedia.
-15. Native share sheet jika browser mendukung.
-16. Print ringan jika browser mendukung.
-17. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
-18. Dukungan offline setelah initial install atau cache.
-19. Reset session cepat untuk pengguna berikutnya.
-20. Shortcut keyboard dasar untuk desktop.
-21. Basic responsive UI untuk desktop, tablet, mobile.
+7. Preset filter kamera lokal sebelum capture, dengan preview live dan hasil render final memakai efek yang sama.
+8. Capture berurutan sesuai jumlah slot layout.
+9. Review hasil per sesi.
+10. Retake seluruh sesi.
+11. Retake per-shot sebelum render final.
+12. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
+13. Render hasil final photo strip.
+14. Download hasil PNG.
+15. Save to device melalui flow browser yang tersedia.
+16. Native share sheet jika browser mendukung.
+17. Print ringan jika browser mendukung.
+18. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
+19. Dukungan offline setelah initial install atau cache.
+20. Reset session cepat untuk pengguna berikutnya.
+21. Shortcut keyboard dasar untuk desktop.
+22. Basic responsive UI untuk desktop, tablet, mobile.
 
 ### 8.2 Fitur nice-to-have bila sempat dalam MVP+
 
-- Kustomisasi manual pasca-capture: filter, frame color, sticker, date/time, dan logo text.
-- Preview live filter yang lebih kaya.
+- Kustomisasi manual pasca-capture: frame color, sticker, date/time, dan logo text.
+- Filter per-shot, filter custom, atau preview filter berbasis asset raster.
 - Upload custom background lokal di luar blanko strip.
 - Sound on or off.
 - Auto-reset sesudah export untuk event mode.
@@ -564,7 +565,7 @@ Mitigasi:
 - Preset event dasar tidak masuk v1. Masuk fase berikutnya.
 - GIF export lokal tidak masuk v1.
 - Print ringan diperlakukan sebagai capability bonus, bukan blocker rilis.
-- Kustomisasi manual pasca-capture ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
+- Kustomisasi manual pasca-capture selain preset filter kamera ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
 - Gallery lokal menyimpan final render, bukan raw shots jangka panjang.
 
 ---

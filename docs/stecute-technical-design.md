@@ -114,7 +114,7 @@ Keputusan utama:
 - Native print driver.
 - QR delivery berbasis server.
 - Server-side rendering.
-- Kustomisasi manual pasca-capture seperti filter, frame color, sticker, date/time, dan logo text.
+- Kustomisasi manual pasca-capture seperti frame color, sticker, date/time, dan logo text.
 
 ---
 
@@ -436,7 +436,7 @@ Contoh isi:
 | Field | Type | Keterangan |
 |---|---|---|
 | id | string | asset id |
-| type | string | frame, overlay, template-preview, future-sticker, future-filter-preview |
+| type | string | frame, overlay, template-preview, future-sticker, filter-preview |
 | name | string | nama asset |
 | path | string | lokasi asset lokal |
 | packId | string | grup asset |

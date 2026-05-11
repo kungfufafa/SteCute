@@ -50,6 +50,7 @@ Tanggal: 2026-03-20
 - Safari iPhone/iPad physical device pass
 - Unsupported browser flow pass
 - Error states pass
+- Preset filter kamera pass di preview dan hasil render final
 
 ## 6. Operasional
 

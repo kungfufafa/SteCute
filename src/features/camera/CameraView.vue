@@ -6,6 +6,7 @@ import {
   ensureSession,
   getSessionShots,
   saveShot,
+  updateSessionDecorationConfig,
 } from '@/services/session'
 import { getTemplateById } from '@/templates'
 import { getLayoutById } from '@/layouts'
@@ -20,6 +21,7 @@ import {
   switchCamera,
 } from '@/services/camera'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
+import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
@@ -57,6 +59,15 @@ const cameraRecoverySteps = [
   'Ubah menjadi Izinkan',
   'Muat ulang halaman',
 ]
+const filterOptions = PHOTO_FILTERS
+const selectedFilter = computed(() => getPhotoFilterById(sessionStore.filterId))
+const videoFilterStyle = computed(() => ({ filter: selectedFilter.value.cssFilter }))
+const canChangeFilter = computed(
+  () =>
+    !countdownActive.value &&
+    sessionStore.currentShotIndex === 0 &&
+    !sessionStore.shotIds.some(Boolean),
+)
 
 onMounted(() => {
   void setupCamera()
@@ -82,13 +93,17 @@ async function setupCamera() {
       templateId: sessionStore.templateId,
       slotCount: sessionStore.slotCount,
       captureSource: 'camera',
-      decoration: createDefaultDecorationConfig(activeTemplate.value),
+      decoration: createDefaultDecorationConfig(activeTemplate.value, {
+        filterId: sessionStore.filterId,
+      }),
     })
 
     if (!sessionStore.sessionId) {
       sessionStore.startSession(sessionId, 'camera', sessionStore.slotCount)
       sessionStore.sessionStatus = 'capturing'
     }
+
+    await persistSelectedFilter(sessionId)
   } catch (error) {
     const isDeniedError =
       error instanceof DOMException &&
@@ -103,6 +118,39 @@ async function setupCamera() {
       console.error('Camera init failed:', error)
       cameraStore.setPermissionState('denied')
     }
+  }
+}
+
+async function persistSelectedFilter(sessionId: string) {
+  await updateSessionDecorationConfig(
+    sessionId,
+    createDefaultDecorationConfig(activeTemplate.value, {
+      filterId: sessionStore.filterId,
+    }),
+  )
+}
+
+async function selectFilter(filterId: string) {
+  if (!canChangeFilter.value && filterId !== sessionStore.filterId) return
+
+  sessionStore.setFilterId(filterId)
+
+  if (!sessionStore.sessionId) return
+
+  try {
+    await persistSelectedFilter(sessionStore.sessionId)
+  } catch (error) {
+    console.error('Failed to save camera filter:', error)
+    cameraError.value = 'Efek kamera gagal disimpan. Coba pilih efek lagi.'
+  }
+}
+
+function filterSwatchStyle(filterId: string) {
+  const filter = getPhotoFilterById(filterId)
+
+  return {
+    background: filter.previewBackground,
+    filter: filter.cssFilter,
   }
 }
 
@@ -347,6 +395,7 @@ function goBack() {
             playsinline
             muted
             class="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
+            :style="videoFilterStyle"
           ></video>
 
           <div
@@ -390,6 +439,38 @@ function goBack() {
         </div>
 
         <div class="mt-auto flex w-full flex-col pt-5">
+          <div
+            class="border-stc-border shadow-stc-xs mx-auto mb-4 w-full max-w-4xl rounded-xl border bg-white/95 px-3 py-3 sm:px-4"
+          >
+            <div class="mb-2 flex items-center justify-between gap-3">
+              <p :class="ui.sectionLabel">Efek Kamera</p>
+              <span class="text-stc-pink text-xs font-bold">{{ selectedFilter.label }}</span>
+            </div>
+            <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              <button
+                v-for="filter in filterOptions"
+                :key="filter.id"
+                type="button"
+                :aria-label="`Pilih efek ${filter.label}`"
+                :aria-pressed="filter.id === sessionStore.filterId"
+                :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
+                :class="[
+                  'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                  filter.id === sessionStore.filterId
+                    ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                    : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+                ]"
+                @click="selectFilter(filter.id)"
+              >
+                <span
+                  class="border-stc-border/50 block size-8 rounded-lg border shadow-inner"
+                  :style="filterSwatchStyle(filter.id)"
+                ></span>
+                <span class="max-w-full truncate">{{ filter.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <div class="mb-5 flex flex-wrap items-center justify-center gap-2">
             <div
               v-for="index in sessionStore.slotCount"

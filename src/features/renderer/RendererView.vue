@@ -35,6 +35,11 @@ onMounted(async () => {
   const template =
     customTemplateStore.getTemplateById(sessionStore.templateId) ??
     getTemplateById(sessionStore.templateId)
+  const decoration =
+    snapshot?.session.decorationConfig ??
+    createDefaultDecorationConfig(template, {
+      filterId: sessionStore.filterId,
+    })
 
   if (!sessionId || !layout || !template) {
     sessionStore.setError('Session data is incomplete')
@@ -49,7 +54,7 @@ onMounted(async () => {
       sessionId,
       layout,
       template,
-      decoration: createDefaultDecorationConfig(template),
+      decoration,
       format: 'image/png',
     })
 

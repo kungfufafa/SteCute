@@ -42,6 +42,14 @@ test.describe('config and camera visual smoke', () => {
     expect(cameraBox.ratio).toBeLessThan(1.35)
     expect(cameraBox.radius).toBeLessThanOrEqual(12)
 
+    await expect(page.getByText('Efek Kamera')).toBeVisible()
+    await page.getByRole('button', { name: 'Pilih efek Hangat' }).click()
+
+    const videoFilter = await page
+      .locator('video')
+      .evaluate((video) => getComputedStyle(video).filter)
+    expect(videoFilter).toContain('sepia')
+
     await page.getByRole('button', { name: 'Ambil foto' }).click()
     const countdownLabel = page.getByText(/Foto ke-/)
     await expect(countdownLabel).toBeVisible()
