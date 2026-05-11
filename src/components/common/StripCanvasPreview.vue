@@ -211,6 +211,7 @@ function footerLogoStyle() {
       aria-hidden="true"
       class="pointer-events-none absolute inset-0 h-full w-full"
       :style="blankoImageStyle"
+      decoding="async"
     />
 
     <div
@@ -254,6 +255,7 @@ function footerLogoStyle() {
       aria-hidden="true"
       class="pointer-events-none absolute inset-0 h-full w-full"
       :style="blankoImageStyle"
+      decoding="async"
     />
 
     <img
@@ -262,6 +264,7 @@ function footerLogoStyle() {
       alt="Stecute"
       class="absolute block"
       :style="footerLogoStyle()"
+      decoding="async"
     />
 
     <div

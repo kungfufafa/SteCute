@@ -31,12 +31,15 @@ export class RenderRepository {
     await db.renders.delete(id)
   }
 
-  async deleteOldRenders(keepCount: number = GALLERY_RETENTION_LIMIT): Promise<void> {
-    const allIds = await db.renders.orderBy('createdAt').reverse().keys()
-    if (allIds.length > keepCount) {
-      const toDelete = allIds.slice(keepCount) as string[]
-      await db.renders.bulkDelete(toDelete)
+  async deleteOldRenders(keepCount: number = GALLERY_RETENTION_LIMIT): Promise<Render[]> {
+    const allRenders = await db.renders.orderBy('createdAt').reverse().toArray()
+    const toDelete = allRenders.slice(keepCount)
+
+    if (toDelete.length > 0) {
+      await db.renders.bulkDelete(toDelete.map((render) => render.id))
     }
+
+    return toDelete
   }
 
   async clearAll(): Promise<void> {

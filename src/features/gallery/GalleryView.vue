@@ -191,6 +191,8 @@ onBeforeUnmount(() => {
                 :src="renderUrls[render.id]"
                 :alt="`Render ${index + 1}`"
                 class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
               />
             </div>
             <div class="border-stc-border relative z-10 space-y-4 border-t bg-white px-5 py-4">
@@ -234,7 +236,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div class="border-stc-border/70 bg-white shadow-stc-xs rounded-xl border px-4 py-4">
+        <div class="border-stc-border/70 shadow-stc-xs rounded-xl border bg-white px-4 py-4">
           <div class="sm:flex sm:items-center sm:justify-between sm:gap-4">
             <div class="min-w-0">
               <p class="text-stc-text text-sm font-bold">Data lokal aplikasi</p>

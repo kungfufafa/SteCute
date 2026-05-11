@@ -20,6 +20,8 @@ const customTemplateStore = useCustomTemplateStore()
 const isRendering = ref(false)
 
 onMounted(async () => {
+  await customTemplateStore.loadPersistedTemplates()
+
   const snapshot = await getReviewSessionSnapshot(sessionStore.sessionId)
 
   if (snapshot) {
@@ -54,7 +56,7 @@ onMounted(async () => {
     isRendering.value = false
     sessionStore.setRenderId(renderId)
     sessionStore.setCompleted()
-    router.push('/output')
+    router.push({ path: '/output', query: { renderId } })
   } catch (error) {
     console.error('Render failed:', error)
     isRendering.value = false

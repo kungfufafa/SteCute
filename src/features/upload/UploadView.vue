@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import type { SlotConfig } from '@/db/schema'
 import {
   createDefaultDecorationConfig,
   createSession,
@@ -10,33 +11,120 @@ import {
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import {
-  createStoredImageBlob,
+  createAdjustedImageBlob,
+  createAutoUploadImageAdjustment,
+  clampUploadImageAdjustment,
+  getAdjustedCropRect,
   getImageDimensions,
   openImagePicker,
+  type UploadImageAdjustment,
+  validateFile,
   validateFiles,
 } from '@/services/upload'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
-import { getTemplateById } from '@/templates'
+import { getTemplateById, resolveTemplateLayout } from '@/templates'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
+
+interface UploadItem {
+  file: File
+  url: string
+  width: number
+  height: number
+  adjustment: UploadImageAdjustment
+}
+
+interface DragState {
+  pointerId: number
+  startX: number
+  startY: number
+  startOffsetX: number
+  startOffsetY: number
+  width: number
+  height: number
+}
+
+interface PhotoDragTarget {
+  clientWidth: number
+  clientHeight: number
+  setPointerCapture: (pointerId: number) => void
+  releasePointerCapture: (pointerId: number) => void
+  hasPointerCapture: (pointerId: number) => boolean
+}
+
+const ZOOM_STEP = 0.14
 
 const router = useRouter()
 const sessionStore = useSessionStore()
 const customTemplateStore = useCustomTemplateStore()
-const activeLayout =
-  customTemplateStore.getLayoutById(sessionStore.layoutId) ?? getLayoutById(sessionStore.layoutId)
+const fallbackSlot: SlotConfig = { x: 0, y: 0, width: 1080, height: 810, radius: 0 }
+const activeLayout = computed(
+  () =>
+    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
+    getLayoutById(sessionStore.layoutId),
+)
 const activeTemplate = computed(
   () =>
     customTemplateStore.getTemplateById(sessionStore.templateId) ??
     getTemplateById(sessionStore.templateId),
 )
+const renderLayout = computed(() => {
+  if (!activeLayout.value || !activeTemplate.value) return activeLayout.value
+  return resolveTemplateLayout(activeLayout.value, activeTemplate.value)
+})
 const errors = ref<string[]>([])
-const selectedFiles = ref<File[]>([])
-const previewUrls = ref<string[]>([])
+const uploadItems = ref<UploadItem[]>([])
+const activeIndex = ref(0)
+const dragState = ref<DragState | null>(null)
 
+const isPreparing = ref(false)
 const isProcessing = ref(false)
+const isBusy = computed(() => isPreparing.value || isProcessing.value)
+const hasUploads = computed(() => uploadItems.value.length > 0)
+const activeItem = computed(() => uploadItems.value[activeIndex.value] ?? null)
+const activeSlot = computed(() => getSlotForIndex(activeIndex.value))
+const isReadyToProcess = computed(() => uploadItems.value.length === sessionStore.slotCount)
+const activePhotoLabel = computed(() => {
+  if (!activeItem.value) return 'Foto'
+  return `Foto ${activeIndex.value + 1}`
+})
+const activeCropStyle = computed(() => {
+  const item = activeItem.value
+  if (!item) return {}
+
+  if (item.adjustment.fit === 'contain') {
+    return {
+      backgroundColor: '#fff7fa',
+      backgroundImage: `url("${item.url}")`,
+      backgroundPosition: '50% 50%',
+      backgroundSize: 'contain',
+    }
+  }
+
+  const slot = activeSlot.value
+  const crop = getAdjustedCropRect(
+    item.width,
+    item.height,
+    slot.width,
+    slot.height,
+    item.adjustment,
+  )
+  const maxSx = Math.max(0, item.width - crop.sw)
+  const maxSy = Math.max(0, item.height - crop.sh)
+  const positionX = maxSx === 0 ? 50 : (crop.sx / maxSx) * 100
+  const positionY = maxSy === 0 ? 50 : (crop.sy / maxSy) * 100
+
+  return {
+    backgroundImage: `url("${item.url}")`,
+    backgroundPosition: `${positionX}% ${positionY}%`,
+    backgroundSize: `${(item.width / crop.sw) * 100}% ${(item.height / crop.sh) * 100}%`,
+  }
+})
+const activeCropAspectRatio = computed(
+  () => `${activeSlot.value.width} / ${activeSlot.value.height}`,
+)
 
 function describeError(error: unknown): string {
   if (error instanceof Error) {
@@ -55,19 +143,55 @@ function describeError(error: unknown): string {
   return String(error)
 }
 
-function resetPreviewUrls() {
-  previewUrls.value.forEach((url) => URL.revokeObjectURL(url))
-  previewUrls.value = []
+function getSlotForIndex(index: number): SlotConfig {
+  return renderLayout.value?.slots[index] ?? activeLayout.value?.slots[index] ?? fallbackSlot
 }
 
-function setSelectedFiles(files: File[]) {
-  resetPreviewUrls()
-  selectedFiles.value = files
-  previewUrls.value = files.map((file) => URL.createObjectURL(file))
+function createAutoAdjustment(
+  width: number,
+  height: number,
+  slot: SlotConfig,
+): UploadImageAdjustment {
+  return createAutoUploadImageAdjustment(width, height, slot.width, slot.height)
+}
+
+function resetUploadItems() {
+  uploadItems.value.forEach((item) => URL.revokeObjectURL(item.url))
+  uploadItems.value = []
+  activeIndex.value = 0
+}
+
+async function createUploadItems(files: File[]): Promise<UploadItem[]> {
+  const items: UploadItem[] = []
+
+  try {
+    for (const [index, file] of files.entries()) {
+      const dimensions = await getImageDimensions(file)
+      const slot = getSlotForIndex(index)
+      items.push({
+        file,
+        url: URL.createObjectURL(file),
+        width: dimensions.width,
+        height: dimensions.height,
+        adjustment: createAutoAdjustment(dimensions.width, dimensions.height, slot),
+      })
+    }
+
+    return items
+  } catch (error) {
+    items.forEach((item) => URL.revokeObjectURL(item.url))
+    throw error
+  }
+}
+
+async function setSelectedFiles(files: File[]) {
+  const items = await createUploadItems(files)
+  resetUploadItems()
+  uploadItems.value = items
 }
 
 async function handleFileSelect() {
-  if (isProcessing.value) return
+  if (isBusy.value) return
 
   const files = await openImagePicker(true)
   if (!files) return
@@ -80,22 +204,153 @@ async function handleFileSelect() {
     return
   }
 
-  setSelectedFiles(selected)
-  errors.value = []
-  void processUpload()
+  isPreparing.value = true
+
+  try {
+    await setSelectedFiles(selected)
+    errors.value = []
+  } catch (error) {
+    console.error(`Upload preview failed: ${describeError(error)}`)
+    errors.value = ['Satu atau lebih foto gagal dibaca. Pilih file lain dan coba lagi.']
+  } finally {
+    isPreparing.value = false
+  }
 }
 
 function goBack() {
   router.push({ path: '/config', query: { source: 'upload' } })
 }
 
-function removeAt(index: number) {
-  const next = selectedFiles.value.filter((_, currentIndex) => currentIndex !== index)
-  setSelectedFiles(next)
+function selectPhoto(index: number) {
+  if (index < 0 || index >= uploadItems.value.length) return
+  activeIndex.value = index
+  dragState.value = null
+}
+
+function setActiveAdjustment(adjustment: Partial<UploadImageAdjustment>) {
+  const item = activeItem.value
+  if (!item) return
+
+  item.adjustment = clampUploadImageAdjustment({
+    ...item.adjustment,
+    ...adjustment,
+  })
+}
+
+function resetActiveAdjustment() {
+  const item = activeItem.value
+  if (!item) return
+
+  setActiveAdjustment(createAutoAdjustment(item.width, item.height, activeSlot.value))
+  dragState.value = null
+}
+
+function adjustActiveZoom(delta: number) {
+  const item = activeItem.value
+  if (!item) return
+
+  setActiveAdjustment({ fit: 'cover', zoom: item.adjustment.zoom + delta })
+}
+
+function zoomPhotoWheel(event: globalThis.WheelEvent) {
+  event.preventDefault()
+  adjustActiveZoom(event.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP)
+}
+
+function applyAutoCropToAll() {
+  uploadItems.value.forEach((uploadItem, index) => {
+    uploadItem.adjustment = createAutoAdjustment(
+      uploadItem.width,
+      uploadItem.height,
+      getSlotForIndex(index),
+    )
+  })
+  dragState.value = null
+}
+
+function beginPhotoDrag(event: globalThis.PointerEvent) {
+  if (isBusy.value || !activeItem.value) return
+
+  const target = event.currentTarget as PhotoDragTarget | null
+  if (!target) return
+
+  target.setPointerCapture(event.pointerId)
+  dragState.value = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    startOffsetX: activeItem.value.adjustment.offsetX,
+    startOffsetY: activeItem.value.adjustment.offsetY,
+    width: target.clientWidth,
+    height: target.clientHeight,
+  }
+}
+
+function movePhotoDrag(event: globalThis.PointerEvent) {
+  const state = dragState.value
+  const item = activeItem.value
+  if (!state || !item || state.pointerId !== event.pointerId) return
+
+  const zoomDamping = Math.max(1, item.adjustment.zoom)
+  const deltaX = ((event.clientX - state.startX) / Math.max(1, state.width)) * 2
+  const deltaY = ((event.clientY - state.startY) / Math.max(1, state.height)) * 2
+
+  setActiveAdjustment({
+    fit: 'cover',
+    offsetX: state.startOffsetX - deltaX / zoomDamping,
+    offsetY: state.startOffsetY - deltaY / zoomDamping,
+  })
+}
+
+function endPhotoDrag(event: globalThis.PointerEvent) {
+  if (dragState.value?.pointerId !== event.pointerId) return
+
+  const target = event.currentTarget as PhotoDragTarget | null
+  if (!target) return
+
+  if (target.hasPointerCapture(event.pointerId)) {
+    target.releasePointerCapture(event.pointerId)
+  }
+
+  dragState.value = null
+}
+
+async function replaceActiveFile() {
+  if (isBusy.value || !activeItem.value) return
+
+  const files = await openImagePicker(false)
+  const file = files?.[0]
+
+  if (!file) return
+
+  const validation = validateFile(file)
+
+  if (!validation.valid) {
+    errors.value = validation.errors
+    return
+  }
+
+  isPreparing.value = true
+
+  try {
+    const [replacement] = await createUploadItems([file])
+    const previous = uploadItems.value[activeIndex.value]
+    if (previous) URL.revokeObjectURL(previous.url)
+    uploadItems.value.splice(activeIndex.value, 1, replacement)
+    errors.value = []
+  } catch (error) {
+    console.error(`Upload replacement failed: ${describeError(error)}`)
+    errors.value = ['Foto pengganti gagal dibaca. Pilih file lain dan coba lagi.']
+  } finally {
+    isPreparing.value = false
+  }
 }
 
 async function processUpload() {
-  if (selectedFiles.value.length === 0) return
+  if (!isReadyToProcess.value) {
+    errors.value = [`Layout ini membutuhkan tepat ${sessionStore.slotCount} foto.`]
+    return
+  }
 
   isProcessing.value = true
   let sessionId: string | undefined
@@ -111,16 +366,20 @@ async function processUpload() {
 
     sessionStore.startSession(sessionId, 'upload', sessionStore.slotCount)
 
-    for (const [index, file] of selectedFiles.value.entries()) {
-      const size = await getImageDimensions(file)
-      const blob = await createStoredImageBlob(file)
+    for (const [index, item] of uploadItems.value.entries()) {
+      const slot = getSlotForIndex(index)
+      const adjusted = await createAdjustedImageBlob(item.file, {
+        targetWidth: slot.width,
+        targetHeight: slot.height,
+        adjustment: item.adjustment,
+      })
       const shotId = await saveShot({
         sessionId,
         order: index,
         sourceType: 'upload',
-        blob,
-        width: size.width,
-        height: size.height,
+        blob: adjusted.blob,
+        width: adjusted.width,
+        height: adjusted.height,
       })
       sessionStore.addShotId(shotId)
     }
@@ -142,7 +401,7 @@ async function processUpload() {
   }
 }
 
-onBeforeUnmount(() => resetPreviewUrls())
+onBeforeUnmount(() => resetUploadItems())
 </script>
 
 <template>
@@ -196,8 +455,9 @@ onBeforeUnmount(() => resetPreviewUrls())
           </div>
 
           <button
+            v-if="!hasUploads"
             class="group border-stc-border-strong shadow-stc-xs hover:border-stc-pink hover:bg-stc-pink-soft hover:shadow-stc-sm focus-visible:ring-stc-pink flex min-h-[280px] w-full max-w-[38rem] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white px-5 py-8 text-center transition-all duration-200 outline-none hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:min-h-[330px] sm:px-6 sm:py-10"
-            :disabled="isProcessing"
+            :disabled="isBusy"
             @click="handleFileSelect"
           >
             <div
@@ -221,48 +481,192 @@ onBeforeUnmount(() => resetPreviewUrls())
             <h4
               class="text-stc-text group-hover:text-stc-pink-strong text-xl font-bold transition-colors"
             >
-              {{ isProcessing ? 'Memproses...' : 'Pilih Foto Lokal' }}
+              {{ isPreparing ? 'Menyiapkan...' : 'Pilih Foto Lokal' }}
             </h4>
             <p
               class="text-stc-text-faint group-hover:text-stc-pink/80 mt-2 text-sm font-medium transition-colors"
             >
-              {{
-                isProcessing
-                  ? 'Menyiapkan preview'
-                  : `${sessionStore.slotCount} file untuk sekali render`
-              }}
+              {{ `${sessionStore.slotCount} file untuk sekali render` }}
             </p>
           </button>
 
-          <div v-if="previewUrls.length > 0" class="flex flex-wrap gap-4">
-            <template v-for="(url, index) in previewUrls" :key="url">
+          <div v-else class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_220px]">
+            <div :class="[ui.panel, 'p-4 sm:p-5']">
+              <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p :class="ui.sectionLabel">Foto Ini</p>
+                  <h3 class="text-stc-text mt-1 text-lg font-bold">
+                    {{ activePhotoLabel }} dari {{ sessionStore.slotCount }}
+                  </h3>
+                </div>
+                <span :class="ui.pinkBadge">Slot {{ activeIndex + 1 }}</span>
+              </div>
+
               <div
-                class="border-stc-border shadow-stc-sm relative h-28 w-24 overflow-hidden rounded-xl border-2 bg-white"
+                class="border-stc-border bg-stc-bg-2 relative mx-auto w-full max-w-2xl cursor-grab touch-none overflow-hidden rounded-xl border select-none active:cursor-grabbing"
+                :style="{ aspectRatio: activeCropAspectRatio }"
+                @pointerdown="beginPhotoDrag"
+                @pointermove="movePhotoDrag"
+                @pointerup="endPhotoDrag"
+                @pointercancel="endPhotoDrag"
+                @wheel="zoomPhotoWheel"
               >
-                <img
-                  :src="url"
-                  :alt="`Upload ${index + 1}`"
-                  class="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
-                />
+                <div
+                  class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-[background-size,background-position] duration-150"
+                  :style="activeCropStyle"
+                ></div>
+                <div
+                  class="pointer-events-none absolute inset-0 ring-1 ring-white/70 ring-inset"
+                ></div>
+              </div>
+
+              <p class="text-stc-text-soft mt-3 text-center text-sm font-medium">
+                Seret foto di dalam frame kalau posisinya kurang pas. Crop awal sudah otomatis.
+              </p>
+
+              <div class="mt-5 grid gap-3 sm:grid-cols-2">
                 <button
-                  class="bg-stc-error shadow-stc-xs hover:bg-stc-error-strong absolute top-1.5 right-1.5 flex size-7 items-center justify-center rounded-full border-[2px] border-white text-sm font-bold text-white transition-all duration-200 outline-none hover:scale-110 active:scale-90"
-                  :aria-label="`Hapus foto ${index + 1}`"
-                  :disabled="isProcessing"
-                  @click.stop="removeAt(index)"
+                  :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                  :disabled="isBusy"
+                  aria-label="Kembalikan posisi foto ini"
+                  @click="resetActiveAdjustment"
                 >
-                  &times;
+                  <svg
+                    class="size-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 12a9 9 0 1 0 3-6.7" />
+                    <path d="M3 4v6h6" />
+                  </svg>
+                  Kembalikan Posisi
+                </button>
+
+                <button
+                  :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                  :disabled="isBusy"
+                  @click="replaceActiveFile"
+                >
+                  <svg
+                    class="size-4 shrink-0"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                    <path d="m8 13 2.5-2.5 3 3L15 12l3 3" />
+                    <path d="M14 8h4" />
+                    <path d="M16 6v4" />
+                  </svg>
+                  Ganti Foto Ini
                 </button>
               </div>
-            </template>
+            </div>
 
-            <button
-              v-if="selectedFiles.length < sessionStore.slotCount"
-              class="border-stc-pink bg-stc-pink-soft text-stc-pink hover:shadow-stc-sm flex h-28 w-24 items-center justify-center rounded-xl border-2 border-dashed text-lg font-bold transition-all duration-200 outline-none hover:-translate-y-1 hover:bg-white active:translate-y-0 active:scale-95 disabled:pointer-events-none disabled:opacity-60"
-              :disabled="isProcessing"
-              @click="handleFileSelect"
-            >
-              +{{ sessionStore.slotCount - selectedFiles.length }}
-            </button>
+            <div class="space-y-4">
+              <p :class="ui.sectionLabel">Daftar Foto</p>
+              <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
+                <button
+                  v-for="(item, index) in uploadItems"
+                  :key="item.url"
+                  class="group focus-visible:ring-stc-pink shadow-stc-xs relative aspect-[4/3] overflow-hidden rounded-xl border bg-white transition-all duration-200 outline-none hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
+                  :class="
+                    index === activeIndex
+                      ? 'border-stc-pink ring-stc-pink/20 ring-4'
+                      : 'border-stc-border hover:border-stc-pink/50'
+                  "
+                  :aria-label="`Atur foto ${index + 1}`"
+                  :disabled="isBusy"
+                  @click="selectPhoto(index)"
+                >
+                  <img
+                    :src="item.url"
+                    :alt="`Upload ${index + 1}`"
+                    class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    decoding="async"
+                  />
+                  <span
+                    class="text-stc-text shadow-stc-xs absolute top-1.5 left-1.5 flex size-7 items-center justify-center rounded-lg bg-white/95 text-xs font-bold"
+                  >
+                    {{ index + 1 }}
+                  </span>
+                </button>
+              </div>
+
+              <div :class="[ui.panelSoft, 'p-3']">
+                <p :class="ui.sectionLabel">Semua Foto</p>
+                <div class="mt-3 grid gap-3">
+                  <button
+                    :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                    :disabled="isBusy"
+                    @click="applyAutoCropToAll"
+                  >
+                    <svg
+                      class="size-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M4 7h16" />
+                      <path d="M7 4v16" />
+                      <path d="M17 4v16" />
+                      <path d="M4 17h16" />
+                    </svg>
+                    Rapikan Semua
+                  </button>
+
+                  <button
+                    :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                    :disabled="isBusy"
+                    @click="handleFileSelect"
+                  >
+                    <svg
+                      class="size-4 shrink-0"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <path d="m17 8-5-5-5 5" />
+                      <path d="M12 3v12" />
+                    </svg>
+                    Pilih Ulang Semua
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="xl:col-span-2">
+              <div :class="[ui.bottomActions, 'pt-0 sm:max-w-xl']">
+                <button :class="ui.secondaryButton" :disabled="isBusy" @click="goBack">
+                  Kembali
+                </button>
+                <button
+                  :class="ui.primaryButton"
+                  :disabled="isBusy || !isReadyToProcess"
+                  @click="processUpload"
+                >
+                  {{ isProcessing ? 'Menyiapkan Preview...' : 'Lanjut ke Preview' }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div

@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'node:path'
 
 const uploadFixtures = [
-  'public/images/1759243291185.png',
-  'public/images/1769149454852.png',
-  'public/images/1770039834020.png',
+  'e2e/fixtures/images/1759243291185.png',
+  'e2e/fixtures/images/1769149454852.png',
+  'e2e/fixtures/images/1770039834020.png',
 ].map((path) => resolve(path))
 
 async function warmOfflineCache(page: Page) {
@@ -46,7 +46,7 @@ test.describe('offline behavior', () => {
       { path: '/config?source=upload', text: 'Atur Sesi' },
       { path: '/upload', text: 'Upload Foto' },
       { path: '/review', text: 'Preview' },
-      { path: '/output', text: 'Selesai!' },
+      { path: '/output', text: 'Hasil Tidak Ditemukan' },
       { path: '/gallery', text: 'Galeri' },
     ]
 
@@ -92,24 +92,22 @@ test.describe('offline behavior', () => {
     const chooser = await chooserPromise
     await chooser.setFiles(uploadFixtures)
 
-    if (page.url().endsWith('/upload')) {
-      await page.waitForTimeout(500)
-      const uploadErrors = await page
-        .locator('[class*="text-stc-error"]')
-        .allTextContents()
+    await expect(page.getByRole('button', { name: 'Lanjut ke Preview' })).toBeVisible()
 
-      expect(
-        { uploadErrors, consoleProblems },
-        'Offline upload should advance to review without browser errors',
-      ).toEqual({ uploadErrors: [], consoleProblems: [] })
-    }
+    const uploadErrors = await page.locator('[class*="text-stc-error"]').allTextContents()
 
+    expect(
+      { uploadErrors, consoleProblems },
+      'Offline upload should prepare framing without browser errors',
+    ).toEqual({ uploadErrors: [], consoleProblems: [] })
+
+    await page.getByRole('button', { name: 'Lanjut ke Preview' }).click()
     await expect(page).toHaveURL('/review')
 
     await page.getByRole('button', { name: 'Buat Hasil Akhir' }).click()
 
     await expect(page)
-      .toHaveURL('/output', { timeout: 20_000 })
+      .toHaveURL(/\/output\?renderId=.+/, { timeout: 20_000 })
       .catch((error) => {
         throw new Error(`${error.message}\nConsole problems:\n${consoleProblems.join('\n')}`)
       })

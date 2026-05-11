@@ -3,9 +3,9 @@ import { writeFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 
 const uploadFixtures = [
-  'public/images/1759243291185.png',
-  'public/images/1769149454852.png',
-  'public/images/1770039834020.png',
+  'e2e/fixtures/images/1759243291185.png',
+  'e2e/fixtures/images/1769149454852.png',
+  'e2e/fixtures/images/1770039834020.png',
 ].map((path) => resolve(path))
 
 async function openUploadFlow(page: Page) {
@@ -46,20 +46,38 @@ test.describe('real browser upload flow', () => {
     const chooser = await chooserPromise
     await chooser.setFiles(uploadFixtures)
 
-    if (page.url().endsWith('/upload')) {
-      await page.waitForTimeout(500)
-      const uploadErrors = await page
-        .locator('[class*="text-stc-error"]')
-        .allTextContents()
+    await expect(page.getByText('Foto Ini', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Kembalikan posisi foto ini' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ganti Foto Ini' })).toBeVisible()
+    await expect(page.getByText('Semua Foto', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Rapikan Semua' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Rapi Otomatis' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Rapi Semua Foto' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Lanjut ke Preview' })).toBeVisible()
 
-      expect(
-        { uploadErrors, consoleProblems },
-        'Upload should advance to review without browser errors',
-      ).toEqual({ uploadErrors: [], consoleProblems: [] })
-    }
+    const uploadErrors = await page.locator('[class*="text-stc-error"]').allTextContents()
+
+    expect(
+      { uploadErrors, consoleProblems },
+      'Upload should prepare framing without browser errors',
+    ).toEqual({ uploadErrors: [], consoleProblems: [] })
+
+    await page.getByRole('button', { name: 'Lanjut ke Preview' }).click()
 
     await expect(page).toHaveURL('/review')
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
+    await expect(page.getByText('Ganti Foto')).toHaveCount(3)
+
+    const retakeChooserPromise = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Ganti foto 1' }).click()
+    const retakeChooser = await retakeChooserPromise
+    await retakeChooser.setFiles([uploadFixtures[0]])
+
+    await expect(page.getByText('Foto Pengganti', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Kembalikan Posisi' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Simpan Foto Pengganti' })).toBeVisible()
+    await page.getByRole('button', { name: 'Simpan Foto Pengganti' }).click()
+    await expect(page.getByText('Foto Pengganti', { exact: true })).toHaveCount(0)
     await expect(page.getByText('Ganti Foto')).toHaveCount(3)
 
     await page.reload()
@@ -69,7 +87,7 @@ test.describe('real browser upload flow', () => {
 
     await page.getByRole('button', { name: 'Buat Hasil' }).click()
 
-    await expect(page).toHaveURL('/output', { timeout: 20_000 })
+    await expect(page).toHaveURL(/\/output\?renderId=.+/, { timeout: 20_000 })
     const renderedStrip = page.getByRole('img', { name: 'Rendered strip' })
     await expect(renderedStrip).toBeVisible({ timeout: 20_000 })
     await expect

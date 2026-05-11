@@ -1,4 +1,4 @@
-import type { DecorationConfig, Session, Shot } from '@/db/schema'
+import type { DecorationConfig, Render, Session, Shot } from '@/db/schema'
 import { type LayoutConfig, type TemplateConfig } from '@/db/schema'
 import { db } from '@/db/schema'
 import { RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
@@ -179,16 +179,27 @@ export async function renderAndStoreSession(params: {
     savedToDeviceAt: null,
   })
 
-  await renderRepo.deleteOldRenders()
-  await db.transaction('rw', db.sessions, db.renders, async () => {
+  await db.transaction('rw', db.sessions, db.shots, db.renders, async () => {
     await sessionRepo.setFinalRender(params.sessionId, renderId)
     await sessionRepo.updateStatus(params.sessionId, 'completed')
+    await shotRepo.deleteBySession(params.sessionId)
   })
+
+  const deletedRenders = await renderRepo.deleteOldRenders()
+  const deletedSessionIds = Array.from(
+    new Set(deletedRenders.map((render) => render.sessionId).filter(Boolean)),
+  )
+
+  if (deletedSessionIds.length > 0) {
+    await db.transaction('rw', db.sessions, db.shots, async () => {
+      await Promise.all(deletedSessionIds.map((sessionId) => shotRepo.deleteBySession(sessionId)))
+      await db.sessions.bulkDelete(deletedSessionIds)
+    })
+  }
 
   return renderId
 }
 
-export async function getRenderBlobById(renderId: string): Promise<Blob | null> {
-  const render = await renderRepo.getById(renderId)
-  return render?.blob ?? null
+export async function getRenderById(renderId: string): Promise<Render | null> {
+  return (await renderRepo.getById(renderId)) ?? null
 }

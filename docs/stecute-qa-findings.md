@@ -62,7 +62,7 @@ Tanggal: 2026-05-02
 | P2 | Retake seluruh sesi dari upload flow mengembalikan user ke `/config` tanpa `source=upload`, sehingga konfigurasi berikutnya default ke kamera. | Setelah upload valid masuk review lalu klik `Ulang Semua`, URL menjadi `/config`. | Simpan source sebelum reset atau route ke `/config?source=upload` saat session sebelumnya berasal dari upload. | Open |
 | P2 | Camera capture memunculkan warning Dexie karena query `sessionId + order` tidak punya compound index. | Fake-media camera flow menghasilkan warning: query `{sessionId, order}` would benefit from compound index. Schema saat ini `shots: 'id, sessionId, order'`. | Dexie schema v2 menambah `[sessionId+order]` dan repository query memakai compound index. | Fixed 2026-05-05 |
 | P2 | Beberapa tombol ikon utama belum punya accessible name eksplisit. | Tombol back/settings/shutter/switch camera di `CameraView`, back button di config/upload/gallery hanya mengandalkan SVG atau simbol. | Tambahkan `aria-label` pada semua icon-only buttons dan test role/name untuk flow kamera. | Open |
-| P2 | Direct access atau reload ke `/output` tanpa `renderId` tetap menampilkan state sukses dan placeholder strip. | Buka `/output` langsung menampilkan `Hasil Siap!` walau tidak ada render aktual di state. | Jika tidak ada `renderId`, redirect ke gallery/review atau tampilkan empty/error state dengan CTA yang benar. | Open |
+| P2 | Direct access atau reload ke `/output` tanpa `renderId` tetap menampilkan state sukses dan placeholder strip. | Buka `/output` langsung menampilkan `Hasil Siap!` walau tidak ada render aktual di state. | Output route sekarang membutuhkan render aktif atau `renderId`, memuat render dari IndexedDB, dan menampilkan empty state dengan CTA galeri/sesi baru jika render tidak ada. | Fixed 2026-05-11 |
 | P3 | Copy konfirmasi gallery dan update prompt masih berbahasa Inggris. | `Delete this photo strip?`, `Delete all saved photo strips?`, `Update Available`, `Update Now`, `Later`. | Lokalkan ke Bahasa Indonesia dan gunakan copy yang konsisten dengan flow lain. | Open |
 | P3 | Landing masih memakai gradient text dan ambient glow dekoratif yang bertentangan dengan design anti-pattern rules. | `bg-clip-text bg-linear-to-r` di headline dan dua background glow absolut. | Ganti ke solid accent text dan dekorasi yang lebih spesifik ke photo booth/strip. | Open |
 
@@ -95,3 +95,25 @@ Tanggal: 2026-05-02
 - Playwright WebKit memiliki internal error untuk offline service-worker document navigation.
 - Playwright WebKit tidak stabil untuk membaca/decode file lokal setelah `context.setOffline(true)`. Kasus upload dan render offline di Safari tetap wajib diverifikasi di iPhone/iPad fisik.
 - Full offline event rehearsal tetap perlu dijalankan di Chrome Android fisik dan Safari iPhone/iPad fisik sebelum production GO.
+
+---
+
+## Bug dan performance pass 2026-05-11
+
+### Perubahan
+
+- `/output` tidak lagi menampilkan sukses palsu tanpa render aktual.
+- Hasil render diarahkan ke `/output?renderId=...` agar reload output bisa memuat Blob render dari IndexedDB.
+- Fixture upload E2E dipindahkan dari `public/images` ke `e2e/fixtures/images` agar tidak ikut deployment asset publik dan tidak memperbesar precache PWA.
+- Metadata SEO memakai preview WebP kecil yang memang merupakan asset publik.
+- Workbox precache dibatasi agar PNG publik non-core tidak ikut cache awal.
+- Upload dimension probe membaca header awal file terlebih dahulu, dengan fallback full read hanya untuk JPEG yang membutuhkan scan lebih jauh.
+- Preview galeri, upload, blanko, dan logo memakai async image decoding/lazy loading yang sesuai.
+
+### Verifikasi
+
+- `npm run typecheck` passed
+- `npm run lint` passed
+- `npm run test` passed: 11 tests
+- `npm run build` passed; PWA precache turun dari sekitar `4.9 MB` menjadi sekitar `630 KB`
+- `npm run test:e2e` passed: 36 passed, 3 skipped

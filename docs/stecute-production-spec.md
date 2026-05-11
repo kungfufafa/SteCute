@@ -112,10 +112,13 @@ Tidak masuk v1:
 3. User memilih jumlah foto.
 4. App meminta file sesuai jumlah slot layout aktif.
 5. App memvalidasi format, ukuran, dan jumlah file.
-6. Jika valid, user langsung masuk ke review tanpa tombol lanjut tambahan.
-7. User dapat ganti per-shot.
-8. App render final.
-9. User memilih output action yang tersedia.
+6. Jika valid, user masuk ke tahap framing lokal untuk tiap foto.
+7. User melihat clip crop sederhana: foto otomatis masuk frame dan hanya perlu diseret bila framing belum pas.
+8. Aksi foto aktif berada di panel crop, sedangkan aksi untuk semua foto berada di panel daftar foto.
+9. User lanjut ke review setelah framing siap.
+10. User dapat ganti per-shot.
+11. App render final.
+12. User memilih output action yang tersedia.
 
 ### 3.3 Flow error
 
@@ -228,6 +231,14 @@ App harus menolak file jika:
 
 - metadata orientation harus dinormalisasi saat decode
 - preview dan hasil render tidak boleh terbalik
+
+### 5.5 Framing upload lokal
+
+- File upload yang valid tidak boleh langsung dikunci ke crop tengah tanpa kesempatan review framing.
+- App menyediakan kontrol framing lokal sebelum masuk review agar foto portrait, square, dan ultrawide tetap dapat disesuaikan ke rasio slot aktif.
+- Kontrol framing minimum: clip crop dengan frame tetap, auto crop awal, drag foto langsung di dalam frame, kembalikan posisi untuk foto aktif, ganti foto per slot, dan rapikan semua foto di panel terpisah dari editor foto aktif.
+- Hasil framing disimpan sebagai raw shot sesi lokal dan tetap diproses tanpa backend.
+- Framing upload bukan kustomisasi manual pasca-capture seperti filter, sticker, frame color, date/time, atau logo text.
 
 ---
 

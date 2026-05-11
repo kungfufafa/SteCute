@@ -81,6 +81,8 @@ export async function shareBlob(blob: Blob, filename: string): Promise<boolean> 
 
   try {
     const file = new File([blob], filename, { type: blob.type })
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false
+
     await navigator.share({
       files: [file],
       title: 'Stecute Strip',
@@ -91,17 +93,18 @@ export async function shareBlob(blob: Blob, filename: string): Promise<boolean> 
   }
 }
 
-export function printBlob(blob: Blob): void {
+export function printBlob(blob: Blob): boolean {
   const url = URL.createObjectURL(blob)
   const printWindow = window.open(url, '_blank')
   if (!printWindow) {
     URL.revokeObjectURL(url)
-    return
+    return false
   }
   printWindow.onload = () => {
     printWindow.print()
     URL.revokeObjectURL(url)
   }
+  return true
 }
 
 function getLayoutFileSlug(layoutId: string): string {

@@ -608,7 +608,9 @@ sequenceDiagram
     UI->>UP: Open file picker
     UP-->>UI: Return selected files
     UI->>ORC: Validate against active layout
-    ORC->>DB: Save images as shots
+    UI->>UP: Adjust framing per slot locally
+    UP-->>UI: Return cropped blobs matching slot ratio
+    ORC->>DB: Save adjusted images as shots
     ORC-->>UI: Session complete
 ```
 
@@ -751,6 +753,8 @@ Gunakan constraints adaptif, contoh:
 - ukuran file maksimum: `10 MB` per file
 - jumlah file maksimum: `6` per sesi
 - metadata orientation harus dinormalisasi saat decode
+- sebelum masuk review, upload lokal menyediakan clip crop sederhana dengan auto crop awal, frame tetap sesuai slot, drag langsung di dalam frame, aksi foto aktif di panel crop, dan aksi semua foto di panel daftar foto agar file portrait, square, atau ultrawide tidak otomatis terkunci ke crop tengah
+- hasil framing ditulis sebagai Blob shot sesi dengan rasio yang sudah sesuai slot layout aktif
 
 ### 12.4 Capture pipeline
 

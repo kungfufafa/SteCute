@@ -283,6 +283,7 @@ Acceptance criteria:
 
 - Pengguna dapat memilih beberapa file gambar lokal sebagai alternatif kamera.
 - Gambar lokal mengikuti jumlah slot layout aktif.
+- Setelah memilih file valid, pengguna dapat mengatur framing tiap foto sebelum masuk review agar rasio file yang berbeda tetap fit dengan slot layout.
 
 Acceptance criteria:
 
@@ -290,6 +291,7 @@ Acceptance criteria:
 - Jika jumlah file kurang dari jumlah slot, sistem memberi panduan yang jelas.
 - Format yang diterima dibatasi ke JPG, PNG, atau WebP.
 - Ukuran file maksimum 10 MB per file.
+- Framing upload berjalan lokal di browser dengan pola clip crop sederhana: foto otomatis masuk ke frame, pengguna cukup seret foto jika perlu, aksi foto aktif hanya berisi kembalikan posisi dan ganti foto, sedangkan aksi untuk semua foto dipisah di area daftar foto.
 
 ### FR-06 Review, render, and retake
 

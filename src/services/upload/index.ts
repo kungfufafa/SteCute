@@ -12,21 +12,92 @@ export const DEFAULT_UPLOAD_CONSTRAINTS: UploadConstraints = {
   acceptedTypes: ['image/jpeg', 'image/png', 'image/webp'],
 }
 
+const HEADER_READ_BYTES = 256 * 1024
+const DEFAULT_ADJUSTED_IMAGE_TYPE = 'image/jpeg'
+const DEFAULT_ADJUSTED_IMAGE_QUALITY = 0.92
+
 export interface ValidationResult {
   valid: boolean
   errors: string[]
 }
 
+export interface UploadImageAdjustment {
+  fit: 'cover' | 'contain'
+  zoom: number
+  offsetX: number
+  offsetY: number
+}
+
+export interface AdjustedImageOptions {
+  targetWidth: number
+  targetHeight: number
+  adjustment: UploadImageAdjustment
+  type?: 'image/jpeg' | 'image/png' | 'image/webp'
+  quality?: number
+}
+
+export interface CropRect {
+  sx: number
+  sy: number
+  sw: number
+  sh: number
+}
+
+interface DecodedUploadImage {
+  source: CanvasImageSource
+  width: number
+  height: number
+  cleanup: () => void
+}
+
+export const DEFAULT_UPLOAD_IMAGE_ADJUSTMENT: UploadImageAdjustment = {
+  fit: 'cover',
+  zoom: 1,
+  offsetX: 0,
+  offsetY: 0,
+}
+
+export function createAutoUploadImageAdjustment(
+  imageWidth: number,
+  imageHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+): UploadImageAdjustment {
+  const imageRatio = imageWidth / imageHeight
+  const targetRatio = targetWidth / targetHeight
+
+  if (imageRatio < targetRatio * 0.72) {
+    return {
+      fit: 'cover',
+      zoom: 1.08,
+      offsetX: 0,
+      offsetY: -0.42,
+    }
+  }
+
+  if (imageRatio < targetRatio * 0.92) {
+    return {
+      fit: 'cover',
+      zoom: 1.02,
+      offsetX: 0,
+      offsetY: -0.24,
+    }
+  }
+
+  return { ...DEFAULT_UPLOAD_IMAGE_ADJUSTMENT }
+}
+
 export function validateFiles(files: File[], slotCount: number): ValidationResult {
   const errors: string[] = []
   const constraints = DEFAULT_UPLOAD_CONSTRAINTS
+  const maxFiles = Math.max(constraints.maxFiles, slotCount)
 
   if (files.length === 0) {
     return { valid: false, errors: ['Belum ada file yang dipilih.'] }
   }
 
-  if (files.length > constraints.maxFiles) {
-    errors.push(`Maksimal ${constraints.maxFiles} file per sesi. Kamu memilih ${files.length}.`)
+  if (files.length > maxFiles) {
+    errors.push(`Maksimal ${maxFiles} file per sesi. Kamu memilih ${files.length}.`)
   }
 
   if (files.length !== slotCount) {
@@ -50,12 +121,26 @@ export function validateFile(file: File): ValidationResult {
 }
 
 export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
+  if (file.type === 'image/jpeg') {
+    const decodedDimensions = await getImageDimensionsFromDecode(file)
+    if (decodedDimensions) return decodedDimensions
+  }
+
   const headerDimensions = await getImageDimensionsFromHeader(file)
   if (headerDimensions) return headerDimensions
 
+  const decodedDimensions = await getImageDimensionsFromDecode(file)
+  if (decodedDimensions) return decodedDimensions
+
+  return getImageDimensionsViaObjectUrl(file)
+}
+
+async function getImageDimensionsFromDecode(
+  file: File,
+): Promise<{ width: number; height: number } | null> {
   if (typeof createImageBitmap === 'function') {
     try {
-      const bitmap = await createImageBitmap(file)
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
       const dimensions = { width: bitmap.width, height: bitmap.height }
       bitmap.close()
       return dimensions
@@ -64,7 +149,7 @@ export async function getImageDimensions(file: File): Promise<{ width: number; h
     }
   }
 
-  return getImageDimensionsViaObjectUrl(file)
+  return null
 }
 
 export async function createStoredImageBlob(file: File): Promise<Blob> {
@@ -75,10 +160,109 @@ export async function createStoredImageBlob(file: File): Promise<Blob> {
   }
 }
 
+export function clampUploadImageAdjustment(
+  adjustment: Partial<UploadImageAdjustment> | undefined,
+): UploadImageAdjustment {
+  return {
+    fit: adjustment?.fit === 'contain' ? 'contain' : DEFAULT_UPLOAD_IMAGE_ADJUSTMENT.fit,
+    zoom: clamp(adjustment?.zoom ?? DEFAULT_UPLOAD_IMAGE_ADJUSTMENT.zoom, 1, 3),
+    offsetX: clamp(adjustment?.offsetX ?? DEFAULT_UPLOAD_IMAGE_ADJUSTMENT.offsetX, -1, 1),
+    offsetY: clamp(adjustment?.offsetY ?? DEFAULT_UPLOAD_IMAGE_ADJUSTMENT.offsetY, -1, 1),
+  }
+}
+
+export function getAdjustedCropRect(
+  imageWidth: number,
+  imageHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+  adjustment: Partial<UploadImageAdjustment> | undefined,
+): CropRect {
+  const normalized = clampUploadImageAdjustment(adjustment)
+  const targetRatio = targetWidth / targetHeight
+  const imageRatio = imageWidth / imageHeight
+
+  let baseCropWidth = imageWidth
+  let baseCropHeight = imageHeight
+
+  if (imageRatio > targetRatio) {
+    baseCropWidth = imageHeight * targetRatio
+  } else {
+    baseCropHeight = imageWidth / targetRatio
+  }
+
+  const sw = Math.min(imageWidth, baseCropWidth / normalized.zoom)
+  const sh = Math.min(imageHeight, baseCropHeight / normalized.zoom)
+  const maxSx = Math.max(0, imageWidth - sw)
+  const maxSy = Math.max(0, imageHeight - sh)
+  const sx = clamp(maxSx / 2 + (normalized.offsetX * maxSx) / 2, 0, maxSx)
+  const sy = clamp(maxSy / 2 + (normalized.offsetY * maxSy) / 2, 0, maxSy)
+
+  return { sx, sy, sw, sh }
+}
+
+export async function createAdjustedImageBlob(
+  file: File,
+  options: AdjustedImageOptions,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const image = await decodeUploadImage(file)
+
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(options.targetWidth))
+    canvas.height = Math.max(1, Math.round(options.targetHeight))
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Gagal menyiapkan kanvas untuk framing foto.')
+
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+
+    const type = options.type ?? DEFAULT_ADJUSTED_IMAGE_TYPE
+    if (type === 'image/jpeg') {
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+    }
+
+    const adjustment = clampUploadImageAdjustment(options.adjustment)
+
+    if (adjustment.fit === 'contain') {
+      drawContainedImage(ctx, image, canvas.width, canvas.height)
+    } else {
+      const crop = getAdjustedCropRect(
+        image.width,
+        image.height,
+        canvas.width,
+        canvas.height,
+        adjustment,
+      )
+
+      ctx.drawImage(
+        image.source,
+        crop.sx,
+        crop.sy,
+        crop.sw,
+        crop.sh,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      )
+    }
+
+    const blob = await canvasToBlob(canvas, type, options.quality ?? DEFAULT_ADJUSTED_IMAGE_QUALITY)
+
+    return { blob, width: canvas.width, height: canvas.height }
+  } finally {
+    image.cleanup()
+  }
+}
+
 async function getImageDimensionsFromHeader(
   file: File,
 ): Promise<{ width: number; height: number } | null> {
-  const view = new DataView(await readBlobAsArrayBuffer(file))
+  const headerBlob = file.slice(0, Math.min(file.size, HEADER_READ_BYTES), file.type)
+  const view = new DataView(await readBlobAsArrayBuffer(headerBlob))
 
   if (isPng(view)) {
     return {
@@ -88,7 +272,11 @@ async function getImageDimensionsFromHeader(
   }
 
   if (isJpeg(view)) {
-    return getJpegDimensions(view)
+    const dimensions = getJpegDimensions(view)
+
+    if (dimensions || file.size <= HEADER_READ_BYTES) return dimensions
+
+    return getJpegDimensions(new DataView(await readBlobAsArrayBuffer(file)))
   }
 
   if (isWebp(view)) {
@@ -140,7 +328,9 @@ function getJpegDimensions(view: DataView): { width: number; height: number } | 
 }
 
 function isWebp(view: DataView): boolean {
-  return view.byteLength >= 30 && readAscii(view, 0, 4) === 'RIFF' && readAscii(view, 8, 4) === 'WEBP'
+  return (
+    view.byteLength >= 30 && readAscii(view, 0, 4) === 'RIFF' && readAscii(view, 8, 4) === 'WEBP'
+  )
 }
 
 function getWebpDimensions(view: DataView): { width: number; height: number } | null {
@@ -190,7 +380,113 @@ function readAscii(view: DataView, offset: number, length: number): string {
 }
 
 function readUint24(view: DataView, offset: number): number {
-  return view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+  return (
+    view.getUint8(offset) | (view.getUint8(offset + 1) << 8) | (view.getUint8(offset + 2) << 16)
+  )
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value))
+}
+
+function drawContainedImage(
+  ctx: CanvasRenderingContext2D,
+  image: DecodedUploadImage,
+  width: number,
+  height: number,
+) {
+  ctx.fillStyle = '#fff7fa'
+  ctx.fillRect(0, 0, width, height)
+
+  const backgroundCrop = getAdjustedCropRect(image.width, image.height, width, height, {
+    fit: 'cover',
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+  })
+
+  ctx.save()
+  ctx.globalAlpha = 0.2
+  ctx.filter = 'blur(18px) saturate(1.05)'
+  ctx.drawImage(
+    image.source,
+    backgroundCrop.sx,
+    backgroundCrop.sy,
+    backgroundCrop.sw,
+    backgroundCrop.sh,
+    -32,
+    -32,
+    width + 64,
+    height + 64,
+  )
+  ctx.restore()
+
+  const scale = Math.min(width / image.width, height / image.height)
+  const drawWidth = image.width * scale
+  const drawHeight = image.height * scale
+  const drawX = (width - drawWidth) / 2
+  const drawY = (height - drawHeight) / 2
+
+  ctx.drawImage(image.source, 0, 0, image.width, image.height, drawX, drawY, drawWidth, drawHeight)
+}
+
+async function decodeUploadImage(file: File): Promise<DecodedUploadImage> {
+  if (typeof createImageBitmap === 'function') {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        cleanup: () => bitmap.close(),
+      }
+    } catch {
+      // Fall back to HTMLImageElement decoding for browsers with partial ImageBitmap support.
+    }
+  }
+
+  const url = URL.createObjectURL(file)
+
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+
+    image.onload = () => {
+      resolve({
+        source: image,
+        width: image.naturalWidth,
+        height: image.naturalHeight,
+        cleanup: () => URL.revokeObjectURL(url),
+      })
+    }
+
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error(`Failed to decode ${file.name}`))
+    }
+
+    image.src = url
+  })
+}
+
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: 'image/jpeg' | 'image/png' | 'image/webp',
+  quality: number,
+): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob)
+          return
+        }
+
+        reject(new Error('Gagal membuat file foto hasil framing.'))
+      },
+      type,
+      quality,
+    )
+  })
 }
 
 function getImageDimensionsViaObjectUrl(file: File): Promise<{ width: number; height: number }> {

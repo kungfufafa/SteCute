@@ -1,12 +1,24 @@
 import { db, type TemplateRecord, type TemplateConfig } from '../schema'
+import { restoreIndexedDbBlob, writeBlobWithFallback } from '../blob'
+
+function restoreTemplateBlob(record: TemplateRecord): TemplateRecord {
+  if (!record.assetBlob) return record
+
+  return {
+    ...record,
+    assetBlob: restoreIndexedDbBlob(record.assetBlob),
+  }
+}
 
 export class TemplateRepository {
   async getAll(): Promise<TemplateRecord[]> {
-    return db.templates.toArray()
+    const templates = await db.templates.toArray()
+    return templates.map(restoreTemplateBlob)
   }
 
   async getById(id: string): Promise<TemplateRecord | undefined> {
-    return db.templates.get(id)
+    const template = await db.templates.get(id)
+    return template ? restoreTemplateBlob(template) : undefined
   }
 
   async getTemplateConfig(id: string): Promise<TemplateConfig | undefined> {
@@ -15,12 +27,19 @@ export class TemplateRepository {
   }
 
   async upsert(record: Omit<TemplateRecord, 'updatedAt'>): Promise<void> {
-    await db.templates.put({ ...record, updatedAt: Date.now() })
+    const template = { ...record, updatedAt: Date.now() }
+
+    if (!record.assetBlob) {
+      await db.templates.put(template)
+      return
+    }
+
+    await writeBlobWithFallback(record.assetBlob, (assetBlob) =>
+      db.templates.put({ ...template, assetBlob }),
+    )
   }
 
   async seed(templates: Omit<TemplateRecord, 'updatedAt'>[]): Promise<void> {
-    const now = Date.now()
-    const records = templates.map((t) => ({ ...t, updatedAt: now }))
-    await db.templates.bulkPut(records)
+    await Promise.all(templates.map((template) => this.upsert(template)))
   }
 }

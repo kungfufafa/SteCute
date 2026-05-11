@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   createDefaultDecorationConfig,
-  getRenderBlobById,
+  getRenderById,
+  getSessionSnapshot,
   getSessionShots,
   resetSessionData,
 } from '@/services/session'
@@ -21,21 +22,20 @@ import {
   shareBlob,
 } from '@/services/output'
 import { ui } from '@/ui/styles'
-import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
+const route = useRoute()
 const sessionStore = useSessionStore()
 const customTemplateStore = useCustomTemplateStore()
 const capabilities = detectOutputCapabilities()
 const isBusy = ref(false)
+const isLoadingOutput = ref(true)
+const outputError = ref<string | null>(null)
+const outputActionNotice = ref<string | null>(null)
+const outputActionError = ref<string | null>(null)
 const showMoreActions = ref(false)
 
-const activeTemplate = computed(
-  () =>
-    customTemplateStore.getTemplateById(sessionStore.templateId) ??
-    getTemplateById(sessionStore.templateId),
-)
 const layout = computed(
   () =>
     customTemplateStore.getLayoutById(sessionStore.layoutId) ??
@@ -79,10 +79,16 @@ async function getOutputBlob(): Promise<Blob> {
 
 async function handleDownload() {
   isBusy.value = true
+  outputActionError.value = null
+  outputActionNotice.value = null
   try {
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
     await downloadBlob(blob, filename)
+    outputActionNotice.value = 'Download dimulai.'
+  } catch (error) {
+    console.error('Download failed:', error)
+    outputActionError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
   } finally {
     isBusy.value = false
   }
@@ -90,10 +96,19 @@ async function handleDownload() {
 
 async function handleShare() {
   isBusy.value = true
+  outputActionError.value = null
+  outputActionNotice.value = null
   try {
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
-    await shareBlob(blob, filename)
+    const shared = await shareBlob(blob, filename)
+    if (!shared) {
+      outputActionError.value =
+        'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
+    }
+  } catch (error) {
+    console.error('Share failed:', error)
+    outputActionError.value = 'Gagal membuka share sheet. Gunakan download sebagai fallback.'
   } finally {
     isBusy.value = false
   }
@@ -101,10 +116,21 @@ async function handleShare() {
 
 async function handleSave() {
   isBusy.value = true
+  outputActionError.value = null
+  outputActionNotice.value = null
   try {
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
-    await saveBlob(blob, filename)
+    const saved = await saveBlob(blob, filename)
+    if (saved) {
+      outputActionNotice.value = 'Hasil berhasil disimpan.'
+    } else {
+      outputActionError.value =
+        'Save to device tidak tersedia atau dibatalkan. Download tetap bisa dipakai.'
+    }
+  } catch (error) {
+    console.error('Save failed:', error)
+    outputActionError.value = 'Gagal menyimpan hasil. Gunakan download sebagai fallback.'
   } finally {
     isBusy.value = false
   }
@@ -112,9 +138,17 @@ async function handleSave() {
 
 async function handlePrint() {
   isBusy.value = true
+  outputActionError.value = null
+  outputActionNotice.value = null
   try {
     const blob = await getOutputBlob()
-    printBlob(blob)
+    const opened = printBlob(blob)
+    if (!opened) {
+      outputActionError.value = 'Popup print diblokir browser. Izinkan popup atau gunakan download.'
+    }
+  } catch (error) {
+    console.error('Print failed:', error)
+    outputActionError.value = 'Gagal membuka print preview. Gunakan download sebagai fallback.'
   } finally {
     isBusy.value = false
   }
@@ -136,15 +170,58 @@ async function handleNewSession() {
   router.push('/')
 }
 
+function getActiveRenderId() {
+  const routeRenderId = route.query.renderId
+
+  if (typeof routeRenderId === 'string' && routeRenderId.trim()) {
+    return routeRenderId
+  }
+
+  return sessionStore.renderId
+}
+
+async function loadOutputRender() {
+  isLoadingOutput.value = true
+  outputError.value = null
+
+  const renderId = getActiveRenderId()
+
+  if (!renderId) {
+    outputError.value = 'Hasil akhir tidak ditemukan. Buka galeri atau mulai sesi baru.'
+    isLoadingOutput.value = false
+    return
+  }
+
+  try {
+    const render = await getRenderById(renderId)
+
+    if (!render) {
+      outputError.value = 'Hasil akhir tidak ditemukan di penyimpanan lokal.'
+      return
+    }
+
+    const snapshot = await getSessionSnapshot(render.sessionId)
+
+    if (snapshot) {
+      sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
+    } else {
+      sessionStore.setRenderId(renderId)
+      sessionStore.setCompleted()
+    }
+
+    outputBlob.value = render.blob
+    revokePreviewUrl()
+    previewUrl.value = URL.createObjectURL(render.blob)
+  } catch (error) {
+    console.error('Failed to load output render:', error)
+    outputError.value = 'Gagal memuat hasil akhir. Coba buka dari galeri.'
+  } finally {
+    isLoadingOutput.value = false
+  }
+}
+
 onMounted(async () => {
-  if (!sessionStore.renderId) return
-
-  const blob = await getRenderBlobById(sessionStore.renderId)
-  if (!blob) return
-
-  outputBlob.value = blob
-  revokePreviewUrl()
-  previewUrl.value = URL.createObjectURL(blob)
+  await loadOutputRender()
 })
 
 onBeforeUnmount(() => {
@@ -154,7 +231,57 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="ui.page">
-    <div :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']">
+    <div
+      v-if="isLoadingOutput"
+      :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']"
+    >
+      <div class="flex flex-col items-center space-y-3 text-center">
+        <div
+          class="bg-stc-pink-soft text-stc-pink shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
+        >
+          <div
+            class="border-r-stc-pink/30 border-t-stc-pink size-8 animate-spin rounded-full border-[3px] border-transparent"
+          ></div>
+        </div>
+        <div>
+          <h3 :class="[ui.title, 'text-2xl']">Memuat Hasil</h3>
+          <p :class="ui.subtitle">Mengambil photo strip dari penyimpanan lokal.</p>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-else-if="outputError"
+      :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']"
+    >
+      <div class="flex flex-col items-center space-y-3 text-center">
+        <div
+          class="bg-stc-warning-soft text-stc-warning shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
+        >
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <div>
+          <h3 :class="[ui.title, 'text-2xl']">Hasil Tidak Ditemukan</h3>
+          <p :class="ui.subtitle">{{ outputError }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div v-else :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']">
       <div class="flex flex-col items-center space-y-3 text-center">
         <div
           class="bg-stc-success-soft text-stc-success shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
@@ -182,7 +309,38 @@ onBeforeUnmount(() => {
     <FlowProgress current="output" :source="sessionStore.captureSource" />
 
     <div :class="[ui.content, 'flex flex-col']">
-      <div :class="[ui.pageContent, 'items-center gap-8']">
+      <div v-if="isLoadingOutput" :class="[ui.pageContent, 'items-center gap-8']">
+        <div :class="ui.emptyPanel">
+          <div :class="ui.surfaceIcon">
+            <div
+              class="border-r-stc-pink/30 border-t-stc-pink size-8 animate-spin rounded-full border-[3px] border-transparent"
+            ></div>
+          </div>
+          <h4 class="text-stc-text text-xl font-bold">Menyiapkan Preview</h4>
+          <p
+            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
+          >
+            Hasil akan muncul setelah data lokal selesai dibaca.
+          </p>
+        </div>
+      </div>
+
+      <div v-else-if="outputError" :class="[ui.pageContent, 'items-center gap-8']">
+        <div :class="ui.emptyPanel">
+          <h4 class="text-stc-text text-xl font-bold">Belum Ada Hasil Aktif</h4>
+          <p
+            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
+          >
+            Buka galeri untuk melihat render yang tersimpan, atau mulai sesi baru.
+          </p>
+          <div class="mt-8 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+            <button :class="ui.secondaryButton" @click="handleGallery">Buka Galeri</button>
+            <button :class="ui.primaryButton" @click="handleNewSession">Mulai Foto</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else :class="[ui.pageContent, 'items-center gap-8']">
         <div
           class="flex w-full justify-center transition-transform duration-300 hover:scale-[1.02]"
         >
@@ -191,13 +349,20 @@ onBeforeUnmount(() => {
             :src="previewUrl"
             alt="Rendered strip"
             class="rendered-strip block h-auto"
+            decoding="async"
           />
-          <StripCanvasPreview
-            v-else
-            :layout="layout"
-            :template-config="activeTemplate"
-            fit-viewport
-          />
+        </div>
+
+        <div
+          v-if="outputActionError || outputActionNotice"
+          class="shadow-stc-xs w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-medium"
+          :class="
+            outputActionError
+              ? 'border-stc-error/30 bg-stc-error-soft text-stc-error'
+              : 'border-stc-success/30 bg-stc-success-soft text-stc-success'
+          "
+        >
+          {{ outputActionError ?? outputActionNotice }}
         </div>
 
         <div :class="[ui.bottomActions, 'mt-auto max-w-xl !flex-col justify-center sm:!flex-col']">

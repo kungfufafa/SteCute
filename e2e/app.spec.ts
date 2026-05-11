@@ -46,6 +46,14 @@ test.describe('Stecute app smoke', () => {
     await expect(page.getByRole('button', { name: 'Mulai Foto' })).toBeVisible()
   })
 
+  test('shows an empty output state without an active render', async ({ page }) => {
+    await page.goto('/output')
+
+    await expect(page.getByRole('heading', { name: 'Hasil Tidak Ditemukan' })).toBeVisible()
+    await expect(page.getByText('Photo strip kamu sudah jadi')).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Buka Galeri' })).toBeVisible()
+  })
+
   test('exposes public transparency pages', async ({ page }) => {
     const pages = [
       {

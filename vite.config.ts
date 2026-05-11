@@ -4,6 +4,10 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
+function isPublicImagePng(url: string) {
+  return /^images\/[^/]+\.png$/.test(url)
+}
+
 export default defineConfig({
   plugins: [
     vue(),
@@ -46,9 +50,27 @@ export default defineConfig({
           },
         ],
       },
+      integration: {
+        beforeBuildServiceWorker(options) {
+          options.workbox.additionalManifestEntries = (
+            options.workbox.additionalManifestEntries ?? []
+          ).filter((entry) => !isPublicImagePng(typeof entry === 'string' ? entry : entry.url))
+        },
+      },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2,webp}'],
-        globIgnores: ['**/images/*.png'],
+        globPatterns: [
+          '**/*.{js,css,html,ico,svg,woff2,webp}',
+          'icons/*.png',
+          'manifest/*.webmanifest',
+          'manifest.webmanifest',
+        ],
+        globIgnores: ['images/*.png', '**/images/*.png'],
+        manifestTransforms: [
+          async (entries) => ({
+            manifest: entries.filter((entry) => !isPublicImagePng(entry.url)),
+            warnings: [],
+          }),
+        ],
         runtimeCaching: [],
       },
     }),
