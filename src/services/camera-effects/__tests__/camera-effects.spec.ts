@@ -11,7 +11,12 @@ import {
 
 describe('camera effects', () => {
   it('exposes local camera overlay presets', () => {
-    expect(CAMERA_EFFECTS.map((effect) => effect.id)).toEqual(['none', 'hearts', 'bluebirds'])
+    expect(CAMERA_EFFECTS.map((effect) => effect.id)).toEqual([
+      'none',
+      'hearts',
+      'bluebirds',
+      'kicau-mania',
+    ])
   })
 
   it('falls back to no overlay for unknown ids', () => {
@@ -22,6 +27,7 @@ describe('camera effects', () => {
   it('identifies face-tracking effects correctly', () => {
     expect(isFaceTrackingEffect('hearts')).toBe(true)
     expect(isFaceTrackingEffect('bluebirds')).toBe(true)
+    expect(isFaceTrackingEffect('kicau-mania')).toBe(true)
     expect(isFaceTrackingEffect('sparkles')).toBe(false)
     expect(isFaceTrackingEffect('none')).toBe(false)
     expect(isFaceTrackingEffect(null)).toBe(false)
@@ -55,5 +61,17 @@ describe('camera effects', () => {
       'bird-large-2',
       'bird-large-3',
     ])
+
+    const kicauManiaAssetKeys = getCameraEffectAssetManifest('kicau-mania').map(
+      (asset) => asset.key,
+    )
+
+    expect(kicauManiaAssetKeys).toHaveLength(53)
+    expect(kicauManiaAssetKeys.slice(0, 3)).toEqual([
+      'kicau-mania-0',
+      'kicau-mania-1',
+      'kicau-mania-2',
+    ])
+    expect(kicauManiaAssetKeys[52]).toBe('kicau-mania-52')
   })
 })

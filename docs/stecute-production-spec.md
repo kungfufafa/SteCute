@@ -41,7 +41,7 @@ Fitur yang wajib ada:
 - pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
 - upload blanko strip lokal sebelum capture
 - preset filter kamera lokal sebelum capture, dengan efek yang sama dipakai di preview kamera, preview review, dan render final
-- preset overlay kamera lokal sebelum capture, yaitu `hearts` dan `bluebirds`, berbasis sprite PNG bundled dari resource Photo Booth lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final
+- preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, dan `kicau-mania`, berbasis sprite PNG bundled lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`

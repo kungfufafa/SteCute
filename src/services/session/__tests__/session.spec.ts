@@ -31,6 +31,9 @@ describe('session decoration config', () => {
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'hearts' }).cameraEffectId,
     ).toBe('hearts')
     expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'kicau-mania' }).cameraEffectId,
+    ).toBe('kicau-mania')
+    expect(
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'unknown' }).cameraEffectId,
     ).toBe('none')
   })

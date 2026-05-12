@@ -1,33 +1,53 @@
 import type { FaceBounds } from '@/services/face-tracking'
 
-const PHOTO_BOOTH_ASSET_URLS = {
+const LOCAL_CAMERA_EFFECT_ASSET_URLS = {
   hearts: {
-    small: new URL('../../assets/camera-effects/photo-booth/smallHeart.png', import.meta.url).href,
-    medium: new URL('../../assets/camera-effects/photo-booth/mediumHeart.png', import.meta.url)
-      .href,
-    large: new URL('../../assets/camera-effects/photo-booth/largeHeart.png', import.meta.url).href,
+    small: new URL('../../assets/camera-effects/hearts/smallHeart.png', import.meta.url).href,
+    medium: new URL('../../assets/camera-effects/hearts/mediumHeart.png', import.meta.url).href,
+    large: new URL('../../assets/camera-effects/hearts/largeHeart.png', import.meta.url).href,
   },
   birds: {
     small: [
-      new URL('../../assets/camera-effects/photo-booth/birdSmall0.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdSmall1.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdSmall2.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdSmall3.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdSmall0.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdSmall1.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdSmall2.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdSmall3.png', import.meta.url).href,
     ],
     medium: [
-      new URL('../../assets/camera-effects/photo-booth/birdMedium0.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdMedium1.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdMedium2.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdMedium3.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdMedium0.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdMedium1.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdMedium2.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdMedium3.png', import.meta.url).href,
     ],
     large: [
-      new URL('../../assets/camera-effects/photo-booth/birdLarge0.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdLarge1.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdLarge2.png', import.meta.url).href,
-      new URL('../../assets/camera-effects/photo-booth/birdLarge3.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdLarge0.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdLarge1.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdLarge2.png', import.meta.url).href,
+      new URL('../../assets/camera-effects/bluebirds/birdLarge3.png', import.meta.url).href,
     ],
   },
 } as const
+
+const KICAU_MANIA_ASSET_URLS = Object.entries(
+  import.meta.glob<string>('../../assets/camera-effects/kicau-mania/kicauMania*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url',
+  }),
+)
+  .sort(([left], [right]) => left.localeCompare(right))
+  .map(([, url]) => url)
+
+const KICAU_MANIA_FRAME_DURATIONS_MS = [
+  60, 130, 60, 60, 130, 60, 60, 130, 60, 60, 130, 60, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70,
+  120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120,
+  60, 70, 120, 60, 70, 120, 60, 70,
+] as const
+
+const KICAU_MANIA_SOURCE_LOOP_MS = KICAU_MANIA_FRAME_DURATIONS_MS.reduce(
+  (total, duration) => total + duration,
+  0,
+)
 
 export interface CameraEffectConfig {
   id: string
@@ -59,6 +79,13 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #38bdf8 52%, #1d4ed8 100%)',
     faceTracking: true,
   },
+  {
+    id: 'kicau-mania',
+    label: 'Kicau Mania',
+    description: 'Kucing scuba dance yang loncat kecil di area atas foto.',
+    previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #22d3ee 46%, #ec4899 100%)',
+    faceTracking: true,
+  },
 ]
 
 type CameraEffectContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -76,7 +103,7 @@ interface EffectMark {
   phase?: number
 }
 
-export type PhotoBoothAssetKey =
+export type CameraEffectAssetKey =
   | 'heart-small'
   | 'heart-medium'
   | 'heart-large'
@@ -92,9 +119,12 @@ export type PhotoBoothAssetKey =
   | 'bird-large-1'
   | 'bird-large-2'
   | 'bird-large-3'
+  | `kicau-mania-${number}`
+
+export type PhotoBoothAssetKey = CameraEffectAssetKey
 
 export interface CameraEffectAsset {
-  key: PhotoBoothAssetKey
+  key: CameraEffectAssetKey
   url: string
 }
 
@@ -108,26 +138,30 @@ export const CAMERA_EFFECT_LOOP_MS = 2400
 
 const EFFECT_BY_ID = new Map(CAMERA_EFFECTS.map((effect) => [effect.id, effect]))
 const HEART_ASSETS: CameraEffectAsset[] = [
-  { key: 'heart-small', url: PHOTO_BOOTH_ASSET_URLS.hearts.small },
-  { key: 'heart-medium', url: PHOTO_BOOTH_ASSET_URLS.hearts.medium },
-  { key: 'heart-large', url: PHOTO_BOOTH_ASSET_URLS.hearts.large },
+  { key: 'heart-small', url: LOCAL_CAMERA_EFFECT_ASSET_URLS.hearts.small },
+  { key: 'heart-medium', url: LOCAL_CAMERA_EFFECT_ASSET_URLS.hearts.medium },
+  { key: 'heart-large', url: LOCAL_CAMERA_EFFECT_ASSET_URLS.hearts.large },
 ]
 const BIRD_ASSETS = {
-  small: PHOTO_BOOTH_ASSET_URLS.birds.small.map((url, index) => ({
-    key: `bird-small-${index}` as PhotoBoothAssetKey,
+  small: LOCAL_CAMERA_EFFECT_ASSET_URLS.birds.small.map((url, index) => ({
+    key: `bird-small-${index}` as CameraEffectAssetKey,
     url,
   })),
-  medium: PHOTO_BOOTH_ASSET_URLS.birds.medium.map((url, index) => ({
-    key: `bird-medium-${index}` as PhotoBoothAssetKey,
+  medium: LOCAL_CAMERA_EFFECT_ASSET_URLS.birds.medium.map((url, index) => ({
+    key: `bird-medium-${index}` as CameraEffectAssetKey,
     url,
   })),
-  large: PHOTO_BOOTH_ASSET_URLS.birds.large.map((url, index) => ({
-    key: `bird-large-${index}` as PhotoBoothAssetKey,
+  large: LOCAL_CAMERA_EFFECT_ASSET_URLS.birds.large.map((url, index) => ({
+    key: `bird-large-${index}` as CameraEffectAssetKey,
     url,
   })),
 }
-const loadedAssets = new Map<PhotoBoothAssetKey, LoadedCameraEffectAsset | null>()
-const loadingAssets = new Map<PhotoBoothAssetKey, Promise<LoadedCameraEffectAsset | null>>()
+const KICAU_MANIA_ASSETS: CameraEffectAsset[] = KICAU_MANIA_ASSET_URLS.map((url, index) => ({
+  key: `kicau-mania-${index}` as CameraEffectAssetKey,
+  url,
+}))
+const loadedAssets = new Map<CameraEffectAssetKey, LoadedCameraEffectAsset | null>()
+const loadingAssets = new Map<CameraEffectAssetKey, Promise<LoadedCameraEffectAsset | null>>()
 
 export function getCameraEffectById(effectId?: string | null): CameraEffectConfig {
   return EFFECT_BY_ID.get(effectId ?? '') ?? CAMERA_EFFECTS[0]
@@ -155,6 +189,7 @@ export function getCameraEffectAssetManifest(effectId?: string | null): CameraEf
   if (normalizedEffectId === 'hearts') return HEART_ASSETS
   if (normalizedEffectId === 'bluebirds')
     return [...BIRD_ASSETS.small, ...BIRD_ASSETS.medium, ...BIRD_ASSETS.large]
+  if (normalizedEffectId === 'kicau-mania') return [...KICAU_MANIA_ASSETS]
 
   return []
 }
@@ -228,7 +263,9 @@ async function loadCanvasImageSource(url: string): Promise<LoadedCameraEffectAss
   return null
 }
 
-function getLoadedCameraEffectAsset(key: PhotoBoothAssetKey): LoadedCameraEffectAsset | undefined {
+function getLoadedCameraEffectAsset(
+  key: CameraEffectAssetKey,
+): LoadedCameraEffectAsset | undefined {
   return loadedAssets.get(key) ?? undefined
 }
 
@@ -251,10 +288,27 @@ function getBirdAsset(
   const frameIndex = Math.floor(normalizedPhase * 4) % 4
 
   if (displayWidth <= 62)
-    return getLoadedCameraEffectAsset(`bird-small-${frameIndex}` as PhotoBoothAssetKey)
+    return getLoadedCameraEffectAsset(`bird-small-${frameIndex}` as CameraEffectAssetKey)
   if (displayWidth <= 86)
-    return getLoadedCameraEffectAsset(`bird-medium-${frameIndex}` as PhotoBoothAssetKey)
-  return getLoadedCameraEffectAsset(`bird-large-${frameIndex}` as PhotoBoothAssetKey)
+    return getLoadedCameraEffectAsset(`bird-medium-${frameIndex}` as CameraEffectAssetKey)
+  return getLoadedCameraEffectAsset(`bird-large-${frameIndex}` as CameraEffectAssetKey)
+}
+
+function getKicauManiaAsset(frameProgress: number): LoadedCameraEffectAsset | undefined {
+  const normalizedProgress = ((frameProgress % 1) + 1) % 1
+  const sourceTimeMs = normalizedProgress * KICAU_MANIA_SOURCE_LOOP_MS
+  let frameIndex = 0
+  let elapsedMs = 0
+
+  for (let index = 0; index < KICAU_MANIA_FRAME_DURATIONS_MS.length; index += 1) {
+    elapsedMs += KICAU_MANIA_FRAME_DURATIONS_MS[index]
+    if (sourceTimeMs <= elapsedMs) {
+      frameIndex = index
+      break
+    }
+  }
+
+  return getLoadedCameraEffectAsset(`kicau-mania-${frameIndex}` as CameraEffectAssetKey)
 }
 
 export function drawCameraEffect(
@@ -438,6 +492,22 @@ function drawBlueBird(ctx: CameraEffectContext, size: number, wingPhase = 0) {
   ctx.restore()
 }
 
+function drawKicauManiaSprite(ctx: CameraEffectContext, size: number, frameProgress = 0) {
+  const displayWidth = size * 3.35
+  const birdAsset = getKicauManiaAsset(frameProgress)
+
+  if (birdAsset) {
+    ctx.save()
+    ctx.shadowColor = 'rgba(8, 145, 178, 0.2)'
+    ctx.shadowBlur = size * 0.18
+    drawEffectImage(ctx, birdAsset, displayWidth)
+    ctx.restore()
+    return
+  }
+
+  drawBlueBird(ctx, size, frameProgress)
+}
+
 function drawHeartEcho(ctx: CameraEffectContext, size: number, opacity: number) {
   const displayWidth = size * 2.05
   const heartAsset = getHeartAsset(displayWidth)
@@ -510,6 +580,7 @@ export function drawFaceTrackingEffect(
     else if (effectId === 'ft-flower') drawFlowerCrown(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'hearts') drawFaceHearts(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'bluebirds') drawFaceBirds(ctx, centerX, topY, faceW, frameMs)
+    else if (effectId === 'kicau-mania') drawFaceKicauMania(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'sparkles') drawFaceSparkles(ctx, centerX, topY, faceW, frameMs)
 
     ctx.restore()
@@ -939,6 +1010,47 @@ function drawFaceBirds(
     ctx.scale(mark.direction * scale, scale)
     ctx.globalAlpha = alpha
     drawBlueBird(ctx, faceW * mark.size, mark.wingPhase)
+    ctx.restore()
+  }
+}
+
+function drawFaceKicauMania(
+  ctx: CameraEffectContext,
+  cx: number,
+  topY: number,
+  faceW: number,
+  timeMs: number,
+) {
+  const danceMarks = [
+    { phase: 0, dx: 0, dy: -0.58, size: 0.25, alpha: 0.96, direction: 1 },
+    { phase: 0.26, dx: -0.54, dy: -0.4, size: 0.13, alpha: 0.68, direction: -1 },
+    { phase: 0.58, dx: 0.54, dy: -0.38, size: 0.13, alpha: 0.68, direction: 1 },
+  ]
+    .map((mark) => {
+      const progress = (timeMs / CAMERA_EFFECT_LOOP_MS + mark.phase) % 1
+      const wave = Math.sin(progress * Math.PI * 2)
+      const hop = Math.sin(progress * Math.PI * 4)
+      const depth = (Math.cos(progress * Math.PI * 2) + 1) / 2
+
+      return {
+        ...mark,
+        x: cx + mark.dx * faceW + wave * faceW * 0.06,
+        y: topY + mark.dy * faceW - Math.abs(hop) * faceW * 0.035,
+        rotate: wave * 0.12,
+        scale: 0.84 + depth * 0.22,
+        frameProgress: (timeMs / CAMERA_EFFECT_LOOP_MS + mark.phase) % 1,
+        depth,
+      }
+    })
+    .sort((a, b) => a.depth - b.depth)
+
+  for (const mark of danceMarks) {
+    ctx.save()
+    ctx.translate(mark.x, mark.y)
+    ctx.rotate(mark.rotate)
+    ctx.scale(mark.direction * mark.scale, mark.scale)
+    ctx.globalAlpha = mark.alpha * (0.62 + mark.depth * 0.38)
+    drawKicauManiaSprite(ctx, faceW * mark.size, mark.frameProgress)
     ctx.restore()
   }
 }

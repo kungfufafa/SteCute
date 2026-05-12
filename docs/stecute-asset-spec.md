@@ -177,17 +177,21 @@ Preset filter kamera masuk v1 sebagai konfigurasi lokal statis. Filter dipilih s
 Preset overlay kamera masuk v1 sebagai konfigurasi lokal statis. Overlay dipilih sebelum capture, tampil di preview kamera, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir.
 
 Overlay v1 tidak memakai asset remote dan tidak membuka editor sticker manual pasca-capture.
-Preset `hearts` dan `bluebirds` memakai sprite PNG lokal dari
-`src/assets/camera-effects/photo-booth/`, disalin dari
-`/System/Applications/Photo Booth.app/Contents/Resources/`. Status lisensi asset Photo Booth
-harus dikonfirmasi sebelum distribusi publik di luar perangkat/deployment yang berhak memakai
-asset tersebut.
+Preset `hearts` memakai sprite PNG lokal dari `src/assets/camera-effects/hearts/`.
+Preset `bluebirds` memakai sprite PNG lokal dari `src/assets/camera-effects/bluebirds/`.
+Keduanya disalin dari `/System/Applications/Photo Booth.app/Contents/Resources/`.
+Status lisensi asset Photo Booth harus dikonfirmasi sebelum distribusi publik di luar
+perangkat/deployment yang berhak memakai asset tersebut.
+Preset `kicau-mania` memakai frame PNG lokal hasil split GIF di
+`src/assets/camera-effects/kicau-mania/`. Sumber awal berasal dari export `ezgif-split`
+untuk GIF scuba dance; status lisensi/ownership harus dikonfirmasi sebelum distribusi publik.
 
 ### 7.1 Overlay v1
 
 - `none`
 - `hearts`
 - `bluebirds`
+- `kicau-mania`
 
 ### 7.2 Overlay implementation rule
 
@@ -195,6 +199,7 @@ asset tersebut.
 - preview kamera dan preview review memakai canvas lokal dengan sumber gambar bitmap bundled yang sama
 - `hearts` memakai mekanik lovestruck: hati muncul dari area sekitar kepala, mengambang naik, lalu fade/scale dalam loop
 - `bluebirds` memakai mekanik dizzy: `8` burung mengorbit area atas kepala dalam lintasan elips, arah sprite mengikuti tangent gerak, dan frame sayap memakai urutan `0-3`
+- `kicau-mania` memakai mekanik dance loop: frame PNG lokal melompat kecil di area atas kepala dengan frame sprite urutan `0-52`, tanpa elemen heart tambahan
 - animasi overlay di preview kamera harus dapat dibekukan sebagai snapshot per-shot, sehingga posisi dan fase visual yang dirender final tetap sesuai momen capture
 - overlay tidak boleh bergantung pada layanan eksternal
 - overlay default tidak boleh menutupi lebih dari `25%` area foto

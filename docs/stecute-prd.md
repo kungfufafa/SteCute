@@ -159,7 +159,7 @@ Kebutuhan utama:
 5. Pilihan hasil cetak dasar: `2 foto`, `3 foto`, `4 foto`, `6 foto`, plus layout dari blanko/template lokal dengan tinggi canvas mengikuti artboard.
 6. Countdown default 3 detik untuk flow kamera.
 7. Preset filter kamera lokal sebelum capture, dengan preview live dan hasil render final memakai efek yang sama.
-8. Preset overlay kamera lokal sebelum capture, seperti hati atau burung, dengan preview live, preview review, dan render final memakai efek yang sama. Ini bukan editor sticker manual pasca-capture.
+8. Preset overlay kamera lokal sebelum capture, seperti hati, burung, atau `Kicau Mania`, dengan preview live, preview review, dan render final memakai efek yang sama. Ini bukan editor sticker manual pasca-capture.
 9. Capture berurutan sesuai jumlah slot layout.
 10. Review hasil per sesi.
 11. Retake seluruh sesi.
