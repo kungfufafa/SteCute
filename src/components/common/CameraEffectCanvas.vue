@@ -5,9 +5,9 @@ import {
   normalizeCameraEffectId,
   isFaceTrackingEffect,
   drawFaceTrackingEffect,
-  estimateFaceBoundsForStaticRender,
   normalizeCameraEffectFrameMs,
   preloadCameraEffectAssets,
+  resolveFaceTrackingEffectFaces,
 } from '@/services/camera-effects'
 
 import type { FaceBounds } from '@/services/face-tracking'
@@ -16,12 +16,14 @@ const props = withDefaults(
   defineProps<{
     effectId?: string
     faceBounds?: FaceBounds[]
+    fallbackFaceBounds?: boolean
     frameMs?: number
     animated?: boolean
   }>(),
   {
     effectId: 'none',
     faceBounds: () => [],
+    fallbackFaceBounds: false,
     frameMs: 0,
     animated: false,
   },
@@ -72,10 +74,10 @@ function renderEffect(frameMs = shouldAnimate.value ? getLiveFrameMs() : getStat
 
   const effectId = normalizedEffectId.value
   if (isFaceTrackingEffect(effectId)) {
-    const faces =
-      props.faceBounds && props.faceBounds.length > 0
-        ? props.faceBounds
-        : estimateFaceBoundsForStaticRender(rect.width, rect.height)
+    const faces = resolveFaceTrackingEffectFaces(
+      props.faceBounds,
+      props.fallbackFaceBounds ? { width: rect.width, height: rect.height } : undefined,
+    )
     drawFaceTrackingEffect(ctx, rect.width, rect.height, effectId, faces, { timeMs: frameMs })
   } else {
     drawCameraEffect(ctx, rect.width, rect.height, effectId, { timeMs: frameMs })
@@ -114,7 +116,7 @@ function syncMotionPreference() {
 }
 
 watch(
-  [normalizedEffectId, () => props.frameMs, () => props.faceBounds],
+  [normalizedEffectId, () => props.frameMs, () => props.faceBounds, () => props.fallbackFaceBounds],
   () => {
     void nextTick(renderEffect)
   },

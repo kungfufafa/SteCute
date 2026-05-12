@@ -24,6 +24,17 @@ const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
 const MODEL_CDN =
   'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
 
+function isValidDetectedFace(face: FaceBounds): boolean {
+  return (
+    Number.isFinite(face.x) &&
+    Number.isFinite(face.y) &&
+    Number.isFinite(face.width) &&
+    Number.isFinite(face.height) &&
+    face.width > 0 &&
+    face.height > 0
+  )
+}
+
 /**
  * Initialize the MediaPipe Face Detector singleton.
  * Safe to call multiple times — subsequent calls return the existing instance.
@@ -79,18 +90,20 @@ export function detectFaces(videoEl: HTMLVideoElement): FaceTrackingResult {
   try {
     const result = faceDetector.detectForVideo(videoEl, timestamp)
 
-    const faces: FaceBounds[] = (result.detections ?? []).map((detection) => {
+    const faces: FaceBounds[] = (result.detections ?? []).flatMap((detection) => {
       const bbox = detection.boundingBox
       if (!bbox) {
-        return { x: 0, y: 0, width: 0, height: 0 }
+        return []
       }
 
-      return {
+      const face = {
         x: bbox.originX / videoEl.videoWidth,
         y: bbox.originY / videoEl.videoHeight,
         width: bbox.width / videoEl.videoWidth,
         height: bbox.height / videoEl.videoHeight,
       }
+
+      return isValidDetectedFace(face) ? [face] : []
     })
 
     return { faces, timestamp }

@@ -9,9 +9,9 @@ import {
 import type { FaceBounds } from '@/services/face-tracking'
 import {
   drawFaceTrackingEffect,
-  estimateFaceBoundsForStaticRender,
   normalizeCameraEffectFrameMs,
   preloadCameraEffectAssets,
+  resolveFaceTrackingEffectFaces,
 } from '@/services/camera-effects'
 
 const props = defineProps<{
@@ -19,6 +19,8 @@ const props = defineProps<{
   videoEl: HTMLVideoElement | null
   /** The face-tracking effect ID (e.g. 'hearts' or 'bluebirds') */
   effectId: string
+  /** Whether the visible preview is mirrored horizontally */
+  mirrored?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -35,13 +37,11 @@ let animFrameId: number | null = null
 let resizeObserver: InstanceType<typeof window.ResizeObserver> | null = null
 let motionQuery: ReturnType<typeof window.matchMedia> | null = null
 let lastDetectionRun = 0
-let lastDetectedAt = 0
 
 // Smoothed face positions for less jittery rendering
 let smoothedFaces: FaceBounds[] = []
 const SMOOTHING = 0.35 // Lower = smoother but more laggy
 const DETECTION_INTERVAL_MS = 120
-const FACE_HOLD_MS = 700
 
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t
@@ -80,6 +80,7 @@ function mapVideoFaceToCanvas(
   face: FaceBounds,
   video: HTMLVideoElement,
   rect: { width: number; height: number },
+  mirrored: boolean,
 ): FaceBounds {
   const scale = Math.max(rect.width / video.videoWidth, rect.height / video.videoHeight)
   const drawnWidth = video.videoWidth * scale
@@ -91,9 +92,10 @@ function mapVideoFaceToCanvas(
   const mappedHeight = (face.height * video.videoHeight * scale) / rect.height
   const mappedX = (face.x * video.videoWidth * scale + offsetX) / rect.width
   const mappedY = (face.y * video.videoHeight * scale + offsetY) / rect.height
+  const x = mirrored ? 1 - mappedX - mappedWidth : mappedX
 
   return {
-    x: clamp01(1 - mappedX - mappedWidth),
+    x: clamp01(x),
     y: clamp01(mappedY),
     width: clamp01(mappedWidth),
     height: clamp01(mappedHeight),
@@ -153,27 +155,28 @@ function renderFrame() {
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   ctx.clearRect(0, 0, rect.width, rect.height)
 
-  const shouldDetect =
-    video &&
-    isFaceDetectorReady() &&
-    video.videoWidth > 0 &&
-    now - lastDetectionRun >= DETECTION_INTERVAL_MS
-
   let faces = smoothedFaces
+  const canDetect = Boolean(video && isFaceDetectorReady() && video.videoWidth > 0)
+  const shouldDetect = canDetect && now - lastDetectionRun >= DETECTION_INTERVAL_MS
 
-  if (shouldDetect) {
+  if (!canDetect) {
+    faces = []
+    smoothedFaces = []
+  } else if (shouldDetect && video) {
     lastDetectionRun = now
     const result = detectFaces(video)
 
     if (result.faces.length > 0) {
-      faces = smoothFaces(result.faces.map((face) => mapVideoFaceToCanvas(face, video, rect)))
-      lastDetectedAt = now
+      faces = smoothFaces(
+        result.faces.map((face) => mapVideoFaceToCanvas(face, video, rect, props.mirrored ?? true)),
+      )
+    } else {
+      faces = []
+      smoothedFaces = []
     }
   }
 
-  if (faces.length === 0 || now - lastDetectedAt > FACE_HOLD_MS) {
-    faces = estimateFaceBoundsForStaticRender(rect.width, rect.height)
-  }
+  faces = resolveFaceTrackingEffectFaces(faces)
 
   detectedFaceCount.value = faces.length
   emit('update:faces', faces)

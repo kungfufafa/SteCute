@@ -752,6 +752,8 @@ Gunakan constraints adaptif, contoh:
 - Jika `facingMode` gagal, enumerasi device dan tampilkan pilihan kamera.
 - Jika resolusi ideal tidak tersedia, fallback ke kemampuan device.
 - Jika kamera tidak ada, tampilkan unsupported state dan tawarkan upload lokal.
+- Setelah izin diberikan, daftar `videoinput` dinormalisasi menjadi pilihan kamera yang jelas seperti `Depan`, `Belakang`, `Belakang 0.5x`, atau `Belakang Tele` bila label browser menyediakan sinyal lensa.
+- Preview dan capture hanya di-mirror untuk kamera depan. Kamera belakang, termasuk ultrawide/0.5x dan tele, tidak boleh di-mirror.
 
 ### 12.3 Upload constraints
 
@@ -766,7 +768,7 @@ Gunakan constraints adaptif, contoh:
 
 1. Preview stream ke elemen video.
 2. Saat capture, crop frame tengah ke rasio foto landscape `4:3`.
-3. Draw frame hasil crop ke canvas sementara.
+3. Draw frame hasil crop ke canvas sementara, dengan mirror horizontal hanya jika kamera aktif adalah kamera depan.
 4. Ekspor frame sebagai Blob.
 5. Simpan ke IndexedDB.
 6. Lanjut shot berikutnya sesuai slot layout.
@@ -798,7 +800,7 @@ Gunakan constraints adaptif, contoh:
 5. Crop dan fit ke slot.
 6. Gambar background.
 7. Gambar slot 1..N.
-8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `faceBounds` dan `cameraEffectFrameMs` dari tiap shot bila tersedia agar posisi overlay sama dengan momen capture.
+8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `faceBounds` dan `cameraEffectFrameMs` dari tiap shot bila tersedia agar posisi overlay sama dengan momen capture, dan tidak menggambar overlay face-tracking saat `faceBounds` kosong.
 9. Terapkan background template, photo backing, label template, dan frame default template.
 10. Ekspor Blob final.
 

@@ -2,11 +2,32 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 
 function isPublicImagePng(url: string) {
   return /^images\/[^/]+\.png$/.test(url)
 }
+
+function loadDevHttpsOptions() {
+  if (process.env.STECUTE_DEV_HTTPS !== '1') {
+    return undefined
+  }
+
+  const keyPath = fileURLToPath(new URL('./.certs/stecute-dev.key', import.meta.url))
+  const certPath = fileURLToPath(new URL('./.certs/stecute-dev.crt', import.meta.url))
+
+  if (!existsSync(keyPath) || !existsSync(certPath)) {
+    throw new Error('Missing dev HTTPS certificate. Run `npm run dev:https` to generate it.')
+  }
+
+  return {
+    key: readFileSync(keyPath),
+    cert: readFileSync(certPath),
+  }
+}
+
+const devHttpsOptions = loadDevHttpsOptions()
 
 export default defineConfig({
   plugins: [
@@ -90,6 +111,10 @@ export default defineConfig({
       '@utils': fileURLToPath(new URL('./src/utils', import.meta.url)),
       '@assets': fileURLToPath(new URL('./src/assets', import.meta.url)),
     },
+  },
+  server: {
+    host: devHttpsOptions ? '0.0.0.0' : undefined,
+    https: devHttpsOptions,
   },
   build: {
     target: 'esnext',

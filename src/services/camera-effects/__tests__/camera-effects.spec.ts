@@ -7,6 +7,7 @@ import {
   normalizeCameraEffectFrameMs,
   CAMERA_EFFECT_LOOP_MS,
   getCameraEffectAssetManifest,
+  resolveFaceTrackingEffectFaces,
 } from '@/services/camera-effects'
 
 describe('camera effects', () => {
@@ -38,6 +39,12 @@ describe('camera effects', () => {
     expect(normalizeCameraEffectFrameMs(0)).toBe(0)
     expect(normalizeCameraEffectFrameMs(CAMERA_EFFECT_LOOP_MS + 120)).toBe(120)
     expect(normalizeCameraEffectFrameMs(-120)).toBe(CAMERA_EFFECT_LOOP_MS - 120)
+  })
+
+  it('does not invent face-tracking bounds unless fallback is requested', () => {
+    expect(resolveFaceTrackingEffectFaces([])).toEqual([])
+    expect(resolveFaceTrackingEffectFaces([{ x: 0, y: 0, width: 0, height: 0 }])).toEqual([])
+    expect(resolveFaceTrackingEffectFaces([], { width: 400, height: 300 })).toHaveLength(1)
   })
 
   it('maps Photo Booth sprite assets to the local overlay presets', () => {

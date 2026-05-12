@@ -41,7 +41,7 @@ Fitur yang wajib ada:
 - pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
 - upload blanko strip lokal sebelum capture
 - preset filter kamera lokal sebelum capture, dengan efek yang sama dipakai di preview kamera, preview review, dan render final
-- preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, dan `kicau-mania`, berbasis sprite PNG bundled lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final
+- preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, dan `kicau-mania`, berbasis sprite PNG bundled lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final; overlay face-tracking tidak digambar jika tidak ada wajah terdeteksi
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -101,6 +101,8 @@ Tidak masuk v1:
 2. User menekan `Mulai Foto`.
 3. App meminta izin kamera saat masuk flow kamera.
 4. User memilih jumlah foto dan dapat mengganti kamera aktif sebelum capture.
+   Jika perangkat mengekspos beberapa lensa, app menampilkan pilihan eksplisit seperti depan, belakang, 0.5x, atau tele sesuai label browser.
+   Kamera belakang tidak di-mirror; mirror hanya dipakai untuk kamera depan/selfie.
 5. App menjalankan capture berurutan sesuai slot layout.
 6. User dapat retake per-shot dari layar review sebelum render final.
 7. User melakukan render final.

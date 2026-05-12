@@ -183,6 +183,34 @@ export function normalizeCameraEffectFrameMs(timeMs = 0): number {
   return ((timeMs % CAMERA_EFFECT_LOOP_MS) + CAMERA_EFFECT_LOOP_MS) % CAMERA_EFFECT_LOOP_MS
 }
 
+function isRenderableFaceBounds(face: FaceBounds): boolean {
+  return (
+    Number.isFinite(face.x) &&
+    Number.isFinite(face.y) &&
+    Number.isFinite(face.width) &&
+    Number.isFinite(face.height) &&
+    face.width > 0 &&
+    face.height > 0
+  )
+}
+
+export function resolveFaceTrackingEffectFaces(
+  faceBounds?: FaceBounds[] | null,
+  fallbackSize?: { width: number; height: number },
+): FaceBounds[] {
+  const detectedFaces = (faceBounds ?? []).filter(isRenderableFaceBounds)
+
+  if (detectedFaces.length > 0) {
+    return detectedFaces
+  }
+
+  if (fallbackSize) {
+    return estimateFaceBoundsForStaticRender(fallbackSize.width, fallbackSize.height)
+  }
+
+  return []
+}
+
 export function getCameraEffectAssetManifest(effectId?: string | null): CameraEffectAsset[] {
   const normalizedEffectId = normalizeCameraEffectId(effectId)
 
@@ -557,11 +585,12 @@ export function drawFaceTrackingEffect(
   faces: FaceBounds[],
   options: EffectDrawOptions = {},
 ): void {
-  if (faces.length === 0) return
+  const renderableFaces = faces.filter(isRenderableFaceBounds)
+  if (renderableFaces.length === 0) return
 
   const frameMs = normalizeCameraEffectFrameMs(options.timeMs)
 
-  for (const [faceIndex, face] of faces.entries()) {
+  for (const [faceIndex, face] of renderableFaces.entries()) {
     const faceX = face.x * width
     const faceY = face.y * height
     const faceW = face.width * width

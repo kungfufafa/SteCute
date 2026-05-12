@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:network": "vite --host 0.0.0.0",
+    "dev:https": "node scripts/dev-https.mjs",
     "build": "npm run seo:assets && vue-tsc -b --noEmit && vite build && npm run seo:pages",
     "preview": "vite preview",
     "seo:assets": "node scripts/generate-seo-assets.mjs",

@@ -15,10 +15,12 @@ import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import {
   captureFrame,
-  enumerateDevices,
+  getCameraDeviceOptions,
   initCamera,
+  shouldMirrorCamera,
   stopCamera,
   switchCamera,
+  type CameraDeviceOption,
 } from '@/services/camera'
 import {
   CAMERA_EFFECTS,
@@ -45,6 +47,9 @@ const flashVisible = ref(false)
 const cameraError = ref<string | null>(null)
 const latestOverlayFaces = ref<FaceBounds[]>([])
 const latestOverlayFrameMs = ref(0)
+const cameraDevices = ref<CameraDeviceOption[]>([])
+const cameraPickerOpen = ref(false)
+const isSwitchingCamera = ref(false)
 let stream: MediaStream | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
@@ -71,7 +76,7 @@ const cameraRecoverySteps = [
 ]
 const filterOptions = PHOTO_FILTERS
 const cameraEffectOptions = CAMERA_EFFECTS
-const FILTER_INLINE_LIMIT = 6
+const FILTER_INLINE_LIMIT = 4
 const CAMERA_EFFECT_INLINE_LIMIT = 4
 const selectedFilter = computed(() => getPhotoFilterById(sessionStore.filterId))
 const selectedCameraEffect = computed(() => getCameraEffectById(sessionStore.cameraEffectId))
@@ -97,6 +102,23 @@ const inlineCameraEffectOptions = computed(() =>
 )
 const hiddenCameraEffectOptions = computed(() =>
   getHiddenOptions(cameraEffectOptions, inlineCameraEffectOptions.value),
+)
+const activeCamera = computed(
+  () =>
+    cameraDevices.value.find((device) => device.deviceId === cameraStore.activeDeviceId) ?? null,
+)
+const activeCameraFacingMode = computed(() => {
+  const deviceFacingMode = activeCamera.value?.facingMode
+  return deviceFacingMode && deviceFacingMode !== 'unknown'
+    ? deviceFacingMode
+    : cameraStore.activeFacingMode
+})
+const shouldMirrorActiveCamera = computed(() => shouldMirrorCamera(activeCameraFacingMode.value))
+const activeCameraLabel = computed(
+  () => activeCamera.value?.label ?? (cameraStore.activeDeviceLabel || 'Kamera aktif'),
+)
+const canSwitchCamera = computed(
+  () => cameraDevices.value.length > 1 && !countdownActive.value && !isSwitchingCamera.value,
 )
 
 onMounted(() => {
@@ -134,7 +156,28 @@ function closeOptionPicker() {
 }
 
 function handleGlobalKeydown(event: Event) {
-  if ('key' in event && event.key === 'Escape') closeOptionPicker()
+  if ('key' in event && event.key === 'Escape') {
+    closeOptionPicker()
+    closeCameraPicker()
+  }
+}
+
+async function refreshCameraDevices() {
+  try {
+    cameraDevices.value = await getCameraDeviceOptions()
+  } catch (error) {
+    console.warn('Failed to enumerate cameras:', error)
+    cameraDevices.value = []
+  }
+}
+
+function openCameraPicker() {
+  if (!canSwitchCamera.value) return
+  cameraPickerOpen.value = true
+}
+
+function closeCameraPicker() {
+  cameraPickerOpen.value = false
 }
 
 async function setupCamera() {
@@ -151,6 +194,7 @@ async function setupCamera() {
   try {
     stream = await initCamera()
     if (videoRef.value) videoRef.value.srcObject = stream
+    await refreshCameraDevices()
 
     const sessionId = await ensureSession(sessionStore.sessionId, {
       layoutId: sessionStore.layoutId,
@@ -285,14 +329,53 @@ onUnmounted(() => {
 })
 
 async function handleSwitchCamera() {
-  if (!stream) return
-  const devices = await enumerateDevices()
-  if (devices.length <= 1) return
-  const currentIndex = devices.findIndex((device) => device.deviceId === cameraStore.activeDeviceId)
-  const nextIndex = (currentIndex + 1) % devices.length
+  if (!stream || isSwitchingCamera.value || countdownActive.value) return
+
+  if (cameraDevices.value.length === 0) {
+    await refreshCameraDevices()
+  }
+
+  if (cameraDevices.value.length <= 1) return
+
+  if (cameraDevices.value.length > 2) {
+    openCameraPicker()
+    return
+  }
+
+  const currentIndex = cameraDevices.value.findIndex(
+    (device) => device.deviceId === cameraStore.activeDeviceId,
+  )
+  const nextIndex = (currentIndex + 1) % cameraDevices.value.length
+  await selectCameraDevice(cameraDevices.value[nextIndex].deviceId)
+}
+
+async function selectCameraDevice(deviceId: string) {
+  if (!stream || isSwitchingCamera.value || countdownActive.value) return
+
+  if (deviceId === cameraStore.activeDeviceId) {
+    closeCameraPicker()
+    return
+  }
+
+  isSwitchingCamera.value = true
+  cameraError.value = null
+
   stopCamera(stream)
-  stream = await switchCamera(devices[nextIndex].deviceId)
-  if (videoRef.value) videoRef.value.srcObject = stream
+  stream = null
+  if (videoRef.value) videoRef.value.srcObject = null
+
+  try {
+    stream = await switchCamera(deviceId)
+    if (videoRef.value) videoRef.value.srcObject = stream
+    await refreshCameraDevices()
+    closeCameraPicker()
+  } catch (error) {
+    console.error('Failed to switch camera:', error)
+    await setupCamera()
+    cameraError.value = 'Kamera itu belum bisa dibuka. Coba pilih kamera lain.'
+  } finally {
+    isSwitchingCamera.value = false
+  }
 }
 
 async function handleCapture() {
@@ -300,7 +383,7 @@ async function handleCapture() {
   let frame: Awaited<ReturnType<typeof captureFrame>>
 
   try {
-    frame = await captureFrame(videoRef.value)
+    frame = await captureFrame(videoRef.value, { mirrored: shouldMirrorActiveCamera.value })
   } catch (error) {
     console.error('Capture failed:', error)
     cameraError.value = 'Preview kamera belum siap. Coba ambil foto lagi.'
@@ -509,12 +592,8 @@ function goBack() {
         <div
           class="border-stc-border shadow-stc-xs order-2 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
-          <div class="mb-2 flex items-center justify-between gap-3">
-            <p :class="ui.sectionLabel">Efek Kamera</p>
-            <span class="text-stc-pink text-xs font-bold">{{ selectedFilter.label }}</span>
-          </div>
           <div
-            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0"
+            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
           >
             <button
               v-for="filter in inlineFilterOptions"
@@ -564,7 +643,10 @@ function goBack() {
               autoplay
               playsinline
               muted
-              class="absolute inset-0 h-full w-full scale-x-[-1] object-cover"
+              :class="[
+                'absolute inset-0 h-full w-full object-cover',
+                shouldMirrorActiveCamera ? 'scale-x-[-1]' : '',
+              ]"
               :style="videoFilterStyle"
             ></video>
 
@@ -580,6 +662,7 @@ function goBack() {
               v-if="isCurrentEffectFaceTracking"
               :video-el="videoRef"
               :effect-id="sessionStore.cameraEffectId"
+              :mirrored="shouldMirrorActiveCamera"
               class="pointer-events-none absolute inset-0 z-[5] h-full w-full"
               @update:faces="updateOverlayFaces"
               @update:frame-ms="updateOverlayFrame"
@@ -659,7 +742,8 @@ function goBack() {
 
             <button
               :class="[ui.iconButton, 'rounded-full']"
-              aria-label="Ganti kamera"
+              :aria-label="`Ganti kamera. Aktif: ${activeCameraLabel}`"
+              :disabled="!canSwitchCamera"
               @click="handleSwitchCamera"
             >
               <svg
@@ -677,6 +761,15 @@ function goBack() {
                 <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
               </svg>
             </button>
+          </div>
+
+          <div
+            v-if="cameraDevices.length > 1"
+            class="text-stc-text-soft -mt-1 max-w-full text-center text-xs font-bold"
+          >
+            <span class="truncate">
+              {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
+            </span>
           </div>
 
           <div class="flex flex-wrap items-center justify-center gap-2">
@@ -711,14 +804,8 @@ function goBack() {
         <div
           class="border-stc-border shadow-stc-xs order-3 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
-          <div class="mb-2 flex items-center justify-between gap-3">
-            <p :class="ui.sectionLabel">Overlay Kamera</p>
-            <span class="text-stc-pink text-xs font-bold">
-              {{ selectedCameraEffect.label }}
-            </span>
-          </div>
           <div
-            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0"
+            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
           >
             <button
               v-for="effect in inlineCameraEffectOptions"
@@ -742,6 +829,7 @@ function goBack() {
               >
                 <CameraEffectCanvas
                   :effect-id="effect.id"
+                  fallback-face-bounds
                   class="pointer-events-none absolute inset-0 h-full w-full"
                 />
               </span>
@@ -784,11 +872,6 @@ function goBack() {
             <p :class="ui.sectionLabel">
               {{ activeOptionPicker === 'filter' ? 'Efek Kamera' : 'Overlay Kamera' }}
             </p>
-            <p class="text-stc-text mt-1 truncate text-sm font-bold">
-              {{
-                activeOptionPicker === 'filter' ? selectedFilter.label : selectedCameraEffect.label
-              }}
-            </p>
           </div>
           <button
             :class="ui.iconButton"
@@ -813,7 +896,7 @@ function goBack() {
         </div>
 
         <div class="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 sm:p-5">
-          <div v-if="activeOptionPicker === 'filter'" class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div v-if="activeOptionPicker === 'filter'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               v-for="filter in filterOptions"
               :key="filter.id"
@@ -822,7 +905,7 @@ function goBack() {
               :aria-pressed="filter.id === sessionStore.filterId"
               :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
               :class="[
-                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.75rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-row items-center justify-start gap-4 rounded-xl border px-4 py-2 text-[0.875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
                 filter.id === sessionStore.filterId
                   ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
                   : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
@@ -830,14 +913,14 @@ function goBack() {
               @click="selectFilterFromPicker(filter.id)"
             >
               <span
-                class="border-stc-border/50 block size-9 rounded-lg border shadow-inner"
+                class="border-stc-border/50 block size-10 shrink-0 rounded-lg border shadow-inner"
                 :style="filterSwatchStyle(filter.id)"
               ></span>
               <span class="max-w-full truncate">{{ filter.label }}</span>
             </button>
           </div>
 
-          <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               v-for="effect in cameraEffectOptions"
               :key="effect.id"
@@ -847,7 +930,7 @@ function goBack() {
               :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
               :title="effect.description"
               :class="[
-                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.75rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-row items-center justify-start gap-4 rounded-xl border px-4 py-2 text-[0.875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
                 effect.id === sessionStore.cameraEffectId
                   ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
                   : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
@@ -855,17 +938,93 @@ function goBack() {
               @click="selectCameraEffectFromPicker(effect.id)"
             >
               <span
-                class="border-stc-border/50 relative block size-9 overflow-hidden rounded-lg border shadow-inner"
+                class="border-stc-border/50 relative block size-10 shrink-0 overflow-hidden rounded-lg border shadow-inner"
                 :style="cameraEffectSwatchStyle(effect.id)"
               >
                 <CameraEffectCanvas
                   :effect-id="effect.id"
+                  fallback-face-bounds
                   class="pointer-events-none absolute inset-0 h-full w-full"
                 />
               </span>
               <span class="max-w-full truncate">{{ effect.label }}</span>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="cameraPickerOpen"
+      class="fixed inset-0 z-[70] flex items-end justify-center bg-black/35 px-4 py-5 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      @click.self="closeCameraPicker"
+    >
+      <div
+        class="border-stc-border shadow-stc-lg max-h-[min(36rem,calc(100dvh-2.5rem))] w-full max-w-lg overflow-hidden rounded-xl border bg-white"
+      >
+        <div
+          class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
+        >
+          <div class="min-w-0">
+            <p :class="ui.sectionLabel">Pilih Kamera</p>
+            <p class="text-stc-text mt-1 truncate text-sm font-bold">{{ activeCameraLabel }}</p>
+          </div>
+          <button
+            :class="ui.iconButton"
+            type="button"
+            aria-label="Tutup pilihan kamera"
+            @click="closeCameraPicker"
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="max-h-[calc(100dvh-9rem)] space-y-2 overflow-y-auto p-4 sm:p-5">
+          <button
+            v-for="device in cameraDevices"
+            :key="device.deviceId"
+            type="button"
+            :aria-label="`Pilih kamera ${device.label}`"
+            :aria-pressed="device.deviceId === cameraStore.activeDeviceId"
+            :disabled="isSwitchingCamera"
+            :class="[
+              'focus-visible:ring-stc-pink flex min-h-[4.75rem] w-full min-w-0 items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+              device.deviceId === cameraStore.activeDeviceId
+                ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
+                : 'border-stc-border text-stc-text shadow-stc-xs hover:border-stc-pink/40 bg-white hover:-translate-y-[1px]',
+            ]"
+            @click="selectCameraDevice(device.deviceId)"
+          >
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-bold">{{ device.label }}</span>
+              <span
+                v-if="device.rawLabel && device.rawLabel !== device.label"
+                class="text-stc-text-soft mt-0.5 block truncate text-xs font-semibold"
+              >
+                {{ device.rawLabel }}
+              </span>
+            </span>
+            <span
+              v-if="device.deviceId === cameraStore.activeDeviceId"
+              class="bg-stc-pink inline-flex shrink-0 rounded-full px-2.5 py-1 text-[0.6875rem] font-bold text-white"
+            >
+              Aktif
+            </span>
+          </button>
         </div>
       </div>
     </div>

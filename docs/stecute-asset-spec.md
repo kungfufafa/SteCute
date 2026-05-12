@@ -174,7 +174,7 @@ Preset filter kamera masuk v1 sebagai konfigurasi lokal statis. Filter dipilih s
 
 ## 7. Camera overlay inventory
 
-Preset overlay kamera masuk v1 sebagai konfigurasi lokal statis. Overlay dipilih sebelum capture, tampil di preview kamera, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir.
+Preset overlay kamera masuk v1 sebagai konfigurasi lokal statis. Overlay dipilih sebelum capture, tampil di preview kamera saat wajah terdeteksi, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir jika shot memiliki `faceBounds`.
 
 Overlay v1 tidak memakai asset remote dan tidak membuka editor sticker manual pasca-capture.
 Preset `hearts` memakai sprite PNG lokal dari `src/assets/camera-effects/hearts/`.
