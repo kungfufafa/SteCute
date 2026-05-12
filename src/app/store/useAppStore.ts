@@ -1,11 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-export type ServiceWorkerStatus = 'unsupported' | 'idle' | 'registering' | 'ready' | 'update' | 'error'
+export type ServiceWorkerStatus =
+  | 'unsupported'
+  | 'idle'
+  | 'registering'
+  | 'ready'
+  | 'update'
+  | 'error'
 
 export const useAppStore = defineStore('app', () => {
   const offlineMode = ref(!navigator.onLine)
   const offlineReady = ref(false)
+  const installPromptAvailable = ref(false)
+  const installedMode = ref(false)
   const serviceWorkerStatus = ref<ServiceWorkerStatus>(
     'serviceWorker' in navigator ? 'idle' : 'unsupported',
   )
@@ -13,6 +21,11 @@ export const useAppStore = defineStore('app', () => {
 
   function setOfflineMode(offline: boolean) {
     offlineMode.value = offline
+  }
+
+  function setPwaInstallState(state: { installPromptAvailable: boolean; installedMode: boolean }) {
+    installPromptAvailable.value = state.installPromptAvailable
+    installedMode.value = state.installedMode
   }
 
   function setServiceWorkerRegistering() {
@@ -48,9 +61,12 @@ export const useAppStore = defineStore('app', () => {
   return {
     offlineMode,
     offlineReady,
+    installPromptAvailable,
+    installedMode,
     serviceWorkerStatus,
     serviceWorkerError,
     setOfflineMode,
+    setPwaInstallState,
     setServiceWorkerRegistering,
     setOfflineReady,
     setServiceWorkerUpdateAvailable,

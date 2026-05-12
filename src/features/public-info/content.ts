@@ -177,8 +177,7 @@ export const publicPages = {
     id: 'faq',
     eyebrow: 'Pertanyaan umum',
     title: 'FAQ',
-    summary:
-      'Jawaban singkat sebelum memakai Stecute di perangkat pribadi atau event.',
+    summary: 'Jawaban singkat sebelum memakai Stecute di perangkat pribadi atau event.',
     updatedLabel: 'Terakhir diperbarui: 4 Mei 2026',
     sections: [
       {

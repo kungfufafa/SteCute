@@ -197,12 +197,28 @@ untuk GIF scuba dance; status lisensi/ownership harus dikonfirmasi sebelum distr
 
 - overlay final harus digambar via render engine pada setiap slot foto
 - preview kamera dan preview review memakai canvas lokal dengan sumber gambar bitmap bundled yang sama
+- face detection untuk overlay memakai MediaPipe runtime asset lokal dari `public/vendor/mediapipe/`, termasuk WASM tasks-vision dan model `blaze_face_short_range.tflite`; tidak boleh memuat model atau WASM dari CDN saat production
 - `hearts` memakai mekanik lovestruck: hati muncul dari area sekitar kepala, mengambang naik, lalu fade/scale dalam loop
 - `bluebirds` memakai mekanik dizzy: `8` burung mengorbit area atas kepala dalam lintasan elips, arah sprite mengikuti tangent gerak, dan frame sayap memakai urutan `0-3`
 - `kicau-mania` memakai mekanik dance loop: frame PNG lokal melompat kecil di area atas kepala dengan frame sprite urutan `0-52`, tanpa elemen heart tambahan
 - animasi overlay di preview kamera harus dapat dibekukan sebagai snapshot per-shot, sehingga posisi dan fase visual yang dirender final tetap sesuai momen capture
 - overlay tidak boleh bergantung pada layanan eksternal
 - overlay default tidak boleh menutupi lebih dari `25%` area foto
+
+### 7.3 Face detector runtime assets
+
+Asset runtime face detector wajib tersedia lokal:
+
+- `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_internal.js`
+- `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm`
+- `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.js`
+- `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm`
+- `public/vendor/mediapipe/models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`
+
+Asset ini adalah dependency runtime non-visual dan dihitung terpisah dari budget visual `< 8 MB`.
+Provenance, versi package, sumber model, ukuran file, dan SHA-256 setiap file wajib dicatat di
+`public/vendor/mediapipe/manifest.json`; audit PWA harus gagal jika file vendor tidak cocok dengan
+manifest tersebut.
 
 ---
 
@@ -281,7 +297,7 @@ Wajib tersedia:
 - `512x512`
 - maskable icon `512x512`
 - favicon
-- apple touch icon
+- apple touch icon `180x180`
 
 Semua icon harus konsisten dengan brand dasar Stecute v1.
 

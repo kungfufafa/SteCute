@@ -58,7 +58,11 @@ defineExpose({ promptUpdate })
           {{ updateError }}
         </p>
         <div class="space-y-2">
-          <button :class="[ui.primaryButton, 'w-full']" :disabled="isUpdating" @click="acceptUpdate">
+          <button
+            :class="[ui.primaryButton, 'w-full']"
+            :disabled="isUpdating"
+            @click="acceptUpdate"
+          >
             {{ isUpdating ? 'Memuat Update...' : 'Muat Ulang' }}
           </button>
           <button :class="[ui.secondaryButton, 'w-full']" :disabled="isUpdating" @click="dismiss">

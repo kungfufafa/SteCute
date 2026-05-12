@@ -9,6 +9,10 @@ function isPublicImagePng(url: string) {
   return /^images\/[^/]+\.png$/.test(url)
 }
 
+function isPwaGeneratedPrecacheDuplicate(url: string) {
+  return url === 'manifest.webmanifest' || /^icons\/[^/]+\.png$/.test(url) || isPublicImagePng(url)
+}
+
 function loadDevHttpsOptions() {
   if (process.env.STECUTE_DEV_HTTPS !== '1') {
     return undefined
@@ -35,7 +39,6 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         id: '/',
         name: 'Stecute',
@@ -44,8 +47,9 @@ export default defineConfig({
         lang: 'id-ID',
         dir: 'ltr',
         theme_color: '#f45b8d',
-        background_color: '#ffffff',
+        background_color: '#f8f9fc',
         display: 'standalone',
+        display_override: ['standalone', 'browser'],
         orientation: 'portrait',
         start_url: '/',
         scope: '/',
@@ -70,22 +74,43 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
+        shortcuts: [
+          {
+            name: 'Mulai Foto',
+            short_name: 'Foto',
+            description: 'Mulai sesi photo booth dari kamera.',
+            url: '/config?source=camera',
+            icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Upload Lokal',
+            short_name: 'Upload',
+            description: 'Buat photo strip dari foto lokal.',
+            url: '/config?source=upload',
+            icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Galeri',
+            short_name: 'Galeri',
+            description: 'Buka galeri render lokal.',
+            url: '/gallery',
+            icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
       },
       integration: {
         beforeBuildServiceWorker(options) {
           options.workbox.additionalManifestEntries = (
             options.workbox.additionalManifestEntries ?? []
-          ).filter((entry) => !isPublicImagePng(typeof entry === 'string' ? entry : entry.url))
+          ).filter(
+            (entry) =>
+              !isPwaGeneratedPrecacheDuplicate(typeof entry === 'string' ? entry : entry.url),
+          )
         },
       },
       workbox: {
-        globPatterns: [
-          '**/*.{js,css,html,ico,svg,woff2,webp}',
-          'assets/*.png',
-          'icons/*.png',
-          'manifest/*.webmanifest',
-          'manifest.webmanifest',
-        ],
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webp,png,json,webmanifest,wasm,tflite}'],
         globIgnores: ['images/*.png', '**/images/*.png'],
         manifestTransforms: [
           async (entries) => ({
@@ -93,6 +118,8 @@ export default defineConfig({
             warnings: [],
           }),
         ],
+        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
+        navigateFallback: '/index.html',
         runtimeCaching: [],
       },
     }),

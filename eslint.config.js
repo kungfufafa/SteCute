@@ -48,6 +48,7 @@ export default [
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      'public/vendor/**',
       '**/*.d.ts',
       'src/**/*.js',
       'playwright.config.js',

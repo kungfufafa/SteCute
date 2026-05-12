@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/app/store/useAppStore'
 import { useCapabilityStore } from '@/app/store/useCapabilityStore'
+import { promptPwaInstall } from '@/services/pwa/install'
 import { requestPersistentStorage } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
@@ -11,6 +12,8 @@ import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
 const router = useRouter()
 const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
+const installFeedback = ref('')
+const canPromptInstall = computed(() => appStore.installPromptAvailable && !appStore.installedMode)
 const offlineStatusText = computed(() => {
   if (appStore.offlineReady) return appStore.offlineMode ? '100% Offline.' : 'Siap Offline.'
   if (appStore.serviceWorkerStatus === 'unsupported') return 'Offline terbatas.'
@@ -56,6 +59,23 @@ function startWithCamera() {
 function startWithUpload() {
   void requestPersistentStorage()
   router.push({ path: '/config', query: { source: 'upload' } })
+}
+
+async function installApp() {
+  installFeedback.value = ''
+  const outcome = await promptPwaInstall()
+
+  if (outcome === 'accepted') {
+    installFeedback.value = 'Stecute sedang dipasang ke perangkat.'
+    return
+  }
+
+  if (outcome === 'dismissed') {
+    installFeedback.value = 'Kamu bisa pasang Stecute nanti dari tombol ini.'
+    return
+  }
+
+  installFeedback.value = 'Gunakan menu browser untuk menambahkan Stecute ke layar utama.'
 }
 </script>
 
@@ -128,10 +148,23 @@ function startWithUpload() {
           <button :class="[ui.primaryButton, 'sm:!w-auto']" @click="startWithCamera">
             Mulai Foto
           </button>
+          <button
+            v-if="canPromptInstall"
+            :class="[ui.secondaryButton, 'sm:!w-auto']"
+            @click="installApp"
+          >
+            Pasang App
+          </button>
           <div class="flex w-full sm:hidden">
             <button :class="ui.secondaryButton" @click="startWithUpload">Upload Lokal</button>
           </div>
         </div>
+        <p
+          v-if="installFeedback"
+          class="text-stc-text-soft mt-3 max-w-[32rem] text-center text-xs font-semibold lg:text-left"
+        >
+          {{ installFeedback }}
+        </p>
 
         <div
           class="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:mt-10 lg:justify-start"

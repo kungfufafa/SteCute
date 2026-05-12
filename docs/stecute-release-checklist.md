@@ -28,8 +28,10 @@ Tanggal: 2026-03-20
 - Unit test pass
 - Integration test pass
 - E2E smoke pass
+- PWA artifact audit pass
 - PWA installable
 - Offline relaunch pass
+- MediaPipe face detector WASM/model tersedia lokal, ikut precache, dan cocok dengan manifest checksum vendor
 - Storage cleanup pass
 - Service worker update flow aman
 - SEO metadata, robots, sitemap, dan canonical public routes pass
@@ -40,6 +42,7 @@ Tanggal: 2026-03-20
 - CSP aktif
 - Permissions-Policy aktif
 - Font self-hosted
+- Tidak ada runtime CDN untuk MediaPipe face tracking
 - Tidak ada remote script non-esensial
 
 ## 5. QA

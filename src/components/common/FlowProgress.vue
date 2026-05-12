@@ -36,20 +36,22 @@ const currentIndex = computed(() =>
     class="mx-auto w-full max-w-6xl px-4 pb-4 sm:px-6 md:px-8"
     aria-label="Progress sesi Stecute"
   >
-    <ol class="border-stc-border/70 shadow-stc-xs flex w-full gap-1 rounded-xl border bg-white/85 p-1 sm:grid sm:grid-cols-6 sm:p-1.5">
-      <li 
-        v-for="(step, index) in steps" 
-        :key="step.id" 
+    <ol
+      class="border-stc-border/70 shadow-stc-xs flex w-full gap-1 rounded-xl border bg-white/85 p-1 sm:grid sm:grid-cols-6 sm:p-1.5"
+    >
+      <li
+        v-for="(step, index) in steps"
+        :key="step.id"
         :class="[
           'min-w-0 transition-all duration-300 ease-out',
-          index === currentIndex ? 'flex-[2.5] sm:flex-none' : 'flex-1 sm:flex-none'
+          index === currentIndex ? 'flex-[2.5] sm:flex-none' : 'flex-1 sm:flex-none',
         ]"
       >
         <div
           class="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-[0.5rem] px-1 text-[0.6875rem] font-bold transition-colors duration-200 sm:min-h-11 sm:flex-col sm:gap-1 sm:rounded-lg sm:px-2 sm:text-[0.625rem] md:flex-row md:gap-2 md:px-3 lg:text-xs"
           :class="
             index === currentIndex
-              ? 'bg-stc-pink text-white shadow-stc-xs'
+              ? 'bg-stc-pink shadow-stc-xs text-white'
               : index < currentIndex
                 ? 'bg-stc-pink-soft text-stc-pink hover:bg-stc-pink/20'
                 : 'text-stc-text-faint hover:bg-stc-bg-2'
@@ -62,18 +64,18 @@ const currentIndex = computed(() =>
               index === currentIndex
                 ? 'bg-white/20 text-white'
                 : index < currentIndex
-                  ? 'bg-white text-stc-pink'
+                  ? 'text-stc-pink bg-white'
                   : 'bg-stc-bg-2 text-stc-text-faint group-hover:bg-stc-border'
             "
           >
             {{ index + 1 }}
           </span>
-          <span 
+          <span
             class="overflow-hidden whitespace-nowrap transition-all duration-300"
             :class="[
-              index === currentIndex 
-                ? 'max-w-[80px] opacity-100 sm:max-w-full' 
-                : 'max-w-0 opacity-0 sm:max-w-full sm:opacity-100'
+              index === currentIndex
+                ? 'max-w-[80px] opacity-100 sm:max-w-full'
+                : 'max-w-0 opacity-0 sm:max-w-full sm:opacity-100',
             ]"
           >
             {{ step.label }}

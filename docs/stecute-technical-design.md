@@ -272,6 +272,7 @@ Tanggung jawab:
 
 - precache app shell
 - cache layout, template, dan asset visual template inti
+- precache runtime face detector lokal, termasuk MediaPipe WASM dan model face detector yang dipakai overlay kamera
 - cache strategi runtime terbatas
 - support offline fallback untuk route aplikasi
 
@@ -332,6 +333,10 @@ src/
 public/
   icons/
   manifest/
+  vendor/
+    mediapipe/
+      tasks-vision/
+      models/
 ```
 
 Catatan:
@@ -705,6 +710,7 @@ Aturan:
 - bundled layouts
 - bundled template config
 - frame PNG atau SVG inti
+- MediaPipe face detector WASM dan model `.tflite` lokal untuk overlay kamera
 - offline fallback assets
 - print stylesheet
 
@@ -719,8 +725,10 @@ Aturan:
 - App shell: precache
 - Layout and template assets: cache-first
 - Template visual assets: cache-first
+- Face detector runtime assets: precache lokal dari `/vendor/mediapipe/`; production tidak boleh memuat MediaPipe WASM atau model dari CDN, dan file vendor harus cocok dengan checksum di `public/vendor/mediapipe/manifest.json`.
 - Navigation requests: network-first with offline fallback atau app-shell fallback tergantung hosting
 - Remote optional APIs di fase depan: stale-while-revalidate atau network-first sesuai jenis data
+- Manifest PWA diproduksi dari konfigurasi `vite-plugin-pwa` sebagai `/manifest.webmanifest`; jangan menyimpan manifest publik kedua yang bisa drift dari konfigurasi utama.
 
 ### 11.3 Update policy
 

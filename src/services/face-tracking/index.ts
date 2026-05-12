@@ -20,9 +20,13 @@ let faceDetector: FaceDetector | null = null
 let initPromise: Promise<FaceDetector> | null = null
 let lastDetectionTimestamp = -1
 
-const WASM_CDN = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm'
-const MODEL_CDN =
-  'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite'
+const MEDIAPIPE_ASSET_BASE_PATH = `${import.meta.env.BASE_URL}vendor/mediapipe`
+
+export const FACE_DETECTOR_WASM_BASE_PATH = `${MEDIAPIPE_ASSET_BASE_PATH}/tasks-vision/wasm`
+export const FACE_DETECTOR_MODEL_PATH = `${MEDIAPIPE_ASSET_BASE_PATH}/models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`
+
+type FaceDetectorDelegate = 'GPU' | 'CPU'
+type VisionWasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>
 
 function isValidDetectedFace(face: FaceBounds): boolean {
   return (
@@ -45,16 +49,13 @@ export async function initFaceDetector(): Promise<FaceDetector> {
 
   initPromise = (async () => {
     try {
-      const vision = await FilesetResolver.forVisionTasks(WASM_CDN)
+      const vision = await FilesetResolver.forVisionTasks(FACE_DETECTOR_WASM_BASE_PATH)
 
-      faceDetector = await FaceDetector.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: MODEL_CDN,
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        minDetectionConfidence: 0.5,
-      })
+      try {
+        faceDetector = await createFaceDetector(vision, 'GPU')
+      } catch {
+        faceDetector = await createFaceDetector(vision, 'CPU')
+      }
 
       return faceDetector
     } catch (error) {
@@ -64,6 +65,20 @@ export async function initFaceDetector(): Promise<FaceDetector> {
   })()
 
   return initPromise
+}
+
+function createFaceDetector(
+  vision: VisionWasmFileset,
+  delegate: FaceDetectorDelegate,
+): Promise<FaceDetector> {
+  return FaceDetector.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: FACE_DETECTOR_MODEL_PATH,
+      delegate,
+    },
+    runningMode: 'VIDEO',
+    minDetectionConfidence: 0.5,
+  })
 }
 
 /**

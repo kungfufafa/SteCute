@@ -256,6 +256,7 @@ Keputusan produksi:
 - jangan gunakan CDN untuk asset inti
 - font produksi harus self-hosted
 - tidak boleh ada dependency visual penting yang hanya tersedia online
+- face tracking overlay wajib memakai MediaPipe WASM dan model `.tflite` lokal yang ikut precache, bukan `cdn.jsdelivr.net` atau `storage.googleapis.com` saat runtime production; file vendor harus punya provenance dan checksum yang diaudit
 
 ---
 
@@ -318,6 +319,7 @@ Device target minimum:
 
 - shell JS gzip target: `< 300 KB`
 - total bundled visual asset awal target: `< 8 MB`
+- face detector runtime asset dipantau terpisah dari budget visual karena berisi WASM/model non-visual untuk overlay kamera offline
 - default local gallery cap: `10 render`
 - default storage soft warning: `>= 70 MB`
 
@@ -340,7 +342,7 @@ Wajib:
 Baseline policy produksi:
 
 - `default-src 'self'`
-- `script-src 'self'`
+- `script-src 'self' 'wasm-unsafe-eval'`
 - `style-src 'self' 'unsafe-inline'`
 - `img-src 'self' blob: data:`
 - `font-src 'self'`
@@ -352,6 +354,7 @@ Baseline policy produksi:
 Catatan:
 
 - `unsafe-inline` pada style boleh dipertahankan hanya jika build membutuhkan.
+- `wasm-unsafe-eval` hanya untuk kompilasi WASM lokal MediaPipe; jangan ganti dengan `unsafe-eval` untuk JavaScript.
 - Font Google tidak boleh dipakai di production.
 
 ### 9.3 Privacy baseline
