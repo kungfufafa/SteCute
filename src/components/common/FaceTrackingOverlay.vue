@@ -138,7 +138,7 @@ function renderFrame() {
   if (rect.width <= 0 || rect.height <= 0) return
 
   const now = window.performance.now()
-  const frameMs = prefersReducedMotion.value ? 0 : normalizeCameraEffectFrameMs(now)
+  const frameMs = prefersReducedMotion.value ? 0 : normalizeCameraEffectFrameMs(now, props.effectId)
   currentFrameMs.value = Math.round(frameMs)
   emit('update:frame-ms', frameMs)
 

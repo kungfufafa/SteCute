@@ -77,7 +77,7 @@ const cameraRecoverySteps = [
 const filterOptions = PHOTO_FILTERS
 const cameraEffectOptions = CAMERA_EFFECTS
 const FILTER_INLINE_LIMIT = 4
-const CAMERA_EFFECT_INLINE_LIMIT = 4
+const CAMERA_EFFECT_INLINE_LIMIT = 5
 const selectedFilter = computed(() => getPhotoFilterById(sessionStore.filterId))
 const selectedCameraEffect = computed(() => getCameraEffectById(sessionStore.cameraEffectId))
 const activeOptionPicker = ref<'filter' | 'overlay' | null>(null)
@@ -290,6 +290,10 @@ function updateOverlayFrame(frameMs: number) {
   latestOverlayFrameMs.value = frameMs
 }
 
+function getCaptureCameraEffectId() {
+  return sessionStore.cameraEffectId
+}
+
 function filterSwatchStyle(filterId: string) {
   const filter = getPhotoFilterById(filterId)
 
@@ -394,6 +398,7 @@ async function handleCapture() {
   if (!sessionId) return
 
   const order = sessionStore.currentShotIndex
+  const capturedCameraEffectId = getCaptureCameraEffectId()
   const hadShotAtOrder = !!(await getSessionShots(sessionId)).find((shot) => shot.order === order)
 
   let shots: Awaited<ReturnType<typeof getSessionShots>>
@@ -406,9 +411,10 @@ async function handleCapture() {
       blob: frame.blob,
       width: frame.width,
       height: frame.height,
-      faceBounds: isCurrentEffectFaceTracking.value
+      faceBounds: isFaceTrackingEffect(capturedCameraEffectId)
         ? latestOverlayFaces.value.map((face) => ({ ...face }))
         : [],
+      cameraEffectId: capturedCameraEffectId,
       cameraEffectFrameMs: latestOverlayFrameMs.value,
     })
 

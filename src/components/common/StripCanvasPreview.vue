@@ -170,6 +170,15 @@ function slotPhotoStyle(index: number) {
   return style
 }
 
+function slotCameraEffectId(index: number) {
+  const shotEffectId = props.shots[index]?.cameraEffectId
+
+  if (shotEffectId) return shotEffectId
+  if (props.cameraEffectId === 'reactions') return 'none'
+
+  return props.cameraEffectId
+}
+
 function labelStyle() {
   const layout = previewLayout.value
   const template = props.templateConfig
@@ -254,7 +263,7 @@ function footerLogoStyle() {
           aria-hidden="true"
         ></span>
         <CameraEffectCanvas
-          :effect-id="cameraEffectId"
+          :effect-id="slotCameraEffectId(index)"
           :face-bounds="shots[index]?.faceBounds"
           :frame-ms="shots[index]?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
@@ -278,7 +287,7 @@ function footerLogoStyle() {
           aria-hidden="true"
         ></span>
         <CameraEffectCanvas
-          :effect-id="cameraEffectId"
+          :effect-id="slotCameraEffectId(index)"
           :face-bounds="shots[index]?.faceBounds"
           :frame-ms="shots[index]?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"

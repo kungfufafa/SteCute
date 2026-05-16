@@ -38,16 +38,32 @@ const KICAU_MANIA_ASSET_URLS = Object.entries(
   .sort(([left], [right]) => left.localeCompare(right))
   .map(([, url]) => url)
 
+const WINDUT_ASSET_URLS = Object.entries(
+  import.meta.glob<string>('../../assets/camera-effects/windut/windut*.png', {
+    eager: true,
+    import: 'default',
+    query: '?url',
+  }),
+)
+  .sort(([left], [right]) => left.localeCompare(right))
+  .map(([, url]) => url)
+
 const KICAU_MANIA_FRAME_DURATIONS_MS = [
-  60, 130, 60, 60, 130, 60, 60, 130, 60, 60, 130, 60, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70,
-  120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120, 60, 70, 120,
-  60, 70, 120, 60, 70, 120, 60, 70,
+  90, 195, 90, 90, 195, 90, 90, 195, 90, 90, 195, 90, 90, 105, 180, 90, 105, 180, 90, 105, 180, 90,
+  105, 180, 90, 105, 180, 90, 105, 180, 90, 105, 180, 90, 105, 180, 90, 105, 180, 90, 105, 180, 90,
+  105, 180, 90, 105, 180, 90, 105, 180, 90, 105,
 ] as const
 
 const KICAU_MANIA_SOURCE_LOOP_MS = KICAU_MANIA_FRAME_DURATIONS_MS.reduce(
   (total, duration) => total + duration,
   0,
 )
+const WINDUT_FRAME_DURATION_MS = 100
+const WINDUT_SOURCE_LOOP_MS = Math.max(
+  WINDUT_FRAME_DURATION_MS,
+  WINDUT_ASSET_URLS.length * WINDUT_FRAME_DURATION_MS,
+)
+const WINDUT_DIZZY_ORBIT_COUNT = 2
 
 export interface CameraEffectConfig {
   id: string
@@ -86,6 +102,13 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #22d3ee 46%, #ec4899 100%)',
     faceTracking: true,
   },
+  {
+    id: 'windut',
+    label: 'Windut',
+    description: 'Windut kecil berputar di atas kepala seperti efek pusing.',
+    previewBackground: 'linear-gradient(135deg, #fff7ed 0%, #fb7185 48%, #1f2937 100%)',
+    faceTracking: true,
+  },
 ]
 
 type CameraEffectContext = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
@@ -120,6 +143,7 @@ export type CameraEffectAssetKey =
   | 'bird-large-2'
   | 'bird-large-3'
   | `kicau-mania-${number}`
+  | `windut-${number}`
 
 export type PhotoBoothAssetKey = CameraEffectAssetKey
 
@@ -160,6 +184,10 @@ const KICAU_MANIA_ASSETS: CameraEffectAsset[] = KICAU_MANIA_ASSET_URLS.map((url,
   key: `kicau-mania-${index}` as CameraEffectAssetKey,
   url,
 }))
+const WINDUT_ASSETS: CameraEffectAsset[] = WINDUT_ASSET_URLS.map((url, index) => ({
+  key: `windut-${index}` as CameraEffectAssetKey,
+  url,
+}))
 const loadedAssets = new Map<CameraEffectAssetKey, LoadedCameraEffectAsset | null>()
 const loadingAssets = new Map<CameraEffectAssetKey, Promise<LoadedCameraEffectAsset | null>>()
 
@@ -179,8 +207,15 @@ export function isFaceTrackingEffect(effectId?: string | null): boolean {
   return effect.faceTracking === true
 }
 
-export function normalizeCameraEffectFrameMs(timeMs = 0): number {
-  return ((timeMs % CAMERA_EFFECT_LOOP_MS) + CAMERA_EFFECT_LOOP_MS) % CAMERA_EFFECT_LOOP_MS
+export function getCameraEffectLoopMs(effectId?: string | null): number {
+  return normalizeCameraEffectId(effectId) === 'windut'
+    ? WINDUT_SOURCE_LOOP_MS
+    : CAMERA_EFFECT_LOOP_MS
+}
+
+export function normalizeCameraEffectFrameMs(timeMs = 0, effectId?: string | null): number {
+  const loopMs = getCameraEffectLoopMs(effectId)
+  return ((timeMs % loopMs) + loopMs) % loopMs
 }
 
 function isRenderableFaceBounds(face: FaceBounds): boolean {
@@ -218,6 +253,7 @@ export function getCameraEffectAssetManifest(effectId?: string | null): CameraEf
   if (normalizedEffectId === 'bluebirds')
     return [...BIRD_ASSETS.small, ...BIRD_ASSETS.medium, ...BIRD_ASSETS.large]
   if (normalizedEffectId === 'kicau-mania') return [...KICAU_MANIA_ASSETS]
+  if (normalizedEffectId === 'windut') return [...WINDUT_ASSETS]
 
   return []
 }
@@ -339,6 +375,16 @@ function getKicauManiaAsset(frameProgress: number): LoadedCameraEffectAsset | un
   return getLoadedCameraEffectAsset(`kicau-mania-${frameIndex}` as CameraEffectAssetKey)
 }
 
+function getWindutAsset(timeMs: number): LoadedCameraEffectAsset | undefined {
+  if (WINDUT_ASSETS.length === 0) return undefined
+
+  const sourceTimeMs = normalizeCameraEffectFrameMs(timeMs, 'windut')
+  const frameIndex =
+    Math.floor(sourceTimeMs / WINDUT_FRAME_DURATION_MS) % Math.max(1, WINDUT_ASSETS.length)
+
+  return getLoadedCameraEffectAsset(`windut-${frameIndex}` as CameraEffectAssetKey)
+}
+
 export function drawCameraEffect(
   _ctx: CameraEffectContext,
   _width: number,
@@ -349,7 +395,7 @@ export function drawCameraEffect(
   const normalizedEffectId = normalizeCameraEffectId(effectId)
   if (normalizedEffectId === 'none') return
 
-  normalizeCameraEffectFrameMs(options.timeMs)
+  normalizeCameraEffectFrameMs(options.timeMs, normalizedEffectId)
 }
 
 function drawHeart(ctx: CameraEffectContext, x: number, y: number, size: number) {
@@ -536,6 +582,26 @@ function drawKicauManiaSprite(ctx: CameraEffectContext, size: number, frameProgr
   drawBlueBird(ctx, size, frameProgress)
 }
 
+function drawWindutSprite(ctx: CameraEffectContext, size: number, timeMs: number) {
+  const displayWidth = size * 2.35
+  const windutAsset = getWindutAsset(timeMs)
+
+  if (windutAsset) {
+    ctx.save()
+    ctx.shadowColor = 'rgba(15, 23, 42, 0.22)'
+    ctx.shadowBlur = size * 0.18
+    drawEffectImage(ctx, windutAsset, displayWidth)
+    ctx.restore()
+    return
+  }
+
+  ctx.save()
+  ctx.globalAlpha *= 0.78
+  ctx.fillStyle = '#fb7185'
+  drawFourPointStar(ctx, 0, 0, size * 0.7)
+  ctx.restore()
+}
+
 function drawHeartEcho(ctx: CameraEffectContext, size: number, opacity: number) {
   const displayWidth = size * 2.05
   const heartAsset = getHeartAsset(displayWidth)
@@ -588,7 +654,7 @@ export function drawFaceTrackingEffect(
   const renderableFaces = faces.filter(isRenderableFaceBounds)
   if (renderableFaces.length === 0) return
 
-  const frameMs = normalizeCameraEffectFrameMs(options.timeMs)
+  const frameMs = normalizeCameraEffectFrameMs(options.timeMs, effectId)
 
   for (const [faceIndex, face] of renderableFaces.entries()) {
     const faceX = face.x * width
@@ -610,6 +676,7 @@ export function drawFaceTrackingEffect(
     else if (effectId === 'hearts') drawFaceHearts(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'bluebirds') drawFaceBirds(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'kicau-mania') drawFaceKicauMania(ctx, centerX, topY, faceW, frameMs)
+    else if (effectId === 'windut') drawFaceWindut(ctx, centerX, topY, faceW, frameMs)
     else if (effectId === 'sparkles') drawFaceSparkles(ctx, centerX, topY, faceW, frameMs)
 
     ctx.restore()
@@ -1080,6 +1147,63 @@ function drawFaceKicauMania(
     ctx.scale(mark.direction * mark.scale, mark.scale)
     ctx.globalAlpha = mark.alpha * (0.62 + mark.depth * 0.38)
     drawKicauManiaSprite(ctx, faceW * mark.size, mark.frameProgress)
+    ctx.restore()
+  }
+}
+
+function drawFaceWindut(
+  ctx: CameraEffectContext,
+  cx: number,
+  topY: number,
+  faceW: number,
+  timeMs: number,
+) {
+  const orbitCenterY = Math.max(topY - faceW * 0.18, faceW * 0.16)
+  const orbitMarks = [
+    { phase: 0, size: 0.112, radiusX: 0.66, radiusY: 0.16, alpha: 0.9, frameOffset: 0 },
+    { phase: 0.12, size: 0.09, radiusX: 0.53, radiusY: 0.12, alpha: 0.62, frameOffset: 8 },
+    { phase: 0.25, size: 0.12, radiusX: 0.7, radiusY: 0.17, alpha: 0.94, frameOffset: 15 },
+    { phase: 0.38, size: 0.094, radiusX: 0.49, radiusY: 0.11, alpha: 0.66, frameOffset: 22 },
+    { phase: 0.5, size: 0.116, radiusX: 0.67, radiusY: 0.16, alpha: 0.88, frameOffset: 29 },
+    { phase: 0.64, size: 0.096, radiusX: 0.55, radiusY: 0.13, alpha: 0.68, frameOffset: 35 },
+    { phase: 0.76, size: 0.122, radiusX: 0.71, radiusY: 0.18, alpha: 0.92, frameOffset: 40 },
+    { phase: 0.9, size: 0.086, radiusX: 0.48, radiusY: 0.1, alpha: 0.58, frameOffset: 4 },
+  ]
+    .map((mark) => {
+      const orbit =
+        ((timeMs / getCameraEffectLoopMs('windut')) * WINDUT_DIZZY_ORBIT_COUNT + mark.phase) % 1
+      const angle = orbit * Math.PI * 2
+      const depth = (Math.sin(angle) + 1) / 2
+      const orbitRadiusX = faceW * mark.radiusX
+      const orbitRadiusY = faceW * mark.radiusY
+      const velocityX = -Math.sin(angle) * orbitRadiusX
+      const velocityY = Math.cos(angle) * orbitRadiusY
+
+      return {
+        ...mark,
+        x: cx + Math.cos(angle) * orbitRadiusX,
+        y:
+          orbitCenterY +
+          Math.sin(angle) * orbitRadiusY +
+          Math.sin((orbit * 2 + mark.phase) * Math.PI * 2) * faceW * 0.012,
+        depth,
+        direction: velocityX < 0 ? 1 : -1,
+        rotate: Math.max(-0.18, Math.min(0.18, (velocityY / orbitRadiusY) * 0.11)),
+        frameMs: timeMs + mark.frameOffset * WINDUT_FRAME_DURATION_MS,
+      }
+    })
+    .sort((a, b) => a.depth - b.depth)
+
+  for (const mark of orbitMarks) {
+    const scale = 0.62 + mark.depth * 0.34
+    const alpha = mark.alpha * (0.46 + mark.depth * 0.54)
+
+    ctx.save()
+    ctx.translate(mark.x, mark.y)
+    ctx.rotate(mark.rotate)
+    ctx.scale(mark.direction * scale, scale)
+    ctx.globalAlpha = alpha
+    drawWindutSprite(ctx, faceW * mark.size, mark.frameMs)
     ctx.restore()
   }
 }

@@ -41,7 +41,7 @@ Fitur yang wajib ada:
 - pilihan blanko/paket strip sebelum capture, dengan `Classic` sebagai default aman
 - upload blanko strip lokal sebelum capture
 - preset filter kamera lokal sebelum capture, dengan efek yang sama dipakai di preview kamera, preview review, dan render final
-- preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, dan `kicau-mania`, berbasis sprite PNG bundled lokal, dengan efek animasi di preview kamera dan snapshot posisi/fase yang sama dipakai di preview review serta render final; overlay face-tracking tidak digambar jika tidak ada wajah terdeteksi
+- preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, `kicau-mania`, dan `windut`; overlay face-tracking tidak digambar jika tidak ada wajah terdeteksi
 - countdown default `3` detik
 - review sesi
 - retake `seluruh sesi`
@@ -82,6 +82,7 @@ Tidak masuk v1:
 - pembayaran
 - kiosk native wrapper
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
+- `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
 
 ### 2.4 Keputusan open questions yang dikunci
 
@@ -366,7 +367,7 @@ Catatan:
 
 ### 9.4 Future customization constraints
 
-- filter dan overlay kamera v1 hanya memakai preset statis lokal; custom LUT, remote filter, overlay custom, dan filter per-shot masuk fase berikutnya
+- filter dan overlay kamera v1 hanya memakai preset lokal yang stabil; `reactions`, custom LUT, remote filter, overlay custom, dan editor manual per-shot masuk fase berikutnya
 - `logoText` maksimum `24` karakter jika fitur logo text diaktifkan kembali
 - karakter kontrol dan markup tidak boleh diterima
 - sticker aktif maksimum `5` jika fitur sticker diaktifkan kembali

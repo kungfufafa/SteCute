@@ -90,6 +90,7 @@ export async function saveShot(params: {
   width: number
   height: number
   faceBounds?: Shot['faceBounds']
+  cameraEffectId?: string
   cameraEffectFrameMs?: number
 }): Promise<string> {
   const existing = await shotRepo.getBySessionAndOrder(params.sessionId, params.order)
@@ -102,6 +103,7 @@ export async function saveShot(params: {
       params.width,
       params.height,
       params.faceBounds,
+      normalizeCameraEffectId(params.cameraEffectId),
       params.cameraEffectFrameMs,
     )
 
@@ -116,6 +118,7 @@ export async function saveShot(params: {
     width: params.width,
     height: params.height,
     faceBounds: params.faceBounds ?? [],
+    cameraEffectId: normalizeCameraEffectId(params.cameraEffectId),
     cameraEffectFrameMs: params.cameraEffectFrameMs ?? 0,
     createdAt: Date.now(),
   })

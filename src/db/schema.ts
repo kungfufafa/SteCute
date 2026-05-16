@@ -46,6 +46,7 @@ export interface Shot {
   width: number
   height: number
   faceBounds?: ShotFaceBounds[]
+  cameraEffectId?: string
   cameraEffectFrameMs?: number
   createdAt: number
 }

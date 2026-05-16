@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Session, Shot } from '@/db/schema'
+import { normalizeCameraEffectId } from '@/services/camera-effects'
 
 export type SessionStatus =
   | 'idle'
@@ -51,7 +52,7 @@ export const useSessionStore = defineStore('session', () => {
     layoutId.value = session.layoutId
     templateId.value = session.templateId
     filterId.value = session.decorationConfig.filterId || 'normal'
-    cameraEffectId.value = session.decorationConfig.cameraEffectId || 'none'
+    cameraEffectId.value = normalizeCameraEffectId(session.decorationConfig.cameraEffectId)
     slotCount.value = session.slotCount
     currentShotIndex.value = firstMissingOrder ?? Math.max(0, session.slotCount - 1)
     shotIds.value = Array.from(
@@ -116,7 +117,7 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   function setCameraEffectId(id: string) {
-    cameraEffectId.value = id
+    cameraEffectId.value = normalizeCameraEffectId(id)
   }
 
   function reset() {

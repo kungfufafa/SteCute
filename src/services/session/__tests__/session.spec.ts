@@ -34,7 +34,17 @@ describe('session decoration config', () => {
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'kicau-mania' }).cameraEffectId,
     ).toBe('kicau-mania')
     expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'windut' }).cameraEffectId,
+    ).toBe('windut')
+    expect(
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'unknown' }).cameraEffectId,
+    ).toBe('none')
+    expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'reactions' }).cameraEffectId,
+    ).toBe('none')
+    expect(
+      createDefaultDecorationConfig(undefined, { cameraEffectId: 'reaction-hearts' })
+        .cameraEffectId,
     ).toBe('none')
   })
 })

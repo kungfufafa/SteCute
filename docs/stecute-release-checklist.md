@@ -32,6 +32,7 @@ Tanggal: 2026-03-20
 - PWA installable
 - Offline relaunch pass
 - MediaPipe face detector WASM/model tersedia lokal, ikut precache, dan cocok dengan manifest checksum vendor
+- Reactions gesture tetap hidden/deferred dan tidak masuk daftar overlay v1
 - Storage cleanup pass
 - Service worker update flow aman
 - SEO metadata, robots, sitemap, dan canonical public routes pass
@@ -55,6 +56,7 @@ Tanggal: 2026-03-20
 - Error states pass
 - Preset filter kamera pass di preview dan hasil render final
 - Preset overlay kamera pass di preview kamera, review, dan hasil render final
+- Tidak ada entry point Reactions di UI produksi v1
 
 ## 6. Operasional
 

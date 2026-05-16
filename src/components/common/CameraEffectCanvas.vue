@@ -45,11 +45,11 @@ const shouldAnimate = computed(
 )
 
 function getStaticFrameMs() {
-  return normalizeCameraEffectFrameMs(props.frameMs ?? 0)
+  return normalizeCameraEffectFrameMs(props.frameMs ?? 0, normalizedEffectId.value)
 }
 
 function getLiveFrameMs() {
-  return normalizeCameraEffectFrameMs(window.performance.now())
+  return normalizeCameraEffectFrameMs(window.performance.now(), normalizedEffectId.value)
 }
 
 function renderEffect(frameMs = shouldAnimate.value ? getLiveFrameMs() : getStaticFrameMs()) {

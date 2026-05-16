@@ -17,18 +17,23 @@ describe('camera effects', () => {
       'hearts',
       'bluebirds',
       'kicau-mania',
+      'windut',
     ])
   })
 
   it('falls back to no overlay for unknown ids', () => {
     expect(getCameraEffectById('missing').id).toBe('none')
     expect(normalizeCameraEffectId('missing')).toBe('none')
+    expect(getCameraEffectById('reactions').id).toBe('none')
+    expect(normalizeCameraEffectId('reaction-hearts')).toBe('none')
   })
 
   it('identifies face-tracking effects correctly', () => {
     expect(isFaceTrackingEffect('hearts')).toBe(true)
     expect(isFaceTrackingEffect('bluebirds')).toBe(true)
     expect(isFaceTrackingEffect('kicau-mania')).toBe(true)
+    expect(isFaceTrackingEffect('windut')).toBe(true)
+    expect(isFaceTrackingEffect('reactions')).toBe(false)
     expect(isFaceTrackingEffect('sparkles')).toBe(false)
     expect(isFaceTrackingEffect('none')).toBe(false)
     expect(isFaceTrackingEffect(null)).toBe(false)
@@ -39,6 +44,7 @@ describe('camera effects', () => {
     expect(normalizeCameraEffectFrameMs(0)).toBe(0)
     expect(normalizeCameraEffectFrameMs(CAMERA_EFFECT_LOOP_MS + 120)).toBe(120)
     expect(normalizeCameraEffectFrameMs(-120)).toBe(CAMERA_EFFECT_LOOP_MS - 120)
+    expect(normalizeCameraEffectFrameMs(4_620, 'windut')).toBe(120)
   })
 
   it('does not invent face-tracking bounds unless fallback is requested', () => {
@@ -80,5 +86,11 @@ describe('camera effects', () => {
       'kicau-mania-2',
     ])
     expect(kicauManiaAssetKeys[52]).toBe('kicau-mania-52')
+
+    const windutAssetKeys = getCameraEffectAssetManifest('windut').map((asset) => asset.key)
+
+    expect(windutAssetKeys).toHaveLength(45)
+    expect(windutAssetKeys.slice(0, 3)).toEqual(['windut-0', 'windut-1', 'windut-2'])
+    expect(windutAssetKeys[44]).toBe('windut-44')
   })
 })

@@ -398,6 +398,7 @@ Contoh isi:
 | width | number | pixel |
 | height | number | pixel |
 | faceBounds | json nullable | posisi wajah ternormalisasi saat capture untuk mengunci posisi overlay kamera di review dan render final |
+| cameraEffectId | string nullable | overlay aktual per shot bila dibutuhkan; v1 memakai preset overlay stabil dan field ini juga menjaga kompatibilitas untuk fase berikutnya |
 | cameraEffectFrameMs | number nullable | fase animasi overlay saat shutter ditekan agar PNG final membekukan frame yang sama |
 | createdAt | number | epoch ms |
 
@@ -808,7 +809,7 @@ Gunakan constraints adaptif, contoh:
 5. Crop dan fit ke slot.
 6. Gambar background.
 7. Gambar slot 1..N.
-8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `faceBounds` dan `cameraEffectFrameMs` dari tiap shot bila tersedia agar posisi overlay sama dengan momen capture, dan tidak menggambar overlay face-tracking saat `faceBounds` kosong.
+8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` atau `shot.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `shot.cameraEffectId`, `faceBounds`, dan `cameraEffectFrameMs` bila tersedia agar overlay face-tracking sama dengan momen capture, dan tidak menggambar overlay face-tracking saat `faceBounds` kosong.
 9. Terapkan background template, photo backing, label template, dan frame default template.
 10. Ekspor Blob final.
 

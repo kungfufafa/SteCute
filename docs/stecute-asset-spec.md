@@ -174,7 +174,7 @@ Preset filter kamera masuk v1 sebagai konfigurasi lokal statis. Filter dipilih s
 
 ## 7. Camera overlay inventory
 
-Preset overlay kamera masuk v1 sebagai konfigurasi lokal statis. Overlay dipilih sebelum capture, tampil di preview kamera saat wajah terdeteksi, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir jika shot memiliki `faceBounds`.
+Preset overlay kamera masuk v1 sebagai konfigurasi lokal. Overlay dipilih sebelum capture, tampil di preview kamera saat wajah terdeteksi, muncul di preview review, dan digambar ulang oleh render engine saat membuat hasil akhir memakai snapshot tiap shot.
 
 Overlay v1 tidak memakai asset remote dan tidak membuka editor sticker manual pasca-capture.
 Preset `hearts` memakai sprite PNG lokal dari `src/assets/camera-effects/hearts/`.
@@ -185,6 +185,10 @@ perangkat/deployment yang berhak memakai asset tersebut.
 Preset `kicau-mania` memakai frame PNG lokal hasil split GIF di
 `src/assets/camera-effects/kicau-mania/`. Sumber awal berasal dari export `ezgif-split`
 untuk GIF scuba dance; status lisensi/ownership harus dikonfirmasi sebelum distribusi publik.
+Preset `windut` memakai frame PNG lokal hasil split animasi di
+`src/assets/camera-effects/windut/`. Setiap frame berdurasi `0.1s`; status lisensi/ownership
+harus dikonfirmasi sebelum distribusi publik.
+Preset `reactions` sedang di-hold dan disembunyikan dari v1. Jika diaktifkan kembali, implementasi harus memakai model gesture lokal dan efek visual Stecute yang sudah dipoles atau aset yang lisensinya jelas; tidak boleh memanggil API native Apple Reactions, membaca runtime Photo Booth, atau menyalin aset Apple tanpa hak distribusi.
 
 ### 7.1 Overlay v1
 
@@ -192,6 +196,7 @@ untuk GIF scuba dance; status lisensi/ownership harus dikonfirmasi sebelum distr
 - `hearts`
 - `bluebirds`
 - `kicau-mania`
+- `windut`
 
 ### 7.2 Overlay implementation rule
 
@@ -201,11 +206,26 @@ untuk GIF scuba dance; status lisensi/ownership harus dikonfirmasi sebelum distr
 - `hearts` memakai mekanik lovestruck: hati muncul dari area sekitar kepala, mengambang naik, lalu fade/scale dalam loop
 - `bluebirds` memakai mekanik dizzy: `8` burung mengorbit area atas kepala dalam lintasan elips, arah sprite mengikuti tangent gerak, dan frame sayap memakai urutan `0-3`
 - `kicau-mania` memakai mekanik dance loop: frame PNG lokal melompat kecil di area atas kepala dengan frame sprite urutan `0-52`, tanpa elemen heart tambahan
+- `windut` memakai mekanik dizzy orbit: `8` sprite kecil mengorbit area atas kepala dalam lintasan elips seperti efek pusing, dengan frame sprite urutan `0-44` dan durasi `0.1s` per frame
 - animasi overlay di preview kamera harus dapat dibekukan sebagai snapshot per-shot, sehingga posisi dan fase visual yang dirender final tetap sesuai momen capture
 - overlay tidak boleh bergantung pada layanan eksternal
 - overlay default tidak boleh menutupi lebih dari `25%` area foto
 
-### 7.3 Face detector runtime assets
+### 7.3 Deferred reactions note
+
+`Reactions` menjadi catatan development fase berikutnya, bukan asset wajib v1.
+
+Syarat sebelum fitur ini dibuka kembali:
+
+- gesture detection memakai MediaPipe runtime asset lokal dari `public/vendor/mediapipe/`, termasuk model `gesture_recognizer.task`; tidak boleh memuat model atau WASM dari CDN saat production
+- efek tidak memakai aset Apple proprietary kecuali status lisensi dan distribusinya sudah jelas
+- objek efek harus menghindari area wajah dan badan utama, memakai subject-safe zone dari face/body tracking atau fallback area tengah
+- fallback manual harus tersedia jika gesture detection lambat, tidak akurat, atau browser tidak mendukung
+- hasil preview, review, dan render final harus konsisten per shot
+
+Mapping awal yang bisa dievaluasi ulang: `ILoveYou` untuk love, `Thumb_Up` untuk jempol naik atau fireworks dua tangan, `Thumb_Down` untuk jempol turun atau storm dua tangan, `Victory` untuk balloons atau confetti dua tangan, `Open_Palm` untuk confetti atau balloons dua tangan, `Closed_Fist` untuk fireworks, dan `Pointing_Up` untuk laser.
+
+### 7.4 MediaPipe runtime assets
 
 Asset runtime face detector wajib tersedia lokal:
 

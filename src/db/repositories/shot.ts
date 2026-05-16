@@ -37,6 +37,7 @@ export class ShotRepository {
     width: number,
     height: number,
     faceBounds: Shot['faceBounds'] = [],
+    cameraEffectId = 'none',
     cameraEffectFrameMs = 0,
   ): Promise<void> {
     const existing = await this.getBySessionAndOrder(sessionId, order)
@@ -47,6 +48,7 @@ export class ShotRepository {
           width,
           height,
           faceBounds,
+          cameraEffectId,
           cameraEffectFrameMs,
           createdAt: Date.now(),
         })

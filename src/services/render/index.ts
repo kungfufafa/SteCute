@@ -43,6 +43,7 @@ interface RenderWorkerShot {
   buffer: ArrayBuffer
   type: string
   faceBounds?: FaceBounds[]
+  cameraEffectId?: string
   cameraEffectFrameMs?: number
 }
 
@@ -90,6 +91,7 @@ async function renderStripInWorker(job: RenderJob): Promise<RenderResult> {
       buffer: await shot.blob.arrayBuffer(),
       type: shot.blob.type,
       faceBounds: shot.faceBounds,
+      cameraEffectId: shot.cameraEffectId,
       cameraEffectFrameMs: shot.cameraEffectFrameMs,
     })),
   )
@@ -155,7 +157,7 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
   if (!ctx) throw new Error('Could not get 2D canvas context')
 
   await drawTemplateBackground(ctx, canvas.width, canvas.height, template)
-  await preloadCameraEffectAssets(decoration.cameraEffectId)
+  await preloadCameraEffectAssetsForShots(decoration.cameraEffectId, shots)
 
   const frameColor = decoration.frameColor || template.defaultFrameColor
 
@@ -181,7 +183,7 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
     drawCameraEffectInSlot(
       ctx,
       slot,
-      decoration.cameraEffectId,
+      resolveRenderedShotCameraEffectId(shot, decoration.cameraEffectId),
       shot.faceBounds,
       shot.cameraEffectFrameMs,
     )
@@ -220,6 +222,31 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
     width: canvas.width,
     height: canvas.height,
   }
+}
+
+async function preloadCameraEffectAssetsForShots(
+  defaultEffectId: string | null | undefined,
+  shots: Pick<Shot, 'cameraEffectId'>[],
+) {
+  const effectIds = new Set(
+    shots.map((shot) => resolveRenderedShotCameraEffectId(shot, defaultEffectId)),
+  )
+
+  await Promise.all(
+    [...effectIds]
+      .filter((effectId): effectId is string => Boolean(effectId) && effectId !== 'none')
+      .map((effectId) => preloadCameraEffectAssets(effectId)),
+  )
+}
+
+function resolveRenderedShotCameraEffectId(
+  shot: Pick<Shot, 'cameraEffectId'>,
+  defaultEffectId: string | null | undefined,
+) {
+  if (shot.cameraEffectId) return shot.cameraEffectId
+  if (defaultEffectId === 'reactions') return 'none'
+
+  return defaultEffectId
 }
 
 async function drawTemplateBackground(
