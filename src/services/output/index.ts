@@ -27,14 +27,31 @@ interface SaveFileHandle {
 type SaveFilePicker = (options: SaveFilePickerOptions) => Promise<SaveFileHandle>
 
 function getSaveFilePicker(): SaveFilePicker | undefined {
+  if (typeof window === 'undefined') return undefined
+
   return (window as Window & { showSaveFilePicker?: SaveFilePicker }).showSaveFilePicker
+}
+
+function canShareImageFiles(): boolean {
+  if (typeof navigator === 'undefined' || !navigator.share || typeof File === 'undefined') {
+    return false
+  }
+
+  if (!navigator.canShare) return true
+
+  try {
+    const testFile = new File([new Blob([''])], 'stecute-share-test.png', { type: 'image/png' })
+    return navigator.canShare({ files: [testFile] })
+  } catch {
+    return false
+  }
 }
 
 export function detectOutputCapabilities(): OutputCapabilities {
   return {
     canDownload: true, // Always available via <a download>
     canSave: !!getSaveFilePicker(),
-    canShare: !!navigator.share,
+    canShare: canShareImageFiles(),
     canPrint: typeof window !== 'undefined' && !!window.print,
   }
 }

@@ -1,5 +1,12 @@
 import type { FaceBounds } from '@/services/face-tracking'
 
+const THUMBNAIL_URLS = {
+  hearts: new URL('../../assets/camera-effects/thumbnails/hearts.png', import.meta.url).href,
+  bluebirds: new URL('../../assets/camera-effects/thumbnails/bluebirds.png', import.meta.url).href,
+  'kicau-mania': new URL('../../assets/camera-effects/thumbnails/kicau-mania.png', import.meta.url).href,
+  windut: new URL('../../assets/camera-effects/thumbnails/windut.png', import.meta.url).href,
+} as const
+
 const LOCAL_CAMERA_EFFECT_ASSET_URLS = {
   hearts: {
     small: new URL('../../assets/camera-effects/hearts/smallHeart.png', import.meta.url).href,
@@ -70,6 +77,7 @@ export interface CameraEffectConfig {
   label: string
   description: string
   previewBackground: string
+  thumbnail?: string
   /** When true, this effect uses face detection to position overlays per-face */
   faceTracking?: boolean
 }
@@ -86,6 +94,7 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     label: 'Hati',
     description: 'Banyak hati pink tipis yang melayang rapi di area atas foto.',
     previewBackground: 'linear-gradient(135deg, #fff1f2 0%, #f472b6 52%, #be123c 100%)',
+    thumbnail: THUMBNAIL_URLS.hearts,
     faceTracking: true,
   },
   {
@@ -93,6 +102,7 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     label: 'Burung',
     description: 'Deretan burung biru kecil melayang di atas kepala seperti Photo Booth.',
     previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #38bdf8 52%, #1d4ed8 100%)',
+    thumbnail: THUMBNAIL_URLS.bluebirds,
     faceTracking: true,
   },
   {
@@ -100,6 +110,7 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     label: 'Kicau Mania',
     description: 'Kucing scuba dance yang loncat kecil di area atas foto.',
     previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #22d3ee 46%, #ec4899 100%)',
+    thumbnail: THUMBNAIL_URLS['kicau-mania'],
     faceTracking: true,
   },
   {
@@ -107,6 +118,7 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
     label: 'Windut',
     description: 'Windut kecil berputar di atas kepala seperti efek pusing.',
     previewBackground: 'linear-gradient(135deg, #fff7ed 0%, #fb7185 48%, #1f2937 100%)',
+    thumbnail: THUMBNAIL_URLS.windut,
     faceTracking: true,
   },
 ]

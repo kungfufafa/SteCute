@@ -161,13 +161,13 @@ function resetUploadItems() {
   activeIndex.value = 0
 }
 
-async function createUploadItems(files: File[]): Promise<UploadItem[]> {
+async function createUploadItems(files: File[], firstSlotIndex = 0): Promise<UploadItem[]> {
   const items: UploadItem[] = []
 
   try {
     for (const [index, file] of files.entries()) {
       const dimensions = await getImageDimensions(file)
-      const slot = getSlotForIndex(index)
+      const slot = getSlotForIndex(firstSlotIndex + index)
       items.push({
         file,
         url: URL.createObjectURL(file),
@@ -333,7 +333,7 @@ async function replaceActiveFile() {
   isPreparing.value = true
 
   try {
-    const [replacement] = await createUploadItems([file])
+    const [replacement] = await createUploadItems([file], activeIndex.value)
     const previous = uploadItems.value[activeIndex.value]
     if (previous) URL.revokeObjectURL(previous.url)
     uploadItems.value.splice(activeIndex.value, 1, replacement)
@@ -391,6 +391,7 @@ async function processUpload() {
     if (sessionId) {
       await resetSessionData(sessionId).catch(() => {})
     }
+    sessionStore.reset()
     errors.value = [
       isStorageQuotaError(error)
         ? getStorageErrorMessage(error)

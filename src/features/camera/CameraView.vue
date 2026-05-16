@@ -214,10 +214,16 @@ async function setupCamera() {
 
     await persistCameraDecoration(sessionId)
   } catch (error) {
-    const isDeniedError =
-      error instanceof DOMException &&
-      (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')
-    const isUnavailableError = error instanceof DOMException && error.name === 'NotFoundError'
+    const errorName = error instanceof DOMException ? error.name : ''
+    const isDeniedError = errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError'
+    const isUnavailableError = [
+      'NotFoundError',
+      'DevicesNotFoundError',
+      'NotReadableError',
+      'TrackStartError',
+      'AbortError',
+      'OverconstrainedError',
+    ].includes(errorName)
 
     if (isDeniedError) {
       cameraStore.setPermissionState('denied')
@@ -225,7 +231,7 @@ async function setupCamera() {
       cameraStore.setPermissionState('unavailable')
     } else {
       console.error('Camera init failed:', error)
-      cameraStore.setPermissionState('denied')
+      cameraStore.setPermissionState('unavailable')
     }
   }
 }
@@ -307,7 +313,7 @@ function cameraEffectSwatchStyle(effectId: string) {
   const effect = getCameraEffectById(effectId)
 
   return {
-    background: effect.previewBackground,
+    background: effect.thumbnail ? 'transparent' : effect.previewBackground,
   }
 }
 
@@ -598,6 +604,7 @@ function goBack() {
         <div
           class="border-stc-border shadow-stc-xs order-2 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
+          <p :class="[ui.sectionLabel, 'mb-2 px-1']">Efek Kamera</p>
           <div
             class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
           >
@@ -810,6 +817,7 @@ function goBack() {
         <div
           class="border-stc-border shadow-stc-xs order-3 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
+          <p :class="[ui.sectionLabel, 'mb-2 px-1']">Overlay Kamera</p>
           <div
             class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
           >
@@ -833,10 +841,11 @@ function goBack() {
                 class="border-stc-border/50 relative block size-8 overflow-hidden rounded-lg border shadow-inner"
                 :style="cameraEffectSwatchStyle(effect.id)"
               >
-                <CameraEffectCanvas
-                  :effect-id="effect.id"
-                  fallback-face-bounds
-                  class="pointer-events-none absolute inset-0 h-full w-full"
+                <img
+                  v-if="effect.thumbnail"
+                  :src="effect.thumbnail"
+                  alt=""
+                  class="h-full w-full object-contain p-1"
                 />
               </span>
               <span class="max-w-full truncate">{{ effect.label }}</span>
@@ -947,10 +956,11 @@ function goBack() {
                 class="border-stc-border/50 relative block size-10 shrink-0 overflow-hidden rounded-lg border shadow-inner"
                 :style="cameraEffectSwatchStyle(effect.id)"
               >
-                <CameraEffectCanvas
-                  :effect-id="effect.id"
-                  fallback-face-bounds
-                  class="pointer-events-none absolute inset-0 h-full w-full"
+                <img
+                  v-if="effect.thumbnail"
+                  :src="effect.thumbnail"
+                  alt=""
+                  class="h-full w-full object-contain p-1"
                 />
               </span>
               <span class="max-w-full truncate">{{ effect.label }}</span>
