@@ -74,12 +74,16 @@ export async function saveBlob(blob: Blob, filename: string): Promise<boolean> {
 
   try {
     const accept: Record<string, string[]> =
-      blob.type === 'image/jpeg' ? { 'image/jpeg': ['.jpg'] } : { 'image/png': ['.png'] }
+      blob.type === 'image/jpeg'
+        ? { 'image/jpeg': ['.jpg'] }
+        : blob.type.startsWith('video/')
+          ? { [blob.type || 'video/webm']: [`.${getExtensionForMimeType(blob.type)}`] }
+          : { 'image/png': ['.png'] }
     const handle = await saveFilePicker({
       suggestedName: filename,
       types: [
         {
-          description: 'Photo Strip',
+          description: blob.type.startsWith('video/') ? 'Live Cam Strip' : 'Photo Strip',
           accept,
         },
       ],
@@ -122,6 +126,15 @@ export function printBlob(blob: Blob): boolean {
     URL.revokeObjectURL(url)
   }
   return true
+}
+
+export function getExtensionForMimeType(mimeType: string): string {
+  if (mimeType === 'image/jpeg') return 'jpg'
+  if (mimeType === 'image/png') return 'png'
+  if (mimeType.includes('mp4')) return 'mp4'
+  if (mimeType.includes('webm')) return 'webm'
+
+  return 'bin'
 }
 
 function getLayoutFileSlug(layoutId: string): string {

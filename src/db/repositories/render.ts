@@ -4,16 +4,29 @@ import { restoreIndexedDbBlob, writeBlobWithFallback } from '../blob'
 export const GALLERY_RETENTION_LIMIT = 10
 
 function restoreRenderBlob(render: Render): Render {
-  return { ...render, blob: restoreIndexedDbBlob(render.blob) }
+  return {
+    ...render,
+    blob: restoreIndexedDbBlob(render.blob),
+    liveBlob: render.liveBlob ? restoreIndexedDbBlob(render.liveBlob) : undefined,
+  }
 }
 
 export class RenderRepository {
   async create(render: Omit<Render, 'id' | 'sizeBytes'>): Promise<string> {
     const id = crypto.randomUUID()
     const sizeBytes = render.blob.size
-    await writeBlobWithFallback(render.blob, (blob) =>
-      db.renders.add({ ...render, blob, id, sizeBytes }),
-    )
+    const liveSizeBytes = render.liveBlob?.size
+
+    await writeBlobWithFallback(render.blob, async (blob) => {
+      if (!render.liveBlob) {
+        await db.renders.add({ ...render, blob, id, sizeBytes })
+        return
+      }
+
+      await writeBlobWithFallback(render.liveBlob, (liveBlob) =>
+        db.renders.add({ ...render, blob, liveBlob, id, sizeBytes, liveSizeBytes }),
+      )
+    })
     return id
   }
 

@@ -17,6 +17,7 @@ import {
   detectOutputCapabilities,
   downloadBlob,
   generateFilename,
+  getExtensionForMimeType,
   printBlob,
   saveBlob,
   shareBlob,
@@ -42,12 +43,23 @@ const layout = computed(
     getLayoutById(sessionStore.layoutId),
 )
 const previewUrl = ref<string | null>(null)
+const livePreviewUrl = ref<string | null>(null)
 const outputBlob = shallowRef<Blob | null>(null)
+const liveOutputBlob = shallowRef<Blob | null>(null)
+const liveOutputMimeType = ref<string | null>(null)
+const hasLiveCamOutput = computed(() => Boolean(liveOutputBlob.value && livePreviewUrl.value))
 
 function revokePreviewUrl() {
   if (previewUrl.value) {
     URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = null
+  }
+}
+
+function revokeLivePreviewUrl() {
+  if (livePreviewUrl.value) {
+    URL.revokeObjectURL(livePreviewUrl.value)
+    livePreviewUrl.value = null
   }
 }
 
@@ -80,6 +92,14 @@ async function getOutputBlob(): Promise<Blob> {
   return result.blob
 }
 
+async function getLiveOutputBlob(): Promise<Blob> {
+  if (!liveOutputBlob.value) {
+    throw new Error('Live Cam output is unavailable')
+  }
+
+  return liveOutputBlob.value
+}
+
 async function handleDownload() {
   isBusy.value = true
   outputActionError.value = null
@@ -92,6 +112,24 @@ async function handleDownload() {
   } catch (error) {
     console.error('Download failed:', error)
     outputActionError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
+  } finally {
+    isBusy.value = false
+  }
+}
+
+async function handleDownloadLive() {
+  isBusy.value = true
+  outputActionError.value = null
+  outputActionNotice.value = null
+  try {
+    const blob = await getLiveOutputBlob()
+    const extension = getExtensionForMimeType(liveOutputMimeType.value ?? blob.type)
+    const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, extension)
+    await downloadBlob(blob, filename)
+    outputActionNotice.value = 'Download Live Cam dimulai.'
+  } catch (error) {
+    console.error('Live Cam download failed:', error)
+    outputActionError.value = 'Live Cam belum tersedia. Download foto tetap bisa dipakai.'
   } finally {
     isBusy.value = false
   }
@@ -186,6 +224,11 @@ function getActiveRenderId() {
 async function loadOutputRender() {
   isLoadingOutput.value = true
   outputError.value = null
+  outputBlob.value = null
+  liveOutputBlob.value = null
+  liveOutputMimeType.value = null
+  revokePreviewUrl()
+  revokeLivePreviewUrl()
 
   const renderId = getActiveRenderId()
 
@@ -213,8 +256,10 @@ async function loadOutputRender() {
     }
 
     outputBlob.value = render.blob
-    revokePreviewUrl()
     previewUrl.value = URL.createObjectURL(render.blob)
+    liveOutputBlob.value = render.liveBlob ?? null
+    liveOutputMimeType.value = render.liveMimeType ?? null
+    livePreviewUrl.value = render.liveBlob ? URL.createObjectURL(render.liveBlob) : null
   } catch (error) {
     console.error('Failed to load output render:', error)
     outputError.value = 'Gagal memuat hasil akhir. Coba buka dari galeri.'
@@ -229,6 +274,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   revokePreviewUrl()
+  revokeLivePreviewUrl()
 })
 </script>
 
@@ -304,7 +350,13 @@ onBeforeUnmount(() => {
         </div>
         <div>
           <h3 :class="[ui.title, 'text-2xl']">Selesai!</h3>
-          <p :class="ui.subtitle">Photo strip kamu sudah jadi dan siap diunduh.</p>
+          <p :class="ui.subtitle">
+            {{
+              hasLiveCamOutput
+                ? 'Photo strip dan Live Cam kamu sudah jadi.'
+                : 'Photo strip kamu sudah jadi dan siap diunduh.'
+            }}
+          </p>
         </div>
       </div>
     </div>
@@ -345,15 +397,33 @@ onBeforeUnmount(() => {
 
       <div v-else :class="[ui.pageContent, 'items-center gap-8']">
         <div
-          class="flex w-full justify-center transition-transform duration-300 hover:scale-[1.02]"
+          class="grid w-full max-w-4xl grid-cols-1 items-start justify-items-center gap-6 md:grid-cols-2"
+          :class="{ 'md:grid-cols-1': !hasLiveCamOutput }"
         >
-          <img
-            v-if="previewUrl"
-            :src="previewUrl"
-            alt="Rendered strip"
-            class="rendered-strip block h-auto"
-            decoding="async"
-          />
+          <figure class="flex w-full flex-col items-center gap-3">
+            <figcaption :class="ui.sectionLabel">Foto</figcaption>
+            <img
+              v-if="previewUrl"
+              :src="previewUrl"
+              alt="Rendered strip"
+              class="rendered-strip block h-auto transition-transform duration-300 hover:scale-[1.02]"
+              decoding="async"
+            />
+          </figure>
+
+          <figure v-if="hasLiveCamOutput" class="flex w-full flex-col items-center gap-3">
+            <figcaption :class="ui.sectionLabel">Live Cam</figcaption>
+            <video
+              v-if="livePreviewUrl"
+              :src="livePreviewUrl"
+              class="rendered-strip block h-auto transition-transform duration-300 hover:scale-[1.02]"
+              controls
+              autoplay
+              muted
+              loop
+              playsinline
+            ></video>
+          </figure>
         </div>
 
         <div
@@ -378,7 +448,15 @@ onBeforeUnmount(() => {
               :disabled="isBusy"
               @click="handleDownload"
             >
-              Unduh ke Perangkat
+              {{ hasLiveCamOutput ? 'Unduh Foto' : 'Unduh ke Perangkat' }}
+            </button>
+            <button
+              v-if="hasLiveCamOutput"
+              :class="[ui.primaryButton, 'w-full sm:flex-[2]']"
+              :disabled="isBusy"
+              @click="handleDownloadLive"
+            >
+              Unduh Live Cam
             </button>
           </div>
 

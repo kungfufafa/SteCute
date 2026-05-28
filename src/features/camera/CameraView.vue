@@ -27,6 +27,12 @@ import {
   getCameraEffectById,
   isFaceTrackingEffect,
 } from '@/services/camera-effects'
+import {
+  isLiveCamRecordingSupported,
+  startLiveCamRecording,
+  type LiveCamClip,
+  type LiveCamRecording,
+} from '@/services/live-cam'
 import type { FaceBounds } from '@/services/face-tracking'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
@@ -45,6 +51,8 @@ const countdownActive = ref(false)
 const countdownValue = ref(0)
 const flashVisible = ref(false)
 const cameraError = ref<string | null>(null)
+const liveCamAvailable = ref(false)
+const liveCamRecordingActive = ref(false)
 const latestOverlayFaces = ref<FaceBounds[]>([])
 const latestOverlayFrameMs = ref(0)
 const cameraDevices = ref<CameraDeviceOption[]>([])
@@ -54,6 +62,7 @@ let stream: MediaStream | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
 let autoCaptureRunning = false
+let activeLiveCamRecording: LiveCamRecording | null = null
 
 const activeTemplate = computed(
   () =>
@@ -185,6 +194,7 @@ async function setupCamera() {
   cameraStore.setPermissionState('prompt')
   cameraStore.setStreamReady(false)
   cameraError.value = null
+  liveCamAvailable.value = false
 
   if (stream) {
     stopCamera(stream)
@@ -194,6 +204,7 @@ async function setupCamera() {
   try {
     stream = await initCamera()
     if (videoRef.value) videoRef.value.srcObject = stream
+    liveCamAvailable.value = isLiveCamRecordingSupported(stream)
     await refreshCameraDevices()
 
     const sessionId = await ensureSession(sessionStore.sessionId, {
@@ -331,6 +342,7 @@ onUnmounted(() => {
   }
 
   autoCaptureRunning = false
+  void stopActiveLiveCamRecording()
 
   if (stream) {
     stopCamera(stream)
@@ -372,11 +384,13 @@ async function selectCameraDevice(deviceId: string) {
 
   stopCamera(stream)
   stream = null
+  liveCamAvailable.value = false
   if (videoRef.value) videoRef.value.srcObject = null
 
   try {
     stream = await switchCamera(deviceId)
     if (videoRef.value) videoRef.value.srcObject = stream
+    liveCamAvailable.value = isLiveCamRecordingSupported(stream)
     await refreshCameraDevices()
     closeCameraPicker()
   } catch (error) {
@@ -388,7 +402,41 @@ async function selectCameraDevice(deviceId: string) {
   }
 }
 
-async function handleCapture() {
+function startLiveCamClip() {
+  if (!stream || !isLiveCamRecordingSupported(stream)) {
+    liveCamAvailable.value = false
+    return
+  }
+
+  try {
+    activeLiveCamRecording = startLiveCamRecording(stream, {
+      mirrored: shouldMirrorActiveCamera.value,
+    })
+    liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
+  } catch (error) {
+    console.warn('Live Cam recording could not start:', error)
+    activeLiveCamRecording = null
+    liveCamRecordingActive.value = false
+    liveCamAvailable.value = false
+  }
+}
+
+async function stopActiveLiveCamRecording(delayMs = 0): Promise<LiveCamClip | null> {
+  const recording = activeLiveCamRecording
+  activeLiveCamRecording = null
+  liveCamRecordingActive.value = false
+
+  if (!recording) return null
+
+  try {
+    return await recording.stop(delayMs)
+  } catch (error) {
+    console.warn('Live Cam recording could not stop:', error)
+    return null
+  }
+}
+
+async function handleCapture(liveClip: LiveCamClip | null = null) {
   if (!videoRef.value || !stream) return
   let frame: Awaited<ReturnType<typeof captureFrame>>
 
@@ -422,6 +470,7 @@ async function handleCapture() {
         : [],
       cameraEffectId: capturedCameraEffectId,
       cameraEffectFrameMs: latestOverlayFrameMs.value,
+      liveClip,
     })
 
     if (hadShotAtOrder) {
@@ -444,6 +493,7 @@ async function handleCapture() {
     if (stream) {
       stopCamera(stream)
       stream = null
+      liveCamAvailable.value = false
     }
     router.push('/review')
     return
@@ -487,12 +537,14 @@ function cancelCountdown() {
 
   autoCaptureRunning = false
   countdownActive.value = false
+  void stopActiveLiveCamRecording()
 }
 
 function runCountdownAndCapture() {
   if (countdownActive.value) return
 
   cameraError.value = null
+  startLiveCamClip()
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
   countdownActive.value = true
 
@@ -512,7 +564,8 @@ function runCountdownAndCapture() {
 
       countdownActive.value = false
       triggerFlash()
-      await handleCapture()
+      const liveClip = await stopActiveLiveCamRecording(450)
+      await handleCapture(liveClip)
     }
   }, 1000)
 }
@@ -525,6 +578,7 @@ function goBack() {
   }
   autoCaptureRunning = false
   cancelCountdown()
+  void stopActiveLiveCamRecording()
 
   // Reset session so user starts fresh from config
   sessionStore.reset()
@@ -662,6 +716,18 @@ function goBack() {
               ]"
               :style="videoFilterStyle"
             ></video>
+
+            <div
+              v-if="liveCamAvailable"
+              class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[0.6875rem] font-bold text-white shadow-sm backdrop-blur-sm sm:top-4 sm:left-4"
+            >
+              <span
+                class="bg-stc-pink inline-flex size-2 rounded-full"
+                :class="{ 'animate-pulse': liveCamRecordingActive }"
+                aria-hidden="true"
+              ></span>
+              {{ liveCamRecordingActive ? 'Live Cam merekam' : 'Live Cam siap' }}
+            </div>
 
             <CameraEffectCanvas
               v-if="selectedCameraEffect.id !== 'none' && !isCurrentEffectFaceTracking"

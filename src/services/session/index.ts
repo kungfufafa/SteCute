@@ -4,6 +4,8 @@ import { db } from '@/db/schema'
 import { RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { normalizePhotoFilterId } from '@/services/filter'
+import type { LiveCamClip } from '@/services/live-cam'
+import { renderLiveStrip } from '@/services/live-cam'
 import { renderStrip } from '@/services/render'
 
 export interface SessionFlowConfig {
@@ -92,8 +94,19 @@ export async function saveShot(params: {
   faceBounds?: Shot['faceBounds']
   cameraEffectId?: string
   cameraEffectFrameMs?: number
+  liveClip?: LiveCamClip | null
 }): Promise<string> {
   const existing = await shotRepo.getBySessionAndOrder(params.sessionId, params.order)
+  const liveClip = params.liveClip
+    ? {
+        liveClipBlob: params.liveClip.blob,
+        liveClipMimeType: params.liveClip.mimeType,
+        liveClipDurationMs: params.liveClip.durationMs,
+        liveClipWidth: params.liveClip.width,
+        liveClipHeight: params.liveClip.height,
+        liveClipMirrored: params.liveClip.mirrored,
+      }
+    : undefined
 
   if (existing) {
     await shotRepo.replaceShot(
@@ -105,6 +118,7 @@ export async function saveShot(params: {
       params.faceBounds,
       normalizeCameraEffectId(params.cameraEffectId),
       params.cameraEffectFrameMs,
+      liveClip,
     )
 
     return existing.id
@@ -120,6 +134,7 @@ export async function saveShot(params: {
     faceBounds: params.faceBounds ?? [],
     cameraEffectId: normalizeCameraEffectId(params.cameraEffectId),
     cameraEffectFrameMs: params.cameraEffectFrameMs ?? 0,
+    ...liveClip,
     createdAt: Date.now(),
   })
 }
@@ -188,17 +203,55 @@ export async function renderAndStoreSession(params: {
     decoration,
     format: params.format ?? 'image/png',
   })
+  let liveResult: Awaited<ReturnType<typeof renderLiveStrip>> = null
 
-  const renderId = await renderRepo.create({
-    sessionId: params.sessionId,
-    mimeType: params.format ?? 'image/png',
-    variant: 'default',
-    blob: result.blob,
-    width: result.width,
-    height: result.height,
-    createdAt: Date.now(),
-    savedToDeviceAt: null,
-  })
+  if (shots.some((shot) => shot.liveClipBlob)) {
+    try {
+      liveResult = await renderLiveStrip({
+        layout: params.layout,
+        template: params.template,
+        shots,
+        decoration,
+        baseImageBlob: result.blob,
+      })
+    } catch (error) {
+      console.warn('Live Cam render failed; saving photo output only.', error)
+    }
+  }
+
+  let renderId: string
+
+  try {
+    renderId = await renderRepo.create({
+      sessionId: params.sessionId,
+      mimeType: params.format ?? 'image/png',
+      variant: 'default',
+      blob: result.blob,
+      width: result.width,
+      height: result.height,
+      liveBlob: liveResult?.blob,
+      liveMimeType: liveResult?.mimeType,
+      liveWidth: liveResult?.width,
+      liveHeight: liveResult?.height,
+      liveDurationMs: liveResult?.durationMs,
+      createdAt: Date.now(),
+      savedToDeviceAt: null,
+    })
+  } catch (error) {
+    if (!liveResult) throw error
+
+    console.warn('Live Cam output could not be stored; retrying photo output only.', error)
+    renderId = await renderRepo.create({
+      sessionId: params.sessionId,
+      mimeType: params.format ?? 'image/png',
+      variant: 'default',
+      blob: result.blob,
+      width: result.width,
+      height: result.height,
+      createdAt: Date.now(),
+      savedToDeviceAt: null,
+    })
+  }
 
   await db.transaction('rw', db.sessions, db.shots, db.renders, async () => {
     await sessionRepo.setFinalRender(params.sessionId, renderId)

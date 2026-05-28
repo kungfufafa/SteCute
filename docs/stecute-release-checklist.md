@@ -31,6 +31,7 @@ Tanggal: 2026-03-20
 - PWA artifact audit pass
 - PWA installable
 - Offline relaunch pass
+- Live Cam capture/output pass pada browser yang mendukung `MediaRecorder`; PNG fallback pass saat capability tidak tersedia
 - MediaPipe face detector WASM/model tersedia lokal, ikut precache, dan cocok dengan manifest checksum vendor
 - Reactions gesture tetap hidden/deferred dan tidak masuk daftar overlay v1
 - Storage cleanup pass
@@ -56,6 +57,7 @@ Tanggal: 2026-03-20
 - Error states pass
 - Preset filter kamera pass di preview dan hasil render final
 - Preset overlay kamera pass di preview kamera, review, dan hasil render final
+- Live Cam download pass untuk session kamera dan tidak muncul untuk upload/local unsupported flow
 - Tidak ada entry point Reactions di UI produksi v1
 
 ## 6. Operasional

@@ -50,7 +50,7 @@ export default defineConfig({
         background_color: '#f8f9fc',
         display: 'standalone',
         display_override: ['standalone', 'browser'],
-        orientation: 'portrait',
+        orientation: 'any',
         start_url: '/',
         scope: '/',
         categories: ['photo', 'entertainment'],

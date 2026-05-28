@@ -1,8 +1,8 @@
 # Rancangan Sistem Teknis - Stecute
 
 Dokumen: Technical System Design  
-Versi: 1.2  
-Tanggal: 2026-03-20  
+Versi: 1.3  
+Tanggal: 2026-05-28  
 Status: Finalized baseline siap implementasi production-ready  
 Pemilik dokumen: Engineering Lead / Full-stack Lead
 
@@ -45,6 +45,7 @@ Server tidak menjadi dependency untuk flow inti MVP.
 #### Imaging
 
 - MediaDevices API
+- MediaRecorder API untuk Live Cam bila tersedia
 - Canvas API
 - Web Worker
 - OffscreenCanvas jika didukung browser target
@@ -55,6 +56,7 @@ Server tidak menjadi dependency untuk flow inti MVP.
 - Web Share API bila tersedia
 - File System Access API bila tersedia
 - window.print untuk print-friendly flow
+- Canvas capture stream untuk output Live Cam bila tersedia
 
 #### Quality and delivery
 
@@ -126,14 +128,20 @@ flowchart TD
     A --> C[Camera Controller]
     A --> D[Upload Controller]
     C --> E[MediaDevices API]
+    C --> V[Live Cam Controller]
+    V --> W[MediaRecorder API]
     A --> F[Session Orchestrator]
     F --> G[Render Worker]
+    F --> X[Live Cam Renderer]
     G --> H[Canvas or OffscreenCanvas]
     G --> I[Template Engine]
+    X --> H
     F --> B
     G --> J[Output Service]
+    X --> J
     J --> K[Browser Download]
     J --> L[Share or Save or Print]
+    J --> Y[Live Cam Download]
     B --> M[Persistence Service]
     M --> N[IndexedDB via Dexie]
     O[Service Worker] --> P[App Shell Cache]
@@ -147,9 +155,11 @@ Penjelasan:
 - UI mengatur flow dan interaksi pengguna.
 - Pinia menyimpan state runtime.
 - Camera Controller mengelola preview, switch camera, dan permission.
+- Live Cam Controller merekam klip singkat per-shot secara lokal jika browser mendukung `MediaRecorder`.
 - Upload Controller mengelola file lokal sebagai source alternatif.
 - Session Orchestrator membaca layout aktif dan menjalankan sesi sesuai jumlah slot.
 - Render Worker menyusun hasil akhir dan visual template di background thread bila tersedia.
+- Live Cam Renderer membuat video strip bergerak dari klip per-shot memakai canvas capture stream bila capability tersedia.
 - Output Service memutuskan action yang didukung browser: download, save, share, atau print.
 - Persistence Service menyimpan session, render, layout choice, dan gallery lokal ke IndexedDB.
 - Service Worker mengelola app shell, layout, template, dan asset offline.
@@ -184,6 +194,7 @@ Tanggung jawab:
 - memilih device kamera
 - menyiapkan stream preview
 - menangani error hardware atau permission
+- memberi stream yang sama ke Live Cam Controller saat capability tersedia
 
 API internal utama:
 
@@ -192,7 +203,23 @@ API internal utama:
 - `stopCamera()`
 - `captureFrame(videoEl)`
 
-### 5.3 Upload Controller
+### 5.3 Live Cam Controller
+
+Tanggung jawab:
+
+- mendeteksi dukungan `MediaRecorder` untuk stream kamera aktif
+- merekam klip singkat lokal per-shot selama countdown/capture
+- menyimpan metadata video seperti mime type, durasi, dimensi, dan status mirror kamera
+- menghentikan rekaman saat countdown dibatalkan, retake, reset, atau komponen kamera keluar
+- gagal secara lunak agar capture foto statis tetap berhasil
+
+API internal utama:
+
+- `isLiveCamRecordingSupported(stream)`
+- `startLiveCamRecording(stream, options)`
+- `renderLiveStrip(job)`
+
+### 5.4 Upload Controller
 
 Tanggung jawab:
 
@@ -206,7 +233,7 @@ API internal utama:
 - `validateSelection(files, slotCount)`
 - `loadImageFiles(files)`
 
-### 5.4 Session Orchestrator
+### 5.5 Session Orchestrator
 
 Tanggung jawab:
 
@@ -214,7 +241,7 @@ Tanggung jawab:
 - mengatur countdown
 - menentukan jumlah shot
 - mendukung camera capture dan upload session
-- menyimpan raw frame ke state dan database
+- menyimpan raw frame dan optional Live Cam clip per-shot ke state dan database
 
 State inti:
 
@@ -228,7 +255,7 @@ State inti:
 - completed
 - error
 
-### 5.5 Render Engine
+### 5.6 Render Engine
 
 Tanggung jawab:
 
@@ -236,37 +263,41 @@ Tanggung jawab:
 - compositing frame ke canvas output
 - menggambar background template, photo backing, label, margin, dan visual default template
 - mengekspor Blob final
+- membuat output Live Cam tambahan dari klip per-shot bila tersedia, memakai layout/template yang sama dalam ukuran video yang dibatasi untuk performa
 
 Implementasi:
 
 - worker-based rendering untuk mengurangi blocking di main thread
 - fallback ke main thread jika worker atau OffscreenCanvas tidak tersedia
+- Live Cam render berbasis canvas capture stream dan `MediaRecorder`; jika gagal, PNG tetap disimpan
 
-### 5.6 Persistence Service
+### 5.7 Persistence Service
 
 Tanggung jawab:
 
 - simpan settings lokal
 - simpan metadata session
-- simpan hasil render
+- simpan hasil render PNG dan optional Live Cam video berpasangan
 - simpan gallery lokal
 - hapus data session saat reset
+- hapus raw Live Cam clip per-shot setelah final render selesai
 
 Teknologi:
 
 - Dexie di atas IndexedDB
 
-### 5.7 Output Service
+### 5.8 Output Service
 
 Tanggung jawab:
 
 - memutuskan output action yang tersedia
 - trigger browser download
+- trigger download Live Cam bila tersedia
 - trigger save file flow bila tersedia
 - trigger native share sheet bila tersedia
 - trigger print-friendly flow
 
-### 5.8 Service Worker Layer
+### 5.9 Service Worker Layer
 
 Tanggung jawab:
 
@@ -598,8 +629,9 @@ sequenceDiagram
     CAM-->>UI: Camera stream ready
     UI->>ORC: Start session for active layout
     ORC->>ORC: Countdown
+    ORC->>CAM: Start Live Cam clip when supported
     ORC->>CAM: Capture shot 1..N
-    CAM-->>ORC: Frame blob
+    CAM-->>ORC: Frame blob and optional Live Cam clip
     ORC->>DB: Save each shot
     ORC-->>UI: Session complete
 ```
@@ -631,13 +663,16 @@ sequenceDiagram
     participant UI as UI
     participant DB as IndexedDB
     participant RW as Render Worker
+    participant LIVE as Live Cam Renderer
     participant OUT as Output Service
 
     UI->>DB: Read session shots, layout, template, default visual treatment
     UI->>RW: Send render job
     RW->>RW: Compose final strip
     RW-->>UI: Return Blob final
-    UI->>DB: Save render
+    UI->>LIVE: Compose Live Cam video if clips exist
+    LIVE-->>UI: Return video Blob or soft fail
+    UI->>DB: Save PNG render and optional Live Cam video
     UI->>OUT: Trigger selected output action
 ```
 
@@ -784,10 +819,11 @@ Gunakan constraints adaptif, contoh:
 
 ### 12.5 Orientation handling
 
-- Layout default dioptimalkan untuk portrait strip.
+- Manifest PWA tidak mengunci orientasi; standalone PWA dan tab browser boleh mengikuti rotasi device.
+- Layout default output tetap berupa portrait strip, tetapi UI aplikasi harus usable pada portrait dan landscape.
 - Preview kamera produksi memakai framing `4:3` agar tidak terlihat terlalu gepeng di desktop.
 - Preview dapat menyesuaikan ratio device untuk fallback browser atau device yang tidak mendukung constraint ideal.
-- Jika mobile landscape terjadi, tampilkan hint orientasi terbaik.
+- Jika area mobile landscape terlalu sempit untuk panel pendamping, UI boleh memadatkan kontrol tanpa memblokir rotasi.
 
 ---
 

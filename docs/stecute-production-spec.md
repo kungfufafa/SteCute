@@ -1,8 +1,8 @@
 # Spesifikasi Production-Ready - Stecute
 
 Dokumen: Production Readiness Specification  
-Versi: 1.0  
-Tanggal: 2026-03-20  
+Versi: 1.1  
+Tanggal: 2026-05-28  
 Status: Finalized baseline untuk implementasi production-ready  
 Pemilik dokumen: Product + Engineering + Design + QA
 
@@ -47,6 +47,7 @@ Fitur yang wajib ada:
 - retake `seluruh sesi`
 - retake `per-shot` sebelum render final
 - render final `PNG`
+- render Live Cam strip bergerak untuk flow kamera bila browser mendukung `MediaRecorder` dan canvas capture; PNG tetap output utama dan fallback wajib
 - download lokal
 - save to device jika capability tersedia
 - share jika capability tersedia
@@ -77,6 +78,7 @@ Tidak masuk v1:
 - upload ke server
 - QR handoff
 - GIF export
+- Live Photo native iPhone/HEIC pairing
 - preset branding event remote
 - marketplace template
 - pembayaran
@@ -88,7 +90,7 @@ Tidak masuk v1:
 
 - `Preset event dasar` tidak masuk rilis v1. Masuk fase berikutnya.
 - `Print ringan` adalah capability bonus, bukan blocker rilis.
-- `Gallery lokal` menyimpan final render. Raw shots disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
+- `Gallery lokal` menyimpan final render PNG, dengan optional Live Cam video berpasangan bila tersedia. Raw shots dan raw clip per-shot disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
 - `Kustomisasi manual` selain preset filter dan overlay kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
 
@@ -104,10 +106,10 @@ Tidak masuk v1:
 4. User memilih jumlah foto dan dapat mengganti kamera aktif sebelum capture.
    Jika perangkat mengekspos beberapa lensa, app menampilkan pilihan eksplisit seperti depan, belakang, 0.5x, atau tele sesuai label browser.
    Kamera belakang tidak di-mirror; mirror hanya dipakai untuk kamera depan/selfie.
-5. App menjalankan capture berurutan sesuai slot layout.
+5. App menjalankan capture berurutan sesuai slot layout dan merekam klip Live Cam singkat per-shot bila capability browser tersedia.
 6. User dapat retake per-shot dari layar review sebelum render final.
 7. User melakukan render final.
-8. User memilih `Download`, `Save`, `Share`, atau `Print` sesuai capability browser.
+8. User memilih download PNG dan, bila tersedia, download Live Cam; `Save`, `Share`, atau `Print` tetap mengikuti capability browser.
 9. Session dapat di-reset untuk sesi baru.
 
 ### 3.2 Flow upload lokal
@@ -154,6 +156,8 @@ Setiap error wajib memiliki:
 - Export aktif v1: `PNG`
 - `JPG` tidak ditampilkan di UI v1 agar flow output tetap sederhana.
 - Dukungan teknis `JPG` boleh dipertahankan sebagai fallback internal atau opsi fase berikutnya.
+- Output Live Cam aktif bila tersedia: `WebM` video tanpa audio, dibuat lokal dari klip kamera per-shot dan disimpan sebagai pasangan hasil PNG.
+- Live Cam bukan GIF, bukan Live Photo native iPhone, dan tidak boleh menjadi syarat agar session berhasil selesai.
 
 ### 4.2 Ukuran canvas output
 
@@ -207,6 +211,18 @@ Aturan:
 - sediakan print stylesheet khusus
 - preview print harus memakai background dan margin final
 - jika browser mengabaikan background print, tampilkan warning singkat sebelum `window.print`
+
+### 4.5 Live Cam output
+
+Live Cam adalah output tambahan untuk flow kamera:
+
+- klip direkam lokal dari camera stream memakai `MediaRecorder`
+- render video akhir memakai canvas lokal dan layout/template yang sama dengan PNG
+- output video menampilkan strip bergerak, sedangkan PNG tetap menjadi hasil cetak utama
+- kamera depan/selfie tetap di-mirror pada Live Cam agar konsisten dengan foto statis
+- preset filter diterapkan ke video akhir; overlay kamera digambar ulang dari snapshot face bounds per-shot bila data tersedia
+- ukuran video boleh diturunkan dari ukuran cetak PNG untuk menjaga performa dan storage
+- jika rekaman, render video, atau penyimpanan Live Cam gagal, aplikasi menyimpan PNG saja dan menampilkan flow selesai normal
 
 ---
 
@@ -284,7 +300,9 @@ Didukung best-effort:
 - `share` opsional dan capability-based
 - `save to device` opsional dan capability-based
 - `print` opsional dan capability-based
+- `Live Cam` opsional dan capability-based; membutuhkan `MediaRecorder`, video decode lokal, dan canvas capture stream
 - `OffscreenCanvas` tidak boleh menjadi dependency wajib
+- PWA standalone tidak mengunci orientation; aplikasi boleh mengikuti rotasi portrait atau landscape seperti tab browser.
 
 ### 7.3 Unsupported browser policy
 
@@ -313,6 +331,7 @@ Device target minimum:
 - warm relaunch: `< 2 detik`
 - render final default pada laptop menengah: `< 2 detik`
 - render final default pada mobile menengah: `< 4 detik`
+- render Live Cam tambahan target `< 6 detik` pada laptop menengah dan `< 10 detik` pada mobile menengah; kegagalan Live Cam tidak boleh memblokir PNG
 - reset session: `< 2 detik`
 - cleanup gallery `10 render`: `< 1 detik`
 
@@ -379,7 +398,7 @@ Catatan:
 ### 10.1 Retention
 
 - gallery menyimpan `10 render terakhir`
-- raw shots dibersihkan setelah render final berhasil, kecuali session aktif masih dibutuhkan untuk review
+- raw shots dan raw Live Cam clip per-shot dibersihkan setelah render final berhasil, kecuali session aktif masih dibutuhkan untuk review
 - session stale lebih dari `24 jam` dibersihkan saat startup
 
 ### 10.2 Storage quota handling

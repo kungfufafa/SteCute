@@ -1,8 +1,8 @@
 # PRD - Stecute
 
 Dokumen: Product Requirements Document  
-Versi: 1.2  
-Tanggal: 2026-03-20  
+Versi: 1.3  
+Tanggal: 2026-05-28  
 Status: Finalized baseline siap implementasi production-ready  
 Pemilik dokumen: Product + Founder
 
@@ -25,6 +25,7 @@ Prinsip utama produk:
 - Foto dan hasil akhir disimpan lokal secara default.
 - Cepat dipakai dalam hitungan detik.
 - Tetap kompetitif dalam variasi layout, alur capture, dan output tanpa membebani pengguna dengan terlalu banyak pilihan awal.
+- Untuk flow kamera pada browser yang mendukung, hasil dapat punya dua output lokal: photo strip statis dan Live Cam strip bergerak.
 - UI sederhana untuk consumer, namun cukup kuat untuk event use.
 
 Dokumen pendamping yang menjadi referensi final untuk implementasi:
@@ -144,6 +145,7 @@ Kebutuhan utama:
 - Format cetak utama memakai varian adaptif standar `2 foto`, `3 foto`, `4 foto`, dan `6 foto`, dengan dukungan template-defined layout untuk blanko yang jumlah slotnya berbeda.
 - Template default `Classic` memberi hasil clean seperti photobooth, dengan pilihan template bundled sebelum capture tanpa langkah kustomisasi tambahan setelah review.
 - Output siap pakai: download, save to device, share sheet, dan print ringan bila browser mendukung.
+- Output Live Cam lokal untuk flow kamera bila browser mendukung rekaman video web; photo strip PNG tetap output utama dan fallback wajib.
 - Dapat diinstal sebagai PWA untuk pengalaman yang terasa seperti aplikasi.
 
 ---
@@ -167,14 +169,15 @@ Kebutuhan utama:
 13. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
 14. Render hasil final photo strip.
 15. Download hasil PNG.
-16. Save to device melalui flow browser yang tersedia.
-17. Native share sheet jika browser mendukung.
-18. Print ringan jika browser mendukung.
-19. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
-20. Dukungan offline setelah initial install atau cache.
-21. Reset session cepat untuk pengguna berikutnya.
-22. Shortcut keyboard dasar untuk desktop.
-23. Basic responsive UI untuk desktop, tablet, mobile.
+16. Live Cam output lokal untuk flow kamera bila `MediaRecorder` dan canvas video rendering didukung browser; hasil berupa strip bergerak tanpa audio, sementara PNG tetap wajib tersedia.
+17. Save to device melalui flow browser yang tersedia.
+18. Native share sheet jika browser mendukung.
+19. Print ringan jika browser mendukung.
+20. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
+21. Dukungan offline setelah initial install atau cache.
+22. Reset session cepat untuk pengguna berikutnya.
+23. Shortcut keyboard dasar untuk desktop.
+24. Basic responsive UI untuk desktop, tablet, mobile.
 
 ### 8.2 Fitur nice-to-have bila sempat dalam MVP+
 
@@ -187,6 +190,7 @@ Kebutuhan utama:
 - Idle screen atau attract screen.
 - Preset event branding.
 - GIF export lokal jika performa device memadai.
+- Packaging Live Photo native iPhone/HEIC tidak masuk MVP; Live Cam v1 adalah video web lokal terpisah dari PNG.
 
 ### 8.3 Fitur fase berikutnya
 
@@ -275,12 +279,14 @@ Acceptance criteria:
 - Aplikasi mengambil foto berurutan sesuai jumlah slot layout aktif.
 - Countdown kamera memakai default 3 detik.
 - Sistem memberi feedback visual yang jelas pada setiap pengambilan.
+- Jika browser mendukung, flow kamera merekam klip singkat lokal untuk tiap shot agar bisa dibuat output Live Cam.
 
 Acceptance criteria:
 
 - Pengguna tahu foto ke berapa yang sedang diambil.
 - Jeda antar shot konsisten.
 - Hasil cetak standar dan template-defined menghasilkan jumlah shot yang benar dan tinggi output sesuai layout aktif.
+- Kegagalan atau ketidaktersediaan Live Cam tidak boleh menggagalkan capture foto statis.
 
 ### FR-05 Upload local images
 
@@ -315,15 +321,18 @@ Acceptance criteria:
 
 - Sistem menggabungkan foto sesuai layout aktif dan template aktif.
 - Sistem menghasilkan output final dengan resolusi siap simpan dan siap cetak ringan.
+- Bila session kamera punya klip Live Cam, sistem membuat output video strip bergerak secara lokal dan menyimpannya sebagai pasangan hasil PNG.
 
 Acceptance criteria:
 
 - Render final selesai tanpa freeze yang terasa pada device target.
 - Hasil strip konsisten dengan preview.
+- Jika render video Live Cam gagal atau storage tidak cukup, PNG tetap disimpan dan pengguna tetap bisa menyelesaikan flow.
 
 ### FR-08 Export and local save
 
 - Pengguna dapat mengunduh hasil sebagai PNG.
+- Pengguna dapat mengunduh Live Cam sebagai file video bila output tersebut tersedia.
 - Pengguna dapat menyimpan hasil ke device melalui flow browser yang tersedia.
 - Pengguna dapat menggunakan native share sheet bila browser mendukung.
 - Pengguna dapat menggunakan print ringan bila browser mendukung sebagai capability bonus.
@@ -335,6 +344,7 @@ Acceptance criteria:
 - Hasil terakhir dapat dipreview lagi ketika aplikasi dibuka ulang di device yang sama.
 - Fitur yang tidak didukung browser tampil sebagai unavailable, bukan error.
 - Nama file hasil mengikuti pola konsisten berbasis tanggal, layout, dan template.
+- Output Live Cam memakai nama file konsisten dengan ekstensi video yang didukung browser.
 
 ### FR-09 Offline mode
 
@@ -560,7 +570,7 @@ Mitigasi:
 - Uji browser utama.
 - Uji offline mode.
 - Uji kamera depan atau belakang.
-- Uji output capability: download, share, print, save flow.
+- Uji output capability: download PNG, download Live Cam bila tersedia, share, print, save flow.
 
 ---
 
@@ -568,6 +578,7 @@ Mitigasi:
 
 - Preset event dasar tidak masuk v1. Masuk fase berikutnya.
 - GIF export lokal tidak masuk v1.
+- Live Cam v1 bukan GIF dan bukan Live Photo native iPhone; output video web bersifat capability-based.
 - Print ringan diperlakukan sebagai capability bonus, bukan blocker rilis.
 - Kustomisasi manual pasca-capture selain preset filter kamera ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
 - Gallery lokal menyimpan final render, bukan raw shots jangka panjang.

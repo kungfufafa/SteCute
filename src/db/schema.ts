@@ -45,6 +45,12 @@ export interface Shot {
   blob: Blob
   width: number
   height: number
+  liveClipBlob?: Blob | null
+  liveClipMimeType?: string | null
+  liveClipDurationMs?: number | null
+  liveClipWidth?: number | null
+  liveClipHeight?: number | null
+  liveClipMirrored?: boolean | null
   faceBounds?: ShotFaceBounds[]
   cameraEffectId?: string
   cameraEffectFrameMs?: number
@@ -60,6 +66,12 @@ export interface Render {
   width: number
   height: number
   sizeBytes: number
+  liveBlob?: Blob | null
+  liveMimeType?: string | null
+  liveSizeBytes?: number | null
+  liveWidth?: number | null
+  liveHeight?: number | null
+  liveDurationMs?: number | null
   createdAt: number
   savedToDeviceAt: number | null
 }
