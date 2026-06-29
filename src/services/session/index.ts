@@ -224,6 +224,8 @@ export async function renderAndStoreSession(params: {
   try {
     renderId = await renderRepo.create({
       sessionId: params.sessionId,
+      layoutId: params.layout.id,
+      templateId: params.template.id,
       mimeType: params.format ?? 'image/png',
       variant: 'default',
       blob: result.blob,
@@ -243,6 +245,8 @@ export async function renderAndStoreSession(params: {
     console.warn('Live Cam output could not be stored; retrying photo output only.', error)
     renderId = await renderRepo.create({
       sessionId: params.sessionId,
+      layoutId: params.layout.id,
+      templateId: params.template.id,
       mimeType: params.format ?? 'image/png',
       variant: 'default',
       blob: result.blob,

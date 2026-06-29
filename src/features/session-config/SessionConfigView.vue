@@ -386,7 +386,7 @@ async function handleUploadTemplate() {
                         v-for="layout in blankoPackage.layouts"
                         :key="layout.id"
                         :aria-label="`${blankoPackage.title} ${layout.slotCount} foto`"
-                        class="focus-visible:ring-stc-pink inline-flex min-h-7 min-w-9 items-center justify-center rounded-lg px-2.5 py-1 text-[10px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95"
+                        class="focus-visible:ring-stc-pink inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2.5 py-1 text-[10px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95"
                         :class="
                           isPackageLayoutSelected(blankoPackage, layout)
                             ? 'bg-stc-pink shadow-stc-xs text-white'

@@ -116,15 +116,37 @@ export async function shareBlob(blob: Blob, filename: string): Promise<boolean> 
 
 export function printBlob(blob: Blob): boolean {
   const url = URL.createObjectURL(blob)
-  const printWindow = window.open(url, '_blank')
+  const printWindow = window.open('', '_blank')
   if (!printWindow) {
     URL.revokeObjectURL(url)
     return false
   }
-  printWindow.onload = () => {
-    printWindow.print()
-    URL.revokeObjectURL(url)
-  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Print Strip</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 0; background: none; }
+            img { max-width: 100%; height: auto; }
+            .warning { display: none; }
+          }
+          body { text-align: center; background: #fff; font-family: sans-serif; margin: 0; padding: 20px; }
+          .warning { padding: 15px; color: #854d0e; background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; font-size: 14px; margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto; }
+          img { max-width: 100%; height: auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        </style>
+      </head>
+      <body>
+        <div class="warning">
+          Pastikan opsi <strong>Background graphics</strong> aktif pada dialog print jika hasil terlihat kosong.
+        </div>
+        <img src="${url}" onload="setTimeout(() => { window.print(); window.close(); }, 500);" />
+      </body>
+    </html>
+  `)
+  printWindow.document.close()
   return true
 }
 

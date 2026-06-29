@@ -60,6 +60,8 @@ export interface Shot {
 export interface Render {
   id: string
   sessionId: string
+  layoutId: string
+  templateId: string
   mimeType: 'image/png' | 'image/jpeg'
   variant: 'default' | 'print' | 'share'
   blob: Blob

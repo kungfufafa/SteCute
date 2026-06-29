@@ -544,9 +544,12 @@ function runCountdownAndCapture() {
   if (countdownActive.value) return
 
   cameraError.value = null
-  startLiveCamClip()
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
   countdownActive.value = true
+
+  if (countdownValue.value <= 3) {
+    startLiveCamClip()
+  }
 
   // Mark auto-capture as running on the first manual trigger
   if (sessionStore.autoCapture) {
@@ -555,6 +558,10 @@ function runCountdownAndCapture() {
 
   countdownTimer = setInterval(async () => {
     countdownValue.value -= 1
+
+    if (countdownValue.value === 3 && !liveCamRecordingActive.value) {
+      startLiveCamClip()
+    }
 
     if (countdownValue.value <= 0) {
       if (countdownTimer) {

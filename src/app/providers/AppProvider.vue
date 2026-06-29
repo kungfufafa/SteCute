@@ -4,6 +4,7 @@ import { useAppStore } from '@/app/store/useAppStore'
 import { useCapabilityStore } from '@/app/store/useCapabilityStore'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { bindPwaInstallPrompt, subscribePwaInstallState } from '@/services/pwa/install'
+import { SessionRepository } from '@/db/repositories/session'
 
 const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
@@ -26,6 +27,9 @@ onMounted(() => {
   void customTemplateStore.loadPersistedTemplates()
   unsubscribePwaInstallState = subscribePwaInstallState(appStore.setPwaInstallState)
   unbindPwaInstallPrompt = bindPwaInstallPrompt()
+
+  const sessionRepo = new SessionRepository()
+  void sessionRepo.cleanupStaleSessions()
 })
 
 onUnmounted(() => {

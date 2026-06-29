@@ -414,16 +414,15 @@ function drawLiveStripFrame(
 
     const effectId = shot.cameraEffectId || params.decoration.cameraEffectId
     if (effectId && effectId !== 'none') {
-      const faces = resolveFaceTrackingEffectFaces(shot.faceBounds, {
-        width: slot.width,
-        height: slot.height,
-      })
-      ctx.save()
-      ctx.translate(slot.x, slot.y)
-      drawFaceTrackingEffect(ctx, slot.width, slot.height, effectId, faces, {
-        timeMs: (shot.cameraEffectFrameMs ?? 0) + params.elapsedMs,
-      })
-      ctx.restore()
+      const faces = resolveFaceTrackingEffectFaces(shot.faceBounds)
+      if (faces.length > 0) {
+        ctx.save()
+        ctx.translate(slot.x, slot.y)
+        drawFaceTrackingEffect(ctx, slot.width, slot.height, effectId, faces, {
+          timeMs: (shot.cameraEffectFrameMs ?? 0) + params.elapsedMs,
+        })
+        ctx.restore()
+      }
     }
 
     ctx.restore()

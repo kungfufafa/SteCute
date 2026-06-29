@@ -251,6 +251,8 @@ function endReplacementDrag(event: globalThis.PointerEvent) {
 }
 
 async function retakeAll() {
+  if (!window.confirm('Apakah Anda yakin ingin mengulang semua foto? Sesi ini akan dihapus.')) return
+
   const previousSource = sessionStore.captureSource ?? 'camera'
   if (sessionStore.sessionId) {
     await resetSessionData(sessionStore.sessionId)
