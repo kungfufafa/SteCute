@@ -1,8 +1,8 @@
 # Spesifikasi Production-Ready - Stecute
 
 Dokumen: Production Readiness Specification  
-Versi: 1.1  
-Tanggal: 2026-05-28  
+Versi: 1.2  
+Tanggal: 2026-09-04  
 Status: Finalized baseline untuk implementasi production-ready  
 Pemilik dokumen: Product + Engineering + Design + QA
 
@@ -85,6 +85,10 @@ Tidak masuk v1:
 - kiosk native wrapper
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 - `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
+- audio, chat, atau permukaan panggilan untuk Booth Bareng; mode ini 2 orang, still only, dan ephemeral
+- TURN/STUN berbayar atau signaling production sebagai syarat rilis v1
+
+Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
 
 ### 2.4 Keputusan open questions yang dikunci
 
@@ -93,6 +97,7 @@ Tidak masuk v1:
 - `Gallery lokal` menyimpan final render PNG, dengan optional Live Cam video berpasangan bila tersedia. Raw shots dan raw clip per-shot disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
 - `Kustomisasi manual` selain preset filter dan overlay kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
+- `Booth Bareng` adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional, countdown bersama, pair-row `host | tamu`, render PNG lewat pipeline strip yang sama. Still tidak diunggah ke server. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai.
 
 ---
 
@@ -127,7 +132,16 @@ Tidak masuk v1:
 11. App render final.
 12. User memilih output action yang tersedia.
 
-### 3.3 Flow error
+### 3.3 Flow Booth Bareng (opsional)
+
+1. User menekan `Booth Bareng` dari landing. CTA `Mulai Foto` dan `Upload Lokal` tetap ada dan tidak membutuhkan langkah ini.
+2. Host membuat booth tanpa login, lalu melihat kode unik dan URL undangan yang memakai kode yang sama.
+3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
+4. Setelah 2 peserta hadir, host memulai countdown bersama. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
+5. Still disusun side-by-side `host | tamu` per momen, lalu dirender jadi PNG strip lewat pipeline lokal yang sama.
+6. Masing-masing peserta mengunduh hasil di perangkatnya. Ruang booth bersifat ephemeral dan tidak menahan still di server.
+
+### 3.4 Flow error
 
 Error utama yang wajib ditangani:
 
@@ -556,3 +570,9 @@ Produk dianggap `production-ready` jika:
 - tidak ada blocker severity tinggi di daftar bug
 - release checklist operasional sudah lulus
 - legal dan support minimum sudah tersedia
+
+---
+
+## 16. Changelog keputusan
+
+- 2026-09-04: Booth Bareng dikunci sebagai mode online opsional 2 orang (link undangan + kode unik, tanpa audio, ephemeral, still pair-row ke pipeline strip lokal). Kolaborasi real-time bukan non-goal MVP tanpa kualifikasi, tetapi alur kamera/upload lokal tetap independen dari signaling dan bukan syarat rilis v1.

@@ -9,6 +9,8 @@ import ReviewView from '@/features/review/ReviewView.vue'
 import RendererView from '@/features/renderer/RendererView.vue'
 import OutputView from '@/features/output/OutputView.vue'
 import GalleryView from '@/features/gallery/GalleryView.vue'
+import BoothHubView from '@/features/booth/BoothHubView.vue'
+import BoothRoomView from '@/features/booth/BoothRoomView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -65,6 +67,18 @@ const router = createRouter({
       name: 'gallery',
       component: GalleryView,
       meta: { seo: getAppSeo('gallery') },
+    },
+    {
+      path: '/booth',
+      name: 'booth',
+      component: BoothHubView,
+      meta: { seo: getAppSeo('booth') },
+    },
+    {
+      path: '/j/:code',
+      name: 'booth-join',
+      component: BoothRoomView,
+      meta: { seo: getAppSeo('booth-join') },
     },
     {
       path: '/privacyscreen',

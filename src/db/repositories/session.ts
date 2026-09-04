@@ -37,11 +37,13 @@ export class SessionRepository {
   async cleanupStaleSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): Promise<void> {
     const cutoff = Date.now() - maxAgeMs
     const stale = await db.sessions.where('startedAt').below(cutoff).toArray()
-    const staleIds = stale.map((s) => s.id)
-    if (staleIds.length > 0) {
-      await db.shots.where('sessionId').anyOf(staleIds).delete()
-      await db.renders.where('sessionId').anyOf(staleIds).delete()
-      await db.sessions.bulkDelete(staleIds)
+    const abandonedIds = stale
+      .filter((session) => session.status !== 'completed')
+      .map((session) => session.id)
+
+    if (abandonedIds.length > 0) {
+      await db.shots.where('sessionId').anyOf(abandonedIds).delete()
+      await db.sessions.bulkDelete(abandonedIds)
     }
   }
 

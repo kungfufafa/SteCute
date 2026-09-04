@@ -105,6 +105,20 @@
       "title": "Galeri Lokal - Stecute",
       "description": "Galeri lokal Stecute berisi hasil render terakhir yang tersimpan di perangkat.",
       "robots": "noindex,nofollow"
+    },
+    {
+      "id": "booth",
+      "path": "/booth",
+      "title": "Booth Bareng - Stecute",
+      "description": "Mode online opsional 2 orang: buat booth, bagikan kode atau link undangan, pose bareng tanpa akun dan tanpa audio.",
+      "robots": "noindex,nofollow"
+    },
+    {
+      "id": "booth-join",
+      "path": "/j/:code",
+      "title": "Gabung Booth Bareng - Stecute",
+      "description": "Masuk ke Booth Bareng lewat kode unik atau link undangan.",
+      "robots": "noindex,nofollow"
     }
   ],
   "legacyNoindexPaths": ["/capture", "/privacyscreen"]

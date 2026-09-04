@@ -117,3 +117,76 @@ Tanggal: 2026-05-02
 - `npm run test` passed: 11 tests
 - `npm run build` passed; PWA precache turun dari sekitar `4.9 MB` menjadi sekitar `630 KB`
 - `npm run test:e2e` passed: 36 passed, 3 skipped
+
+---
+
+## Deep process QA pass 2026-09-04
+
+### Cakupan
+
+Audit semua proses aplikasi yang ada di `src/` terhadap PRD/production spec, plus regresi temuan lama:
+
+- Landing dan CTA
+- Config sesi (kamera / upload / blanko / timer / auto-capture)
+- Capture kamera, filter, overlay, Live Cam, retake per-shot
+- Upload lokal, framing, ganti file
+- Review, ulang semua, render, output, gallery
+- Offline banner, PWA update prompt
+- Halaman publik privacy/terms/faq/about
+- Booth Bareng (hub, kode, undangan, countdown, compose)
+- Route recovery: `/review`, `/output`, `/j/:code` invalid, 404
+
+### Verifikasi otomatis
+
+- `npm run test` passed: 49 tests
+- `npm run typecheck` passed
+- `npm run lint` passed
+- Playwright Chromium `e2e/process-qa.spec.ts` passed: 10 tests (landing, config kamera/upload, review kosong, output kosong, gallery kosong, halaman publik, booth reject, 404, camera preview+shutter)
+- Playwright Chromium booth join + UI stress sebelumnya passed
+
+### Status proses
+
+| Proses | Status | Catatan |
+|---|---|---|
+| Landing `Mulai Foto` / `Upload Lokal` | Pass | Tanpa login, tidak butuh booth |
+| Config layout/template/timer | Pass | Source query `camera`/`upload` dihormati |
+| Capture kamera + countdown | Pass smoke | Fake-media Chromium sampai shutter; device fisik belum |
+| Filter + overlay kamera | Pass smoke | UI terlihat; render-equality tidak diuji ulang di pass ini |
+| Live Cam | Tidak diverifikasi penuh | Capability-based; tidak ada e2e dedicated di pass ini |
+| Upload + framing + review | Pass historis | `upload-render.spec.ts` ada; tidak di-rerun full matrix di pass ini |
+| Review retake per-shot | Pass code | Kamera kembali ke `/camera`; upload ganti file di review |
+| Ulang semua | Pass code | Kembali ke `/config?source=` sesuai source sebelumnya (temuan P2 lama tertutup) |
+| Render PNG + output | Pass smoke | `/output` tanpa renderId tidak lagi sukses palsu |
+| Gallery 10 hasil | Pass smoke empty | Cleanup sesi 24 jam sebelumnya bisa menghapus render gallery; diperbaiki di pass ini |
+| Offline/PWA | Pass historis | First-visit offline diblokir; relaunch setelah cache di Chromium |
+| Booth Bareng same-browser | Pass | Kode + link + 2 tab |
+| Booth Bareng lintas device | Fail / blocked | Registry `localStorage` + `BroadcastChannel`; HP teman akan dapat "Booth tidak ditemukan" |
+| Shortcut keyboard desktop | Gap | Hanya Escape di kamera; Space/shutter global belum |
+| Reset session dedicated route | Gap | `ResetSessionView.vue` tidak terpasang di router; reset lewat output/review |
+
+### Temuan
+
+| Severity | Temuan | Bukti | Rekomendasi | Status |
+|---|---|---|---|---|
+| P1 | Booth Bareng tidak bisa di-join dari perangkat lain. Kode/link hanya valid di browser yang sama. | `createLocalStorageRegistry(localStorage)` + `BroadcastChannel`; tidak ada signaling server. | Tampilkan peringatan "hanya tab di perangkat yang sama" atau tambah signaling ephemeral sebelum memasarkan sebagai Meet-like. | Open |
+| P2 | `cleanupStaleSessions` menghapus render gallery bersama sesi berumur >24 jam, bertentangan dengan retensi 10 hasil. | `src/db/repositories/session.ts` sebelumnya `db.renders.where('sessionId').anyOf(staleIds).delete()`. | Cleanup hanya sesi yang belum `completed`. | Fixed 2026-09-04 |
+| P2 | Tamu ke-3+ masih bisa membuka URL undangan yang sama dan melihat kode booth. | Identity join tidak mengunci setelah 2 peer. | Tolak join setelah booth penuh/capture mulai. | Open |
+| P2 | Hasil Booth Bareng tidak masuk gallery lokal; hanya unduh di halaman booth. | `BoothRoomView` memakai `URL.createObjectURL` tanpa `renderAndStoreSession`. | Opsional simpan ke gallery dengan source booth, atau copy yang menjelaskan hasil ephemeral. | Open |
+| P3 | FAQ/privacy belum menyebut Booth Bareng sebagai mode online opsional. | `src/features/public-info/content.ts` masih "jika nanti ada share link". | Update copy publik. | Open |
+| P3 | Error render incomplete masih Inggris. | `RendererView.vue`: `Session data is incomplete`. | Lokalkan. | Open |
+| P3 | `ResetSessionView.vue` mati (tidak ada route). | Tidak ada import di `router/index.ts`. | Pasang route atau hapus file. | Open |
+| P3 | Shortcut keyboard event masih minim vs PRD FR-10. | `CameraView` hanya `Escape`. | Space = capture, Esc = batal countdown. | Open |
+
+### Temuan lama yang ditutup di kode
+
+- P2 retake upload ke `/config` tanpa `source=upload`: **Fixed** (`ReviewView` `query: { source: previousSource }`).
+- P2 icon-only tanpa nama: **Fixed** untuk kamera/config/upload/gallery/booth (ada `aria-label`).
+- P3 copy gallery/update Inggris: **Fixed** (`Hapus photo strip ini?`, `Update Tersedia`).
+- P2 output sukses palsu: tetap **Fixed**.
+
+### Batasan
+
+- Chrome/Safari fisik belum dijalankan.
+- WebKit offline upload/render tetap perlu device Safari.
+- Live Cam end-to-end dan print/share capability tidak di-stres di pass ini.
+- Booth lintas NAT/TURN di luar cakupan implementasi saat ini.

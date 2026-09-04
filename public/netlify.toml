@@ -107,6 +107,16 @@
     X-Robots-Tag = "noindex, nofollow"
 
 [[headers]]
+  for = "/booth"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/j/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
   for = "/privacyscreen"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"

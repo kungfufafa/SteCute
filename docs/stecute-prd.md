@@ -1,8 +1,8 @@
 # PRD - Stecute
 
 Dokumen: Product Requirements Document  
-Versi: 1.3  
-Tanggal: 2026-05-28  
+Versi: 1.4  
+Tanggal: 2026-09-04  
 Status: Finalized baseline siap implementasi production-ready  
 Pemilik dokumen: Product + Founder
 
@@ -88,7 +88,7 @@ Menjadi aplikasi photo booth web offline-first tanpa login yang paling cepat, ny
 - Marketplace creator.
 - Login, profil, atau histori lintas device.
 - AI retouch berat.
-- Kolaborasi multi-user real-time.
+- Kolaborasi real-time 3+ orang, audio/panggilan, akun, atau backend wajib untuk alur lokal. Booth Bareng 2 orang adalah mode online opsional, bukan syarat alur kamera/upload v1.
 - Cloud sync wajib.
 - Pembayaran dan template berbayar.
 - Native print driver.
@@ -204,6 +204,17 @@ Kebutuhan utama:
 - Creator tools.
 - Wrapper desktop dengan Tauri untuk venue yang butuh integrasi OS lebih dalam.
 
+### 8.4 Mode opsional: Booth Bareng
+
+Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang memakai render strip PNG yang sama dengan alur lokal.
+
+Batasan yang dikunci:
+
+- Tepat 2 peserta. Late join setelah capture, 3+ orang, dan waiting room admit tidak termasuk mode ini.
+- Tidak ada mic, chat, screen share, atau permukaan panggilan ala Meet selain identitas join.
+- Signaling boleh online; still tidak disimpan di server dan ruang bersifat ephemeral.
+- `Mulai Foto` dan `Upload Lokal` tetap jalan tanpa booth, tanpa signaling, dan tanpa jaringan setelah cache awal.
+
 ---
 
 ## 9. User journey utama
@@ -230,13 +241,22 @@ Kebutuhan utama:
 6. Operator menekan reset manual setelah sesi selesai.
 7. Booth kembali ke state siap untuk tamu berikutnya.
 
+### Journey C - Booth Bareng (opsional, online)
+
+1. Pengguna menekan `Booth Bareng` dari landing, terpisah dari `Mulai Foto` dan `Upload Lokal`.
+2. Host membuat booth dan mendapat satu kode unik plus URL undangan yang memuat kode yang sama.
+3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan.
+4. Kedua peserta melihat preview kamera sebagai kehadiran; tidak ada audio.
+5. Host memulai countdown bersama. Tiap momen mengambil still dari kedua perangkat dan menyusun pair-row.
+6. Strip PNG dirender lewat pipeline lokal yang sama; masing-masing mengunduh hasil di perangkatnya. Ruang booth berakhir bersama sesi.
+
 ---
 
 ## 10. Functional requirements
 
 ### FR-01 Landing and entry
 
-- Aplikasi menampilkan CTA yang jelas: Mulai, Pilih Layout, Cek Kamera, dan Upload Foto.
+- Aplikasi menampilkan CTA yang jelas: Mulai, Pilih Layout, Cek Kamera, Upload Foto, dan entri opsional Booth Bareng.
 - Saat offline, aplikasi tetap bisa dibuka jika sudah pernah dimuat sebelumnya.
 - Landing menjelaskan trust message bahwa foto diproses lokal dan tidak wajib diunggah.
 
@@ -367,6 +387,20 @@ Acceptance criteria:
 - Dalam mode event, reset session selesai kurang dari 2 detik.
 - Shortcut keyboard dasar tersedia untuk desktop.
 
+### FR-11 Booth Bareng (optional online mode)
+
+- Host membuat booth tanpa akun dan melihat kode unik plus URL undangan yang memakai kode yang sama sebagai identitas join.
+- Tamu yang membuka URL undangan atau mengetik kode yang sama (hyphen opsional, case-insensitive) masuk ke booth yang sama.
+- Kode kosong, tidak dikenal, atau tidak valid ditolak dengan pesan yang jelas.
+- Countdown bersama menghasilkan satu still per peserta per momen; still disusun pair-row `host | tamu` lalu dirender PNG lewat pipeline strip yang ada.
+- Mode ini membutuhkan koneksi untuk signaling; alur kamera dan upload lokal v1 tidak boleh bergantung padanya.
+
+Acceptance criteria:
+
+- Landing tetap menampilkan `Mulai Foto` dan `Upload Lokal`, plus entri Booth Bareng.
+- Join lewat URL dan join lewat kode resolve ke booth id yang sama.
+- Tidak ada login, audio, atau penyimpanan still di server.
+
 ---
 
 ## 11. Non-functional requirements
@@ -482,6 +516,7 @@ Acceptance criteria:
 - Idle screen dan auto-reset.
 - Gallery terbatas.
 - Upload opsional saat online.
+- Booth Bareng 2 orang (invite + kode, tanpa audio) sebagai mode online opsional, bukan pengganti booth lokal.
 
 ### Phase 3 - Revenue features
 
@@ -582,6 +617,7 @@ Mitigasi:
 - Print ringan diperlakukan sebagai capability bonus, bukan blocker rilis.
 - Kustomisasi manual pasca-capture selain preset filter kamera ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
 - Gallery lokal menyimpan final render, bukan raw shots jangka panjang.
+- Booth Bareng adalah mode online opsional 2 orang (undangan + kode unik, tanpa audio, ephemeral). Kolaborasi real-time bukan lagi non-goal MVP yang tanpa kualifikasi; alur lokal v1 tetap tidak wajib memakainya.
 
 ---
 

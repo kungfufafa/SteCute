@@ -1,8 +1,8 @@
 # Rancangan Sistem Teknis - Stecute
 
 Dokumen: Technical System Design  
-Versi: 1.3  
-Tanggal: 2026-05-28  
+Versi: 1.4  
+Tanggal: 2026-09-04  
 Status: Finalized baseline siap implementasi production-ready  
 Pemilik dokumen: Engineering Lead / Full-stack Lead
 
@@ -106,17 +106,19 @@ Keputusan utama:
 - Local asset cache.
 - Local gallery terbatas.
 - Output actions berbasis capability.
+- Booth Bareng opsional: identitas kode/undangan, transport signaling yang bisa diganti, countdown 2 peer, komposisi pair-row, tanpa dependency pada alur session lokal.
 
 ### Out of scope MVP
 
 - User account.
 - Cloud sync wajib.
-- Multi-device sync.
+- Multi-device sync sebagai syarat alur lokal.
 - Payment.
 - Native print driver.
 - QR delivery berbasis server.
 - Server-side rendering.
 - Kustomisasi manual pasca-capture seperti frame color, sticker, date/time, dan logo text.
+- Audio, 3+ peserta, TURN production, atau retensi still di server untuk Booth Bareng.
 
 ---
 
@@ -307,6 +309,19 @@ Tanggung jawab:
 - cache strategi runtime terbatas
 - support offline fallback untuk route aplikasi
 
+### 5.10 Booth Bareng (optional)
+
+Tanggung jawab:
+
+- membuat dan menormalisasi kode ruang (hyphen opsional, case-insensitive)
+- membangun URL undangan yang memuat kode yang sama sebagai identitas join
+- menolak kode kosong, rusak, atau tidak dikenal
+- menjalankan protokol 2 peer: start countdown, tukar still, compose pair-row `host | tamu`
+- menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
+- tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
+
+Transport signaling bersifat swappable. Tes unit menyuntik dua peer in-process tanpa server publik. Video hanya preview kehadiran; artefak capture adalah still. Alur kamera dan upload lokal tidak memuat modul ini.
+
 ---
 
 ## 6. Struktur folder yang direkomendasikan
@@ -330,6 +345,7 @@ src/
     gallery/
     reset-session/
     event-mode/
+    booth/
   components/
     common/
     layout/
@@ -341,6 +357,7 @@ src/
     storage/
     cache/
     capability/
+    booth/
   workers/
     render.worker.ts
   assets/
@@ -1096,6 +1113,7 @@ Dengan pola ini, implementasi awal cukup local-only. Pada fase berikutnya, adapt
 - Auto-reset timer.
 - Idle screen state.
 - Tauri wrapper untuk kiosk dan file system integration yang lebih kuat.
+- Signaling server dan TURN/STUN production untuk Booth Bareng lintas NAT; implementasi awal memakai transport in-process/lokal yang bisa diganti.
 
 ---
 

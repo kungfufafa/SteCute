@@ -61,6 +61,10 @@ function startWithUpload() {
   router.push({ path: '/config', query: { source: 'upload' } })
 }
 
+function startBoothBareng() {
+  router.push('/booth')
+}
+
 async function installApp() {
   installFeedback.value = ''
   const outcome = await promptPwaInstall()
@@ -144,9 +148,14 @@ async function installApp() {
           {{ offlineStatusText }}
         </p>
 
-        <div class="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+        <div
+          class="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:flex-wrap"
+        >
           <button :class="[ui.primaryButton, 'sm:!w-auto']" @click="startWithCamera">
             Mulai Foto
+          </button>
+          <button :class="[ui.secondaryButton, 'sm:!w-auto']" @click="startBoothBareng">
+            Booth Bareng
           </button>
           <button
             v-if="canPromptInstall"
