@@ -43,7 +43,7 @@ describe('booth identity', () => {
     expect(byUnhyphenatedPath.ok && byUnhyphenatedPath.identity.boothId).toBe(booth.boothId)
   })
 
-  it('rejects missing, unknown, and malformed codes', () => {
+  it('rejects missing and malformed codes, and reconstructs a well-formed code without a local registry', () => {
     const registry = createMemoryRegistry()
     createBooth(registry)
 
@@ -59,7 +59,11 @@ describe('booth identity', () => {
     expect(joinBoothByInvite('/j/!!!', registry)).toEqual({ ok: false, reason: 'malformed' })
     expect(joinBoothByInvite('/gallery', registry)).toEqual({ ok: false, reason: 'malformed' })
 
-    expect(joinBoothByCode('ZZZZZZ', registry)).toEqual({ ok: false, reason: 'unknown' })
-    expect(joinBoothByInvite('/j/ZZZ-ZZZ', registry)).toEqual({ ok: false, reason: 'unknown' })
+    const reconstructed = joinBoothByCode('ZZZZZZ', registry)
+    expect(reconstructed.ok).toBe(true)
+    if (reconstructed.ok) {
+      expect(reconstructed.identity.code).toBe('ZZZ-ZZZ')
+      expect(reconstructed.identity.invitePath).toBe('/j/ZZZ-ZZZ')
+    }
   })
 })

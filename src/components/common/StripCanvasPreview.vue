@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { LayoutConfig, SlotConfig, TemplateConfig, Shot } from '@/db/schema'
 import { resolveTemplateLayout } from '@/templates'
+import { getShotForSlot } from '@/services/render/shots'
 import { STECUTE_LOGO_HEIGHT, STECUTE_LOGO_WIDTH } from '@/services/render/logo'
 import { getPhotoFilterCss } from '@/services/filter'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
@@ -170,8 +171,12 @@ function slotPhotoStyle(index: number) {
   return style
 }
 
+function slotShot(index: number) {
+  return getShotForSlot(props.shots, index)
+}
+
 function slotCameraEffectId(index: number) {
-  const shotEffectId = props.shots[index]?.cameraEffectId
+  const shotEffectId = slotShot(index)?.cameraEffectId
 
   if (shotEffectId) return shotEffectId
   if (props.cameraEffectId === 'reactions') return 'none'
@@ -264,8 +269,8 @@ function footerLogoStyle() {
         ></span>
         <CameraEffectCanvas
           :effect-id="slotCameraEffectId(index)"
-          :face-bounds="shots[index]?.faceBounds"
-          :frame-ms="shots[index]?.cameraEffectFrameMs"
+          :face-bounds="slotShot(index)?.faceBounds"
+          :frame-ms="slotShot(index)?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
         />
         <span
@@ -288,8 +293,8 @@ function footerLogoStyle() {
         ></span>
         <CameraEffectCanvas
           :effect-id="slotCameraEffectId(index)"
-          :face-bounds="shots[index]?.faceBounds"
-          :frame-ms="shots[index]?.cameraEffectFrameMs"
+          :face-bounds="slotShot(index)?.faceBounds"
+          :frame-ms="slotShot(index)?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
         />
       </div>

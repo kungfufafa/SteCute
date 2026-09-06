@@ -85,15 +85,16 @@ function joinRoom() {
 
     <main :class="[ui.content, 'flex-col gap-6 pb-12']">
       <p :class="ui.sectionCopy">
-        Photobooth untuk dua orang. Masuk pakai link undangan atau kode unik, tanpa akun dan tanpa
-        audio. Alur <strong>Mulai Foto</strong> dan <strong>Upload Lokal</strong> tetap jalan tanpa
-        mode ini.
+        Photobooth untuk dua orang, tanpa akun dan tanpa audio. Teman bisa gabung lewat kode atau
+        link, termasuk dari HP lain. Foto tetap dikirim langsung antar perangkat, tidak diunggah ke
+        server Stecute. Alur <strong>Mulai Foto</strong> dan <strong>Upload Lokal</strong> tetap
+        jalan tanpa mode ini.
       </p>
 
       <section :class="[ui.panel, 'p-5 sm:p-6']">
         <h2 class="text-stc-text text-lg font-bold">Buat booth</h2>
         <p class="text-stc-text-soft mt-2 text-sm font-medium">
-          Kamu jadi host. Teman gabung lewat kode atau link yang sama.
+          Kamu jadi host. Bagikan kode atau link ke teman, lalu mulai pose setelah 2 orang hadir.
         </p>
         <button class="mt-5" :class="ui.primaryButton" @click="createRoom">Buat Booth</button>
         <p v-if="createError" class="text-stc-error mt-3 text-sm font-semibold">

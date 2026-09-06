@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { SlotConfig } from '@/db/schema'
 import {
+  abandonIncompleteSession,
   createDefaultDecorationConfig,
   createSession,
   resetSessionData,
@@ -21,6 +22,7 @@ import {
   validateFile,
   validateFiles,
 } from '@/services/upload'
+import { consumePendingSessionConfig } from '@/services/session/persist'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
@@ -356,6 +358,9 @@ async function processUpload() {
   let sessionId: string | undefined
 
   try {
+    await abandonIncompleteSession(sessionStore.sessionId)
+    sessionStore.reset()
+
     sessionId = await createSession({
       layoutId: sessionStore.layoutId,
       templateId: sessionStore.templateId,
@@ -402,6 +407,22 @@ async function processUpload() {
   }
 }
 
+onMounted(async () => {
+  try {
+    await customTemplateStore.loadPersistedTemplates()
+  } catch (error) {
+    console.warn('Failed to load custom blanko templates:', error)
+  }
+  const pending = consumePendingSessionConfig('upload')
+  if (!pending) return
+
+  sessionStore.layoutId = pending.layoutId
+  sessionStore.templateId = pending.templateId
+  sessionStore.slotCount = pending.slotCount
+  sessionStore.countdownSeconds = pending.countdownSeconds
+  sessionStore.autoCapture = pending.autoCapture
+})
+
 onBeforeUnmount(() => resetUploadItems())
 </script>
 
@@ -409,7 +430,7 @@ onBeforeUnmount(() => resetUploadItems())
   <div :class="ui.page">
     <div :class="ui.header">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="goBack">
+        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
           <svg
             width="20"
             height="20"

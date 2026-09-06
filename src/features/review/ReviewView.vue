@@ -2,7 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { Shot, SlotConfig } from '@/db/schema'
-import { getReviewSessionSnapshot, resetSessionData, saveShot } from '@/services/session'
+import {
+  getReviewSessionSnapshot,
+  isSessionComplete,
+  resetSessionData,
+  saveShot,
+} from '@/services/session'
+import { persistRetakeIndex, readStoredSessionId } from '@/services/session/persist'
 import {
   createAdjustedImageBlob,
   createAutoUploadImageAdjustment,
@@ -120,7 +126,9 @@ const replacementCropStyle = computed(() => {
 })
 
 function revokeShotUrls() {
-  shotUrls.value.forEach((url) => URL.revokeObjectURL(url))
+  shotUrls.value.forEach((url) => {
+    if (url) URL.revokeObjectURL(url)
+  })
   shotUrls.value = []
 }
 
@@ -134,7 +142,7 @@ function clearReplacementUpload() {
 }
 
 async function loadShotUrls() {
-  const snapshot = await getReviewSessionSnapshot(sessionStore.sessionId)
+  const snapshot = await getReviewSessionSnapshot(sessionStore.sessionId ?? readStoredSessionId())
 
   if (!snapshot) {
     revokeShotUrls()
@@ -145,13 +153,27 @@ async function loadShotUrls() {
 
   sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
   revokeShotUrls()
-  loadedShots.value = snapshot.shots
-  shotUrls.value = snapshot.shots.map((shot) => URL.createObjectURL(shot.blob))
-  reviewError.value = null
+  const shotsByOrder = new Map(snapshot.shots.map((shot) => [shot.order, shot]))
+  loadedShots.value = Array.from(
+    { length: snapshot.session.slotCount },
+    (_, index) => shotsByOrder.get(index),
+  ).filter((shot): shot is Shot => Boolean(shot))
+  shotUrls.value = Array.from({ length: snapshot.session.slotCount }, (_, index) => {
+    const shot = shotsByOrder.get(index)
+    return shot ? URL.createObjectURL(shot.blob) : ''
+  })
+  if (!reviewError.value) {
+    reviewError.value = null
+  }
   isLoadingReview.value = false
 }
 
 onMounted(async () => {
+  if (sessionStore.errorMessage) {
+    reviewError.value = sessionStore.errorMessage
+    sessionStore.errorMessage = null
+  }
+
   await customTemplateStore.loadPersistedTemplates()
   await loadShotUrls()
 })
@@ -341,12 +363,17 @@ async function retakeShot(index: number) {
     return
   }
 
+  persistRetakeIndex(index)
   sessionStore.currentShotIndex = index
   router.push('/camera')
 }
 
 function proceedToRender() {
-  if (!sessionStore.sessionId || shotUrls.value.length < sessionStore.slotCount) {
+  if (
+    !sessionStore.sessionId ||
+    !isSessionComplete(loadedShots.value, sessionStore.slotCount) ||
+    shotUrls.value.filter(Boolean).length < sessionStore.slotCount
+  ) {
     reviewError.value = 'Foto sesi belum lengkap. Muat ulang atau mulai sesi baru.'
     return
   }

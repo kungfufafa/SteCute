@@ -7,6 +7,7 @@ import {
   inferCameraLens,
   normalizeCameraDevices,
   shouldMirrorCamera,
+  switchCamera,
 } from '@/services/camera'
 
 const originalNavigator = globalThis.navigator
@@ -103,5 +104,13 @@ describe('camera device normalization', () => {
     await initCamera({ deviceId: 'selected-camera' })
 
     expect(useCameraStore().activeFacingMode).toBe('unknown')
+  })
+
+  it('uses an explicit facing hint when switching cameras without stream metadata', async () => {
+    mockMediaDevices({ deviceId: 'front-2' })
+
+    await switchCamera('front-2', 'user')
+
+    expect(useCameraStore().activeFacingMode).toBe('user')
   })
 })

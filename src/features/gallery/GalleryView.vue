@@ -2,9 +2,10 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/app/store/useAppStore'
+import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useGalleryStore } from '@/app/store/useGalleryStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
-import { downloadBlob, generateFilename } from '@/services/output'
+import { downloadBlob, generateFilename, getExtensionForMimeType } from '@/services/output'
 import { clearAllLocalData, getStorageState, type StorageState } from '@/services/storage'
 import { formatBytes, formatDate } from '@/utils/format'
 import { ui } from '@/ui/styles'
@@ -13,7 +14,9 @@ const router = useRouter()
 const appStore = useAppStore()
 const galleryStore = useGalleryStore()
 const sessionStore = useSessionStore()
+const customTemplateStore = useCustomTemplateStore()
 const renderUrls = ref<Record<string, string>>({})
+const liveUrls = ref<Record<string, string>>({})
 const storageState = ref<StorageState | null>(null)
 const localDataMessage = ref<string | null>(null)
 const showLocalDataOptions = ref(false)
@@ -40,7 +43,9 @@ function handleClearAll() {
 
 function revokeRenderUrls() {
   Object.values(renderUrls.value).forEach((url) => URL.revokeObjectURL(url))
+  Object.values(liveUrls.value).forEach((url) => URL.revokeObjectURL(url))
   renderUrls.value = {}
+  liveUrls.value = {}
 }
 
 async function loadGallery() {
@@ -50,6 +55,11 @@ async function loadGallery() {
 
   renderUrls.value = Object.fromEntries(
     galleryStore.recentRenders.map((render) => [render.id, URL.createObjectURL(render.blob)]),
+  )
+  liveUrls.value = Object.fromEntries(
+    galleryStore.recentRenders
+      .filter((render) => render.liveBlob)
+      .map((render) => [render.id, URL.createObjectURL(render.liveBlob!)]),
   )
 }
 
@@ -74,6 +84,7 @@ async function handleClearAllLocalData() {
   try {
     await clearAllLocalData()
     sessionStore.reset()
+    customTemplateStore.clearTemplate()
     appStore.markOfflineCacheCleared()
     galleryStore.recentRenders = []
     revokeRenderUrls()
@@ -94,8 +105,21 @@ async function handleDownload(renderId: string) {
   if (!render) return
 
   const extension = render.mimeType === 'image/jpeg' ? 'jpg' : 'png'
-  const filename = generateFilename('gallery', 'saved', extension)
+  const filename = generateFilename(render.layoutId, render.templateId, extension)
   await downloadBlob(render.blob, filename)
+}
+
+async function handleDownloadLive(renderId: string) {
+  const render = galleryStore.recentRenders.find((item) => item.id === renderId)
+  if (!render?.liveBlob) return
+
+  const extension = getExtensionForMimeType(render.liveMimeType ?? render.liveBlob.type)
+  const filename = generateFilename(render.layoutId, render.templateId, extension)
+  await downloadBlob(render.liveBlob, filename)
+}
+
+function openOutput(renderId: string) {
+  router.push({ path: '/output', query: { renderId } })
 }
 
 onBeforeUnmount(() => {
@@ -183,9 +207,11 @@ onBeforeUnmount(() => {
             :key="render.id"
             class="group border-stc-border/80 shadow-stc-sm hover:shadow-stc-md overflow-hidden rounded-xl border bg-white transition-all duration-300 hover:-translate-y-1"
           >
-            <div
-              class="bg-stc-bg-2 overflow-hidden"
+            <button
+              class="bg-stc-bg-2 block w-full overflow-hidden"
               :style="{ aspectRatio: `${render.width} / ${render.height}` }"
+              :aria-label="`Buka hasil ${index + 1}`"
+              @click="openOutput(render.id)"
             >
               <img
                 :src="renderUrls[render.id]"
@@ -194,7 +220,7 @@ onBeforeUnmount(() => {
                 loading="lazy"
                 decoding="async"
               />
-            </div>
+            </button>
             <div class="border-stc-border relative z-10 space-y-4 border-t bg-white px-5 py-4">
               <div>
                 <div class="text-stc-text-faint text-[0.6875rem] font-bold uppercase">
@@ -218,6 +244,14 @@ onBeforeUnmount(() => {
                   @click="handleDelete(render.id)"
                 >
                   Hapus
+                </button>
+                <button
+                  v-if="liveUrls[render.id]"
+                  class="border-stc-border text-stc-text shadow-stc-xs hover:border-stc-border-strong hover:bg-stc-bg-2 focus-visible:ring-stc-pink col-span-2 inline-flex min-h-11 items-center justify-center rounded-xl border bg-white px-3 py-2 text-xs font-bold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-95"
+                  :aria-label="`Download Live Cam ${index + 1}`"
+                  @click="handleDownloadLive(render.id)"
+                >
+                  Unduh Live Cam
                 </button>
               </div>
             </div>

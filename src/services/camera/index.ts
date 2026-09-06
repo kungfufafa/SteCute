@@ -194,11 +194,16 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
 
     const videoConstraints: MediaTrackConstraints = {
       ...(DEFAULT_CONSTRAINTS.video as MediaTrackConstraints),
-      ...(options?.deviceId ? { deviceId: { exact: options.deviceId } } : {}),
-      ...(options?.facingMode ? { facingMode: options.facingMode } : {}),
       ...(options?.width ? { width: options.width } : {}),
       ...(options?.height ? { height: options.height } : {}),
       ...(options?.aspectRatio ? { aspectRatio: options.aspectRatio } : {}),
+    }
+
+    if (options?.deviceId) {
+      delete videoConstraints.facingMode
+      videoConstraints.deviceId = { exact: options.deviceId }
+    } else if (options?.facingMode) {
+      videoConstraints.facingMode = options.facingMode
     }
 
     const constraints: MediaStreamConstraints = {
@@ -234,6 +239,10 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
         facingMode = normalizeFacingMode(options.facingMode)
       }
 
+      if (facingMode === 'unknown' && label) {
+        facingMode = inferCameraFacingMode(label)
+      }
+
       if (facingMode === 'unknown' && !options?.deviceId) {
         facingMode = normalizeFacingModeConstraint(videoConstraints.facingMode)
       }
@@ -267,8 +276,14 @@ export async function getCameraDeviceOptions(): Promise<CameraDeviceOption[]> {
   return normalizeCameraDevices(await enumerateDevices())
 }
 
-export async function switchCamera(deviceId: string): Promise<MediaStream> {
-  return initCamera({ deviceId })
+export async function switchCamera(
+  deviceId: string,
+  facingMode?: FacingMode,
+): Promise<MediaStream> {
+  return initCamera({
+    deviceId,
+    ...(facingMode ? { facingMode } : {}),
+  })
 }
 
 export function stopCamera(stream: MediaStream): void {

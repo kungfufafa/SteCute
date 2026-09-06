@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
     trace: 'on-first-retry',
   },
   projects: [
@@ -25,9 +25,11 @@ export default defineConfig({
       use: { ...devices['iPhone 13'] },
     },
   ],
-  webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --strictPort',
-    url: 'http://localhost:4173',
-    reuseExistingServer: !process.env.CI,
-  },
+  webServer: process.env.QA_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run build && npm run preview -- --host 127.0.0.1 --strictPort',
+        url: 'http://localhost:4173',
+        reuseExistingServer: !process.env.CI,
+      },
 })

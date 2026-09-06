@@ -235,6 +235,55 @@ class StecuteDB extends Dexie {
       assets: 'id, type, packId',
       eventPresets: 'id',
     })
+
+    this.version(4)
+      .stores({
+        appSettings: 'key',
+        sessions: 'id, status, captureSource, layoutId, startedAt',
+        shots: 'id, sessionId, order, [sessionId+order]',
+        renders: 'id, sessionId, createdAt',
+        layouts: 'id, slotCount',
+        templates: 'id',
+        assets: 'id, type, packId',
+        eventPresets: 'id',
+      })
+      .upgrade(async (transaction) => {
+        const shots = await transaction.table('shots').toArray()
+        const kept = new Map<string, { id: string; createdAt: number }>()
+        const toDelete: string[] = []
+
+        for (const shot of shots) {
+          const key = `${shot.sessionId}:${shot.order}`
+          const current = kept.get(key)
+
+          if (!current) {
+            kept.set(key, { id: shot.id, createdAt: shot.createdAt ?? 0 })
+            continue
+          }
+
+          if ((shot.createdAt ?? 0) >= current.createdAt) {
+            toDelete.push(current.id)
+            kept.set(key, { id: shot.id, createdAt: shot.createdAt ?? 0 })
+          } else {
+            toDelete.push(shot.id)
+          }
+        }
+
+        if (toDelete.length > 0) {
+          await transaction.table('shots').bulkDelete(toDelete)
+        }
+      })
+
+    this.version(5).stores({
+      appSettings: 'key',
+      sessions: 'id, status, captureSource, layoutId, startedAt',
+      shots: 'id, sessionId, order, &[sessionId+order]',
+      renders: 'id, sessionId, createdAt',
+      layouts: 'id, slotCount',
+      templates: 'id',
+      assets: 'id, type, packId',
+      eventPresets: 'id',
+    })
   }
 }
 

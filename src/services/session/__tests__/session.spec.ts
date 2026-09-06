@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createDefaultDecorationConfig } from '@/services/session'
+import { createDefaultDecorationConfig, isSessionComplete } from '@/services/session'
 
 describe('session decoration config', () => {
   it('creates default decoration config with correct shape', () => {
@@ -46,5 +46,19 @@ describe('session decoration config', () => {
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'reaction-hearts' })
         .cameraEffectId,
     ).toBe('none')
+  })
+
+  it('treats a session as complete only when every slot order is present', () => {
+    expect(isSessionComplete([{ order: 0 }, { order: 1 }, { order: 2 }], 3)).toBe(true)
+    expect(isSessionComplete([{ order: 0 }, { order: 0 }, { order: 1 }], 3)).toBe(false)
+    expect(isSessionComplete([{ order: 0 }, { order: 2 }], 3)).toBe(false)
+    expect(isSessionComplete([], 3)).toBe(false)
+  })
+})
+
+describe('review snapshot recovery', () => {
+  it('does not invent a review session when no session id is provided', async () => {
+    const { getReviewSessionSnapshot } = await import('@/services/session')
+    await expect(getReviewSessionSnapshot(null)).resolves.toBeNull()
   })
 })

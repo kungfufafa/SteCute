@@ -109,6 +109,136 @@ describe('booth two-peer capture protocol', () => {
     host.dispose()
     guest.dispose()
   })
+
+  it('rejects a third peer after two people are already in the booth', async () => {
+    const listeners: Array<Set<(message: { type: string; peerId?: string }) => void>> = [
+      new Set(),
+      new Set(),
+      new Set(),
+    ]
+    const transports = listeners.map((own, index) => ({
+      send(message: { type: string; peerId?: string }) {
+        listeners.forEach((set, listenerIndex) => {
+          if (listenerIndex === index) return
+          for (const handler of set) handler({ ...message })
+        })
+      },
+      subscribe(handler: (message: { type: string; peerId?: string }) => void) {
+        own.add(handler)
+        return () => own.delete(handler)
+      },
+    }))
+
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: transports[0] as never,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: transports[1] as never,
+    })
+    const extra = createBoothPeerSession({
+      peerId: 'extra-peer',
+      role: 'guest',
+      transport: transports[2] as never,
+    })
+
+    expect(host.getRemotePeerId()).toBe('guest-peer')
+    expect(guest.getRemotePeerId()).toBe('host-peer')
+    expect(guest.getRejectedReason()).toBeNull()
+    expect(extra.getRejectedReason()).toBe('full')
+
+    host.dispose()
+    guest.dispose()
+    extra.dispose()
+  })
+
+  it('replays a pose when the host starts the same moment again', async () => {
+    const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: hostTransport,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: guestTransport,
+    })
+
+    const first = guest.waitForStart()
+    host.startMoment(0, 3000)
+    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+
+    const second = guest.waitForStart()
+    host.startMoment(0, 2500)
+    await expect(second).resolves.toEqual({ momentIndex: 0, countdownMs: 2500 })
+
+    host.dispose()
+    guest.dispose()
+  })
+
+  it('rejects pending countdown waiters when the booth is disposed', async () => {
+    const { host: hostTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: hostTransport,
+    })
+
+    const pending = host.waitForCountdown(0)
+    host.dispose()
+    await expect(pending).rejects.toThrow('Booth session disposed')
+  })
+
+  it('ignores duplicate start-moment deliveries from two transports', async () => {
+    const handlers = new Set<(message: { type: string; nonce?: string; momentIndex?: number; countdownMs?: number }) => void>()
+    const transport = {
+      send() {},
+      subscribe(
+        handler: (message: {
+          type: string
+          nonce?: string
+          momentIndex?: number
+          countdownMs?: number
+        }) => void,
+      ) {
+        handlers.add(handler)
+        return () => handlers.delete(handler)
+      },
+    }
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: transport as never,
+    })
+
+    const first = guest.waitForStart()
+    const duplicate = {
+      type: 'start-moment' as const,
+      momentIndex: 0,
+      countdownMs: 3000,
+      nonce: 'same-start',
+    }
+    for (const handler of handlers) {
+      handler(duplicate)
+      handler(duplicate)
+    }
+
+    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+
+    const second = guest.waitForStart()
+    const raced = await Promise.race([
+      second.then(() => 'start'),
+      new Promise((resolve) => globalThis.setTimeout(() => resolve('timeout'), 40)),
+    ])
+    expect(raced).toBe('timeout')
+
+    guest.dispose()
+    await expect(second).rejects.toThrow('Booth session disposed')
+  })
 })
 
 function stillFromColor(rgba: readonly [number, number, number, number]): BoothStill {

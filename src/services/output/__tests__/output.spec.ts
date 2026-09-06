@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { detectOutputCapabilities } from '@/services/output'
+import { detectOutputCapabilities, shareBlob } from '@/services/output'
 
 const originalNavigator = globalThis.navigator
 
@@ -37,5 +37,19 @@ describe('output capabilities', () => {
     } as Partial<Navigator>)
 
     expect(detectOutputCapabilities().canShare).toBe(true)
+  })
+
+  it('treats a dismissed share sheet as cancelled, not unsupported', async () => {
+    mockNavigator({
+      share: vi.fn(async () => {
+        const error = new Error('Share canceled')
+        error.name = 'AbortError'
+        throw error
+      }),
+      canShare: vi.fn(() => true),
+    } as Partial<Navigator>)
+
+    const blob = new Blob(['strip'], { type: 'image/png' })
+    await expect(shareBlob(blob, 'stecute.png')).resolves.toBe('cancelled')
   })
 })

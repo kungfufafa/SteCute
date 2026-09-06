@@ -1,18 +1,8 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {
-  createDefaultDecorationConfig,
-  getRenderById,
-  getSessionSnapshot,
-  getSessionShots,
-  resetSessionData,
-} from '@/services/session'
-import { getLayoutById } from '@/layouts'
-import { getTemplateById } from '@/templates'
-import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
+import { getRenderById, getSessionSnapshot, resetSessionData } from '@/services/session'
 import { useSessionStore } from '@/app/store/useSessionStore'
-import { renderStrip } from '@/services/render'
 import {
   detectOutputCapabilities,
   downloadBlob,
@@ -28,7 +18,6 @@ import FlowProgress from '@/components/common/FlowProgress.vue'
 const router = useRouter()
 const route = useRoute()
 const sessionStore = useSessionStore()
-const customTemplateStore = useCustomTemplateStore()
 const capabilities = detectOutputCapabilities()
 const isBusy = ref(false)
 const isLoadingOutput = ref(true)
@@ -37,11 +26,6 @@ const outputActionNotice = ref<string | null>(null)
 const outputActionError = ref<string | null>(null)
 const showMoreActions = ref(false)
 
-const layout = computed(
-  () =>
-    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
-    getLayoutById(sessionStore.layoutId),
-)
 const previewUrl = ref<string | null>(null)
 const livePreviewUrl = ref<string | null>(null)
 const outputBlob = shallowRef<Blob | null>(null)
@@ -64,32 +48,18 @@ function revokeLivePreviewUrl() {
 }
 
 async function getOutputBlob(): Promise<Blob> {
-  if (outputBlob.value) return outputBlob.value
+  if (outputBlob.value && outputBlob.value.size > 0) return outputBlob.value
 
-  const activeLayout = layout.value
-  const template =
-    customTemplateStore.getTemplateById(sessionStore.templateId) ??
-    getTemplateById(sessionStore.templateId)
-  const sessionId = sessionStore.sessionId
-
-  if (!activeLayout || !template || !sessionId) {
-    throw new Error('Render data is incomplete')
+  const renderId = getActiveRenderId()
+  if (renderId) {
+    const render = await getRenderById(renderId)
+    if (render?.blob && render.blob.size > 0) {
+      outputBlob.value = render.blob
+      return render.blob
+    }
   }
 
-  const shots = await getSessionShots(sessionId)
-  const result = await renderStrip({
-    layout: activeLayout,
-    template,
-    shots,
-    decoration: createDefaultDecorationConfig(template, {
-      filterId: sessionStore.filterId,
-      cameraEffectId: sessionStore.cameraEffectId,
-    }),
-    format: 'image/png',
-  })
-
-  outputBlob.value = result.blob
-  return result.blob
+  throw new Error('Hasil akhir tidak tersedia. Buka galeri atau ulangi render.')
 }
 
 async function getLiveOutputBlob(): Promise<Blob> {
@@ -143,9 +113,11 @@ async function handleShare() {
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
     const shared = await shareBlob(blob, filename)
-    if (!shared) {
+    if (shared === 'unsupported') {
       outputActionError.value =
         'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
+    } else if (shared === 'shared') {
+      outputActionNotice.value = 'Share sheet dibuka.'
     }
   } catch (error) {
     console.error('Share failed:', error)

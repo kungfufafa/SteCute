@@ -11,6 +11,7 @@ import OutputView from '@/features/output/OutputView.vue'
 import GalleryView from '@/features/gallery/GalleryView.vue'
 import BoothHubView from '@/features/booth/BoothHubView.vue'
 import BoothRoomView from '@/features/booth/BoothRoomView.vue'
+import ResetSessionView from '@/features/reset-session/ResetSessionView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -67,6 +68,12 @@ const router = createRouter({
       name: 'gallery',
       component: GalleryView,
       meta: { seo: getAppSeo('gallery') },
+    },
+    {
+      path: '/reset',
+      name: 'reset-session',
+      component: ResetSessionView,
+      meta: { seo: getAppSeo('config') },
     },
     {
       path: '/booth',

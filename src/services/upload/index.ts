@@ -1,4 +1,5 @@
 import { readBlobAsArrayBuffer } from '@/utils/blob'
+import { openHiddenFilePicker } from '@/utils/file-picker'
 
 export interface UploadConstraints {
   maxFileSize: number // bytes
@@ -10,6 +11,18 @@ export const DEFAULT_UPLOAD_CONSTRAINTS: UploadConstraints = {
   maxFileSize: 10 * 1024 * 1024, // 10 MB
   maxFiles: 6,
   acceptedTypes: ['image/jpeg', 'image/png', 'image/webp'],
+}
+
+const ACCEPTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
+const JPEG_MIME_ALIASES = new Set(['image/jpeg', 'image/jpg', 'image/pjpeg'])
+
+export function isAcceptedUploadType(file: Pick<File, 'name' | 'type'>): boolean {
+  if (DEFAULT_UPLOAD_CONSTRAINTS.acceptedTypes.includes(file.type) || JPEG_MIME_ALIASES.has(file.type)) {
+    return true
+  }
+
+  const filename = file.name.toLowerCase()
+  return ACCEPTED_IMAGE_EXTENSIONS.some((extension) => filename.endsWith(extension))
 }
 
 const HEADER_READ_BYTES = 256 * 1024
@@ -105,7 +118,7 @@ export function validateFiles(files: File[], slotCount: number): ValidationResul
   }
 
   for (const file of files) {
-    if (!constraints.acceptedTypes.includes(file.type)) {
+    if (!isAcceptedUploadType(file)) {
       errors.push(`"${file.name}" bukan format yang didukung. Gunakan JPG, PNG, atau WebP.`)
     }
     if (file.size > constraints.maxFileSize) {
@@ -513,15 +526,9 @@ function getImageDimensionsViaObjectUrl(file: File): Promise<{ width: number; he
 }
 
 export function openImagePicker(multiple: boolean = true): Promise<FileList | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/jpeg,image/png,image/webp'
-    input.multiple = multiple
-    input.onchange = () => {
-      resolve(input.files)
-    }
-    input.click()
+  return openHiddenFilePicker({
+    accept: 'image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
+    multiple,
   })
 }
 

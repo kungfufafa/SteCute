@@ -48,6 +48,12 @@ describe('upload validation', () => {
     expect(result.errors).toEqual([])
   })
 
+  it('accepts jpeg mime aliases and image extensions when type is empty', () => {
+    expect(validateFile(createFile('photo.jpg', 'image/jpg', 2048)).valid).toBe(true)
+    expect(validateFile(createFile('photo.JPG', '', 2048)).valid).toBe(true)
+    expect(validateFile(createFile('photo.png', '', 2048)).valid).toBe(true)
+  })
+
   it('allows template-defined upload sessions with more than six slots', () => {
     const files = Array.from({ length: 8 }, (_, index) =>
       createFile(`custom-${index + 1}.png`, 'image/png', 2048),

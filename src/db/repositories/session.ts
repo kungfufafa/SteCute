@@ -30,6 +30,13 @@ export class SessionRepository {
     await db.sessions.update(sessionId, { decorationConfig: config })
   }
 
+  async updateFlowConfig(
+    sessionId: string,
+    config: Pick<Session, 'layoutId' | 'templateId' | 'slotCount' | 'captureSource' | 'decorationConfig'>,
+  ): Promise<void> {
+    await db.sessions.update(sessionId, config)
+  }
+
   async delete(id: string): Promise<void> {
     await db.sessions.delete(id)
   }

@@ -190,7 +190,7 @@ export const publicPages = {
             question: 'Apakah foto saya diupload ke server?',
             answer: [
               'Tidak untuk fitur inti. Foto dari kamera atau upload lokal diproses di browser untuk preview, review, render, dan output lokal.',
-              'Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
+              'Booth Bareng adalah mode opsional dua orang. Foto dikirim langsung antar perangkat (P2P). Untuk mempertemukan kedua browser, Stecute memakai signaling ephemeral dan STUN publik; metadata koneksi itu bukan foto. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
             ],
           },
           {

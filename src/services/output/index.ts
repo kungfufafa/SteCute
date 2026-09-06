@@ -64,7 +64,7 @@ export async function downloadBlob(blob: Blob, filename: string): Promise<void> 
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 2_000)
 }
 
 export async function saveBlob(blob: Blob, filename: string): Promise<boolean> {
@@ -97,37 +97,66 @@ export async function saveBlob(blob: Blob, filename: string): Promise<boolean> {
   }
 }
 
-export async function shareBlob(blob: Blob, filename: string): Promise<boolean> {
-  if (!navigator.share) return false
+export type ShareBlobResult = 'shared' | 'cancelled' | 'unsupported'
+
+export async function shareBlob(blob: Blob, filename: string): Promise<ShareBlobResult> {
+  if (!navigator.share) return 'unsupported'
 
   try {
     const file = new File([blob], filename, { type: blob.type })
-    if (navigator.canShare && !navigator.canShare({ files: [file] })) return false
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) return 'unsupported'
 
     await navigator.share({
       files: [file],
       title: 'Stecute Strip',
     })
-    return true
-  } catch {
-    return false
+    return 'shared'
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return 'cancelled'
+    return 'unsupported'
   }
 }
 
 export function printBlob(blob: Blob): boolean {
+  if (typeof document === 'undefined') return false
+
   const url = URL.createObjectURL(blob)
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) {
+  const frame = document.createElement('iframe')
+  frame.setAttribute('aria-hidden', 'true')
+  frame.setAttribute('title', 'Print strip')
+  frame.style.position = 'fixed'
+  frame.style.right = '0'
+  frame.style.bottom = '0'
+  frame.style.width = '0'
+  frame.style.height = '0'
+  frame.style.border = '0'
+  document.body.appendChild(frame)
+
+  const frameWindow = frame.contentWindow
+  if (!frameWindow) {
+    frame.remove()
     URL.revokeObjectURL(url)
     return false
   }
 
-  printWindow.document.write(`
+  const release = () => {
+    URL.revokeObjectURL(url)
+    frame.remove()
+  }
+
+  frameWindow.addEventListener('afterprint', release)
+  window.setTimeout(() => {
+    if (document.body.contains(frame)) release()
+  }, 120_000)
+
+  frameWindow.document.open()
+  frameWindow.document.write(`
     <!DOCTYPE html>
     <html>
       <head>
         <title>Print Strip</title>
         <style>
+          @page { margin: 8mm; }
           @media print {
             body { margin: 0; padding: 0; background: none; }
             img { max-width: 100%; height: auto; }
@@ -142,11 +171,22 @@ export function printBlob(blob: Blob): boolean {
         <div class="warning">
           Pastikan opsi <strong>Background graphics</strong> aktif pada dialog print jika hasil terlihat kosong.
         </div>
-        <img src="${url}" onload="setTimeout(() => { window.print(); window.close(); }, 500);" />
+        <img id="stecute-print-strip" src="${url}" alt="Photo strip" />
       </body>
     </html>
   `)
-  printWindow.document.close()
+  frameWindow.document.close()
+
+  const image = frameWindow.document.getElementById('stecute-print-strip')
+  if (image) {
+    const printNow = () => {
+      frameWindow.focus()
+      frameWindow.print()
+    }
+    if ('complete' in image && image.complete) printNow()
+    else image.addEventListener('load', printNow, { once: true })
+  }
+
   return true
 }
 

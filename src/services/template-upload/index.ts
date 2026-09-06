@@ -1,5 +1,6 @@
 import type { LayoutConfig, SlotConfig, TemplateConfig } from '@/db/schema'
 import { TemplateRepository } from '@/db/repositories'
+import { openHiddenFilePicker } from '@/utils/file-picker'
 
 const ACCEPTED_TEMPLATE_TYPES = ['image/png', 'image/webp']
 const MAX_TEMPLATE_SIZE = 10 * 1024 * 1024
@@ -27,15 +28,15 @@ export interface UploadedStripTemplate {
 }
 
 export function openStripTemplatePicker(): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/png,image/webp'
-    input.onchange = () => {
-      resolve(input.files?.[0] ?? null)
-    }
-    input.click()
-  })
+  return openHiddenFilePicker({
+    accept: 'image/png,image/webp',
+    multiple: false,
+  }).then((files) => files?.[0] ?? null)
+}
+
+export async function loadTemplateAssetBlob(templateId: string): Promise<Blob | null> {
+  const record = await templateRepo.getById(templateId)
+  return record?.assetBlob ?? null
 }
 
 export async function createTemplateFromStripFile(params: {
@@ -203,7 +204,10 @@ export function findTransparentWindows(
     let maxX = 0
     let minY = height
     let maxY = 0
-    let touchesEdge = false
+    let touchesLeft = false
+    let touchesRight = false
+    let touchesTop = false
+    let touchesBottom = false
 
     queue.length = 0
     queue.push(index)
@@ -220,9 +224,10 @@ export function findTransparentWindows(
       minY = Math.min(minY, y)
       maxY = Math.max(maxY, y)
 
-      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) {
-        touchesEdge = true
-      }
+      if (x === 0) touchesLeft = true
+      if (x === width - 1) touchesRight = true
+      if (y === 0) touchesTop = true
+      if (y === height - 1) touchesBottom = true
 
       visitNeighbor(current - 1, x > 0)
       visitNeighbor(current + 1, x < width - 1)
@@ -233,7 +238,12 @@ export function findTransparentWindows(
     const windowWidth = maxX - minX + 1
     const windowHeight = maxY - minY + 1
 
-    if (!touchesEdge && area >= minArea && windowWidth >= minWidth && windowHeight >= minHeight) {
+    const edgeCount =
+      Number(touchesLeft) + Number(touchesRight) + Number(touchesTop) + Number(touchesBottom)
+    const areaRatio = area / (width * height)
+    const isBackgroundWash = edgeCount >= 3 || areaRatio >= 0.35
+
+    if (!isBackgroundWash && area >= minArea && windowWidth >= minWidth && windowHeight >= minHeight) {
       windows.push({
         x: minX,
         y: minY,

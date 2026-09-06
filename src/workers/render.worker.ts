@@ -15,13 +15,20 @@ import {
 } from '@/services/camera-effects'
 import type { FaceBounds } from '@/services/face-tracking'
 import { getPhotoFilterCanvas } from '@/services/filter'
+import { getShotForSlot } from '@/services/render/shots'
 
 interface RenderWorkerShot {
   buffer: ArrayBuffer
   type: string
+  order: number
   faceBounds?: FaceBounds[]
   cameraEffectId?: string
   cameraEffectFrameMs?: number
+}
+
+interface RenderWorkerBlankoImage {
+  buffer: ArrayBuffer
+  type: string
 }
 
 export interface RenderWorkerMessage {
@@ -32,6 +39,7 @@ export interface RenderWorkerMessage {
   decoration: DecorationConfig
   format: 'image/png' | 'image/jpeg'
   quality?: number
+  blankoImage?: RenderWorkerBlankoImage
 }
 
 export interface RenderWorkerResult {
@@ -50,8 +58,11 @@ interface DecodedImage {
   close?: () => void
 }
 
+let blankoImageAsset: RenderWorkerBlankoImage | null = null
+
 self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
-  const { type, layout, template, shots, decoration, format, quality } = event.data
+  const { type, layout, template, shots, decoration, format, quality, blankoImage } = event.data
+  blankoImageAsset = blankoImage ?? null
 
   if (type !== 'render') return
 
@@ -69,7 +80,7 @@ self.onmessage = async (event: MessageEvent<RenderWorkerMessage>) => {
 
     for (let i = 0; i < renderLayout.slots.length; i++) {
       const slot = renderLayout.slots[i]
-      const shot = shots[i]
+      const shot = getShotForSlot(shots, i)
       if (!shot) continue
 
       const image = await decodeImageBlob(new Blob([shot.buffer], { type: shot.type }))
@@ -223,6 +234,14 @@ async function tryDrawBlankoImage(
       template.blanko.imageFit ?? 'cover',
     )
   } catch (error) {
+    const src = template.blanko.backgroundImage
+    if (
+      blankoImageAsset ||
+      src.startsWith('blob:') ||
+      src.startsWith('indexeddb:')
+    ) {
+      throw error
+    }
     console.warn(`Falling back to generated blanko for template "${template.id}".`, error)
   }
 }
@@ -234,7 +253,9 @@ async function drawBlankoImage(
   path: string,
   fit: 'cover' | 'contain' | 'stretch',
 ) {
-  const image = await loadImageSource(path)
+  const image = blankoImageAsset
+    ? await decodeImageBlob(new Blob([blankoImageAsset.buffer], { type: blankoImageAsset.type }))
+    : await loadImageSource(path)
   drawImageFit(ctx, image, { x: 0, y: 0, width, height, radius: 0 }, fit)
   image.close?.()
 }

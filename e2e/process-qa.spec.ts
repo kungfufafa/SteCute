@@ -72,7 +72,7 @@ test.describe('process QA empty and entry states', () => {
     await expect(page.getByRole('heading', { name: 'Tentang Stecute', level: 1 })).toBeVisible()
   })
 
-  test('booth process rejects unknown and malformed codes', async ({ page }) => {
+  test('booth process rejects malformed codes and keeps waiting for a well-formed host', async ({ page }) => {
     await page.goto('/booth')
     await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
     await page.getByLabel('Kode booth').fill('@@@')
@@ -80,7 +80,9 @@ test.describe('process QA empty and entry states', () => {
     await expect(page.getByRole('alert')).toContainText('tidak valid')
 
     await page.goto('/j/ZZZ-ZZZ')
-    await expect(page.getByText('Booth tidak ditemukan')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Ruang booth' })).toBeVisible()
+    await expect(page.getByText(/Menghubungkan ke host|Host belum online/)).toBeVisible()
+    await expect(page.getByText('Booth tidak ditemukan')).toHaveCount(0)
   })
 
   test('unknown routes return to landing', async ({ page }) => {
@@ -98,6 +100,11 @@ test.describe('camera process smoke', () => {
     await page.getByRole('button', { name: 'Buka Kamera' }).click()
     await expect(page).toHaveURL('/camera')
     await page.waitForSelector('video', { timeout: 15_000 })
+    await expect
+      .poll(async () =>
+        page.locator('video').evaluate((video) => video.videoWidth > 0 && Boolean(video.srcObject)),
+      )
+      .toBe(true)
     await expect(page.getByRole('button', { name: 'Ambil foto' })).toBeVisible()
     await expect(page.getByText('Efek Kamera')).toBeVisible()
     await expect(page.getByText('Overlay Kamera')).toBeVisible()

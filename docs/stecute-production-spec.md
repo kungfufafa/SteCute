@@ -85,8 +85,8 @@ Tidak masuk v1:
 - kiosk native wrapper
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 - `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
-- audio, chat, atau permukaan panggilan untuk Booth Bareng; mode ini 2 orang, still only, dan ephemeral
-- TURN/STUN berbayar atau signaling production sebagai syarat rilis v1
+- audio, chat, atau permukaan panggilan untuk Booth Bareng; mode ini 2 orang, still only
+- TURN berbayar sebagai syarat rilis v1; STUN publik dan signaling ephemeral boleh dipakai agar Booth Bareng bisa join lintas perangkat tanpa mengunggah foto
 
 Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
 
@@ -97,7 +97,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 - `Gallery lokal` menyimpan final render PNG, dengan optional Live Cam video berpasangan bila tersedia. Raw shots dan raw clip per-shot disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
 - `Kustomisasi manual` selain preset filter dan overlay kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
-- `Booth Bareng` adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional, countdown bersama, pair-row `host | tamu`, render PNG lewat pipeline strip yang sama. Still tidak diunggah ke server. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai.
+- `Booth Bareng` adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional, countdown bersama, pair-row `host | tamu`, render PNG lewat pipeline strip yang sama, lalu simpan ke gallery lokal. Still tidak diunggah ke server; hanya signaling/SDP ephemeral yang boleh lewat layanan perantara. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai.
 
 ---
 

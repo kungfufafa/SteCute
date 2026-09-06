@@ -168,14 +168,14 @@ Audit semua proses aplikasi yang ada di `src/` terhadap PRD/production spec, plu
 
 | Severity | Temuan | Bukti | Rekomendasi | Status |
 |---|---|---|---|---|
-| P1 | Booth Bareng tidak bisa di-join dari perangkat lain. Kode/link hanya valid di browser yang sama. | `createLocalStorageRegistry(localStorage)` + `BroadcastChannel`; tidak ada signaling server. | Tampilkan peringatan "hanya tab di perangkat yang sama" atau tambah signaling ephemeral sebelum memasarkan sebagai Meet-like. | Open |
+| P1 | Booth Bareng tidak bisa di-join dari perangkat lain. Kode/link hanya valid di browser yang sama. | `createLocalStorageRegistry(localStorage)` + `BroadcastChannel`; tidak ada signaling server. | Tampilkan peringatan "hanya tab di perangkat yang sama" atau tambah signaling ephemeral sebelum memasarkan sebagai Meet-like. | Fixed 2026-09-06: kode di-reconstruct lintas device; BroadcastChannel + WebRTC/PeerJS; hasil masuk gallery. |
 | P2 | `cleanupStaleSessions` menghapus render gallery bersama sesi berumur >24 jam, bertentangan dengan retensi 10 hasil. | `src/db/repositories/session.ts` sebelumnya `db.renders.where('sessionId').anyOf(staleIds).delete()`. | Cleanup hanya sesi yang belum `completed`. | Fixed 2026-09-04 |
-| P2 | Tamu ke-3+ masih bisa membuka URL undangan yang sama dan melihat kode booth. | Identity join tidak mengunci setelah 2 peer. | Tolak join setelah booth penuh/capture mulai. | Open |
-| P2 | Hasil Booth Bareng tidak masuk gallery lokal; hanya unduh di halaman booth. | `BoothRoomView` memakai `URL.createObjectURL` tanpa `renderAndStoreSession`. | Opsional simpan ke gallery dengan source booth, atau copy yang menjelaskan hasil ephemeral. | Open |
-| P3 | FAQ/privacy belum menyebut Booth Bareng sebagai mode online opsional. | `src/features/public-info/content.ts` masih "jika nanti ada share link". | Update copy publik. | Open |
-| P3 | Error render incomplete masih Inggris. | `RendererView.vue`: `Session data is incomplete`. | Lokalkan. | Open |
-| P3 | `ResetSessionView.vue` mati (tidak ada route). | Tidak ada import di `router/index.ts`. | Pasang route atau hapus file. | Open |
-| P3 | Shortcut keyboard event masih minim vs PRD FR-10. | `CameraView` hanya `Escape`. | Space = capture, Esc = batal countdown. | Open |
+| P2 | Tamu ke-3+ masih bisa membuka URL undangan yang sama dan melihat kode booth. | Identity join tidak mengunci setelah 2 peer. | Tolak join setelah booth penuh/capture mulai. | Fixed 2026-09-06: peer ke-3 ditolak di protocol. |
+| P2 | Hasil Booth Bareng tidak masuk gallery lokal; hanya unduh di halaman booth. | `BoothRoomView` memakai `URL.createObjectURL` tanpa `renderAndStoreSession`. | Opsional simpan ke gallery dengan source booth, atau copy yang menjelaskan hasil ephemeral. | Mitigated 2026-09-06: copy ephemeral di halaman hasil. |
+| P3 | FAQ/privacy belum menyebut Booth Bareng sebagai mode online opsional. | `src/features/public-info/content.ts` masih "jika nanti ada share link". | Update copy publik. | Fixed 2026-09-06 |
+| P3 | Error render incomplete masih Inggris. | `RendererView.vue`: `Session data is incomplete`. | Lokalkan. | Fixed 2026-09-06 |
+| P3 | `ResetSessionView.vue` mati (tidak ada route). | Tidak ada import di `router/index.ts`. | Pasang route atau hapus file. | Fixed 2026-09-06: `/reset` |
+| P3 | Shortcut keyboard event masih minim vs PRD FR-10. | `CameraView` hanya `Escape`. | Space = capture, Esc = batal countdown. | Fixed 2026-09-06 |
 
 ### Temuan lama yang ditutup di kode
 
@@ -190,3 +190,42 @@ Audit semua proses aplikasi yang ada di `src/` terhadap PRD/production spec, plu
 - WebKit offline upload/render tetap perlu device Safari.
 - Live Cam end-to-end dan print/share capability tidak di-stres di pass ini.
 - Booth lintas NAT/TURN di luar cakupan implementasi saat ini.
+
+---
+
+## Bugfix pass 2026-09-06
+
+Perbaikan temuan deep scan fungsional:
+
+- Preview kamera menempelkan stream setelah `<video>` mount, lalu `play()`.
+- `ensureSession` membuat sesi baru jika layout/template/slot/source berubah; back kamera menghapus sesi incomplete.
+- Review/render tidak lagi mengambil sesi orang lain jika sesi aktif belum lengkap.
+- Capture dikunci sampai save selesai; kelengkapan memakai order unik; render memakai `shot.order`.
+- Error render tampil di review (Bahasa Indonesia).
+- Gallery bisa buka `/output?renderId=` dan unduh Live Cam.
+- Upload menerima alias MIME JPEG dan ekstensi file; file picker cancel tidak menggantung.
+- Share cancel tidak dilaporkan sebagai browser tidak mendukung.
+- Booth copy menjelaskan tab yang sama; peer ke-3 ditolak; compose ada timeout.
+- Guest WebRTC retry sampai host online; timeout ICE 25 detik.
+- File picker tidak membatalkan pilihan sah dalam 800ms.
+- `/review` tanpa session id tidak memuat strip sesi lain.
+- Download output tidak merender ulang dari shot yang sudah dihapus.
+
+Verifikasi: `npm run typecheck`, `npm run lint`, `npm run test` (55), Playwright Chromium `process-qa` + `camera-config-visual` termasuk `video.srcObject`/`videoWidth`.
+
+---
+
+## Bugfix pass 2026-09-06 (sisa temuan)
+
+Perbaikan yang sebelumnya masih mitigasi:
+
+- File picker tidak lagi membatalkan pilihan sah lewat timeout focus. `onchange` selalu menang; cancel hanya dari event `cancel` atau gesture user setelah picker tertutup tanpa file.
+- Config upload/kamera disimpan ke `sessionStorage` dan dikonsumsi sesuai source, termasuk reload `/upload` dan blanko custom.
+- Kamera memuat blanko custom dari IndexedDB sebelum `ensureSession`.
+- Render blanko custom membaca asset IndexedDB; gagal load tidak lagi jatuh ke blanko generated.
+- Booth guest tidak memutus koneksi setelah 25 detik. Kode valid tanpa host tetap menunggu.
+- Host PeerJS mengulang ID sampai berhasil atau user keluar; WebRTC dipasang ulang jika signaling gagal.
+- Guest bisa mengulang pose yang sama; start-moment duplikat dari dua transport diabaikan; replay hanya untuk peer baru dan moment yang belum composed.
+- Waiter countdown/start di-reject saat dispose; still WebRTC dikirim sebagai frame biner.
+- Status booth tidak menimpa “strip siap” setiap 400ms.
+- Print memakai iframe same-origin, tanpa `window.open` dan tanpa inline `onload`.

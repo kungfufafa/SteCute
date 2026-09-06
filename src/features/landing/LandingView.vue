@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/app/store/useAppStore'
 import { useCapabilityStore } from '@/app/store/useCapabilityStore'
+import { useSessionStore } from '@/app/store/useSessionStore'
+import { abandonIncompleteSession } from '@/services/session'
 import { promptPwaInstall } from '@/services/pwa/install'
 import { requestPersistentStorage } from '@/services/storage'
 import { ui } from '@/ui/styles'
@@ -12,6 +14,7 @@ import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
 const router = useRouter()
 const appStore = useAppStore()
 const capabilityStore = useCapabilityStore()
+const sessionStore = useSessionStore()
 const installFeedback = ref('')
 const canPromptInstall = computed(() => appStore.installPromptAvailable && !appStore.installedMode)
 const offlineStatusText = computed(() => {
@@ -51,14 +54,19 @@ const showcaseImages = [
 
 capabilityStore.detectCapabilities()
 
-function startWithCamera() {
+async function startFreshSession(source: 'camera' | 'upload') {
   void requestPersistentStorage()
-  router.push({ path: '/config', query: { source: 'camera' } })
+  await abandonIncompleteSession(sessionStore.sessionId)
+  sessionStore.reset()
+  router.push({ path: '/config', query: { source } })
+}
+
+function startWithCamera() {
+  void startFreshSession('camera')
 }
 
 function startWithUpload() {
-  void requestPersistentStorage()
-  router.push({ path: '/config', query: { source: 'upload' } })
+  void startFreshSession('upload')
 }
 
 function startBoothBareng() {

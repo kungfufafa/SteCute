@@ -38,7 +38,7 @@ describe('strip template upload analysis', () => {
     ])
   })
 
-  it('ignores transparent regions that touch the artboard edge', () => {
+  it('ignores transparent wash regions that hug most of the artboard edge', () => {
     const windows = findTransparentWindows(
       alphaGrid(100, 160, [
         [0, 0, 100, 20],
@@ -49,5 +49,11 @@ describe('strip template upload analysis', () => {
     )
 
     expect(windows).toMatchObject([{ x: 15, y: 40, width: 70, height: 40 }])
+  })
+
+  it('keeps photo windows that only touch one artboard edge', () => {
+    const windows = findTransparentWindows(alphaGrid(100, 160, [[0, 40, 70, 40]]), 100, 160)
+
+    expect(windows).toMatchObject([{ x: 0, y: 40, width: 70, height: 40 }])
   })
 })

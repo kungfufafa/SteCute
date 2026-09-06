@@ -1,5 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
 
+test.use({
+  baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
+})
+
 function cta(page: Page, name: string) {
   return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
 }

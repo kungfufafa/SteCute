@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Session, Shot } from '@/db/schema'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
+import { persistActiveSessionId } from '@/services/session/persist'
 
 export type SessionStatus =
   | 'idle'
@@ -39,6 +40,7 @@ export const useSessionStore = defineStore('session', () => {
     renderId.value = null
     errorMessage.value = null
     sessionStatus.value = source === 'camera' ? 'capturing' : 'uploading'
+    persistActiveSessionId(id)
   }
 
   function restoreFromSession(session: Session, shots: Shot[] = []) {
@@ -62,17 +64,22 @@ export const useSessionStore = defineStore('session', () => {
     renderId.value = session.finalRenderId
     errorMessage.value = null
 
+    persistActiveSessionId(session.id)
+
     if (session.finalRenderId || session.status === 'completed') {
       sessionStatus.value = 'completed'
       return
     }
 
-    sessionStatus.value =
-      shots.length >= session.slotCount
-        ? 'reviewing'
-        : session.captureSource === 'camera'
-          ? 'capturing'
-          : 'uploading'
+    const hasEverySlot = Array.from({ length: session.slotCount }, (_, index) =>
+      shotIdByOrder.has(index),
+    ).every(Boolean)
+
+    sessionStatus.value = hasEverySlot
+      ? 'reviewing'
+      : session.captureSource === 'camera'
+        ? 'capturing'
+        : 'uploading'
   }
 
   function setCapturing() {
@@ -108,6 +115,13 @@ export const useSessionStore = defineStore('session', () => {
     shotIds.value[index] = id
   }
 
+  function setShotIdAt(index: number, id: string) {
+    const next = shotIds.value.slice()
+    while (next.length <= index) next.push('')
+    next[index] = id
+    shotIds.value = next
+  }
+
   function setRenderId(id: string) {
     renderId.value = id
   }
@@ -130,6 +144,7 @@ export const useSessionStore = defineStore('session', () => {
     errorMessage.value = null
     filterId.value = 'normal'
     cameraEffectId.value = 'none'
+    persistActiveSessionId(null)
   }
 
   return {
@@ -157,6 +172,7 @@ export const useSessionStore = defineStore('session', () => {
     advanceShot,
     addShotId,
     replaceShotId,
+    setShotIdAt,
     setRenderId,
     setFilterId,
     setCameraEffectId,

@@ -16,6 +16,8 @@ import {
 } from '@/services/camera-effects'
 import type { FaceBounds } from '@/services/face-tracking'
 import { getPhotoFilterCanvas } from '@/services/filter'
+import { getShotForSlot } from '@/services/render/shots'
+import { loadTemplateAssetBlob } from '@/services/template-upload'
 
 export interface RenderJob {
   layout: LayoutConfig
@@ -42,9 +44,15 @@ interface DecodedImage {
 interface RenderWorkerShot {
   buffer: ArrayBuffer
   type: string
+  order: number
   faceBounds?: FaceBounds[]
   cameraEffectId?: string
   cameraEffectFrameMs?: number
+}
+
+interface RenderWorkerBlankoImage {
+  buffer: ArrayBuffer
+  type: string
 }
 
 interface RenderWorkerMessage {
@@ -55,6 +63,7 @@ interface RenderWorkerMessage {
   decoration: DecorationConfig
   format: 'image/png' | 'image/jpeg'
   quality?: number
+  blankoImage?: RenderWorkerBlankoImage
 }
 
 interface RenderWorkerResult {
@@ -82,6 +91,45 @@ function canUseRenderWorker(): boolean {
   return typeof Worker !== 'undefined' && typeof OffscreenCanvas !== 'undefined'
 }
 
+async function readBlankoImageBlob(template: TemplateConfig): Promise<Blob | undefined> {
+  const src = template.blanko.backgroundImage
+  if (!src || template.blanko.mode !== 'image') return undefined
+
+  const canFetch =
+    src.startsWith('blob:') ||
+    src.startsWith('http:') ||
+    src.startsWith('https:') ||
+    src.startsWith('data:') ||
+    src.startsWith('/')
+
+  if (canFetch) {
+    try {
+      const response = await fetch(src)
+      if (response.ok) {
+        const blob = await response.blob()
+        if (blob.size > 0) return blob
+      }
+    } catch {
+      // Fall through to IndexedDB for custom blanko assets.
+    }
+  }
+
+  const asset = await loadTemplateAssetBlob(template.id)
+  return asset && asset.size > 0 ? asset : undefined
+}
+
+async function loadBlankoImageForWorker(
+  template: TemplateConfig,
+): Promise<RenderWorkerBlankoImage | undefined> {
+  const blob = await readBlankoImageBlob(template)
+  if (!blob) return undefined
+
+  return {
+    buffer: await blob.arrayBuffer(),
+    type: blob.type || 'image/png',
+  }
+}
+
 async function renderStripInWorker(job: RenderJob): Promise<RenderResult> {
   const worker = new Worker(new URL('../../workers/render.worker.ts', import.meta.url), {
     type: 'module',
@@ -90,12 +138,17 @@ async function renderStripInWorker(job: RenderJob): Promise<RenderResult> {
     job.shots.map(async (shot) => ({
       buffer: await shot.blob.arrayBuffer(),
       type: shot.blob.type,
+      order: shot.order,
       faceBounds: shot.faceBounds,
       cameraEffectId: shot.cameraEffectId,
       cameraEffectFrameMs: shot.cameraEffectFrameMs,
     })),
   )
-  const transfer = shots.map((shot) => shot.buffer)
+  const blankoImage = await loadBlankoImageForWorker(job.template)
+  const transfer = [
+    ...shots.map((shot) => shot.buffer),
+    ...(blankoImage ? [blankoImage.buffer] : []),
+  ]
 
   try {
     return await new Promise<RenderResult>((resolve, reject) => {
@@ -137,6 +190,7 @@ async function renderStripInWorker(job: RenderJob): Promise<RenderResult> {
           decoration: job.decoration,
           format: job.format,
           quality: job.quality,
+          blankoImage,
         } satisfies RenderWorkerMessage,
         transfer,
       )
@@ -164,7 +218,7 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
   // Draw shots into slots
   for (let i = 0; i < renderLayout.slots.length; i++) {
     const slot = renderLayout.slots[i]
-    const shot = shots[i]
+    const shot = getShotForSlot(shots, i)
     if (!shot) continue
 
     const img = await decodeImageBlob(shot.blob)
@@ -298,6 +352,15 @@ async function drawTemplateOverlay(
   await tryDrawBlankoImage(ctx, width, height, template)
 }
 
+function isRequiredBlankoImage(template: TemplateConfig) {
+  const src = template.blanko.backgroundImage ?? ''
+  return (
+    src.startsWith('blob:') ||
+    src.startsWith('indexeddb:') ||
+    template.id.startsWith('custom-strip')
+  )
+}
+
 async function tryDrawBlankoImage(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -307,14 +370,9 @@ async function tryDrawBlankoImage(
   if (!template.blanko.backgroundImage) return
 
   try {
-    await drawBlankoImage(
-      ctx,
-      width,
-      height,
-      template.blanko.backgroundImage,
-      template.blanko.imageFit ?? 'cover',
-    )
+    await drawBlankoImage(ctx, width, height, template)
   } catch (error) {
+    if (isRequiredBlankoImage(template)) throw error
     console.warn(`Falling back to generated blanko for template "${template.id}".`, error)
   }
 }
@@ -323,13 +381,15 @@ async function drawBlankoImage(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  path: string,
-  fit: 'cover' | 'contain' | 'stretch',
+  template: TemplateConfig,
 ) {
-  const response = await fetch(path)
-  if (!response.ok) throw new Error(`Failed to load template blanko: ${path}`)
-  const image = await decodeImageBlob(await response.blob())
-  drawImageFit(ctx, image, { x: 0, y: 0, width, height, radius: 0 }, fit)
+  const blob = await readBlankoImageBlob(template)
+  if (!blob) {
+    throw new Error(`Failed to load template blanko: ${template.blanko.backgroundImage}`)
+  }
+
+  const image = await decodeImageBlob(blob)
+  drawImageFit(ctx, image, { x: 0, y: 0, width, height, radius: 0 }, template.blanko.imageFit ?? 'cover')
   image.close?.()
 }
 

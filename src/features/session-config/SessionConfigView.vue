@@ -7,6 +7,7 @@ import { getTemplatesForLayout } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import { createTemplateFromStripFile, openStripTemplatePicker } from '@/services/template-upload'
+import { writePendingSessionConfig } from '@/services/session/persist'
 import { ui } from '@/ui/styles'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
@@ -235,6 +236,16 @@ function proceed() {
   sessionStore.countdownSeconds = selectedTimer.value
   sessionStore.autoCapture = autoCapture.value
   sessionStore.slotCount = option?.layout.slotCount ?? 3
+
+  writePendingSessionConfig({
+    layoutId: sessionStore.layoutId,
+    templateId: sessionStore.templateId,
+    slotCount: sessionStore.slotCount,
+    countdownSeconds: sessionStore.countdownSeconds,
+    autoCapture: sessionStore.autoCapture,
+    source: selectedSource.value,
+  })
+
   router.push(selectedSource.value === 'upload' ? '/upload' : '/camera')
 }
 

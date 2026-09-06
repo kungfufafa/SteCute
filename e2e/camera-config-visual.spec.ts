@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.use({
+  baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
   launchOptions: {
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
   },
@@ -26,6 +27,11 @@ test.describe('config and camera visual smoke', () => {
 
     await page.goto('/camera')
     await page.waitForSelector('video')
+    await expect
+      .poll(async () =>
+        page.locator('video').evaluate((video) => video.videoWidth > 0 && Boolean(video.srcObject)),
+      )
+      .toBe(true)
 
     const cameraBox = await page.locator('video').evaluate((video) => {
       const box = video.parentElement!.getBoundingClientRect()

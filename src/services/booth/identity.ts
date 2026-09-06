@@ -166,13 +166,20 @@ export function createBooth(
   }
 
   const identity: BoothIdentity = {
-    boothId: options.boothId ?? createBoothId(),
-    code: formatBoothCode(normalized),
-    invitePath: buildInvitePath(normalized),
+    ...identityFromNormalizedCode(normalized),
+    ...(options.boothId ? { boothId: options.boothId } : {}),
   }
 
   registry.save(identity)
   return identity
+}
+
+export function identityFromNormalizedCode(normalized: string): BoothIdentity {
+  return {
+    boothId: `booth-${normalized}`,
+    code: formatBoothCode(normalized),
+    invitePath: buildInvitePath(normalized),
+  }
 }
 
 export function joinBoothByCode(
@@ -188,12 +195,10 @@ export function joinBoothByCode(
     return { ok: false, reason: 'malformed' }
   }
 
-  const identity = registry.findByNormalizedCode(normalized)
-  if (!identity) {
-    return { ok: false, reason: 'unknown' }
+  return {
+    ok: true,
+    identity: registry.findByNormalizedCode(normalized) ?? identityFromNormalizedCode(normalized),
   }
-
-  return { ok: true, identity }
 }
 
 export function joinBoothByInvite(
@@ -209,12 +214,10 @@ export function joinBoothByInvite(
     return { ok: false, reason: 'malformed' }
   }
 
-  const identity = registry.findByNormalizedCode(normalized)
-  if (!identity) {
-    return { ok: false, reason: 'unknown' }
+  return {
+    ok: true,
+    identity: registry.findByNormalizedCode(normalized) ?? identityFromNormalizedCode(normalized),
   }
-
-  return { ok: true, identity }
 }
 
 export function buildInviteUrl(origin: string, identity: BoothIdentity): string {
@@ -247,23 +250,4 @@ function randomNormalizedCode(): string {
   }
 
   return code
-}
-
-function createBoothId(): string {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
-
-  const bytes = new Uint8Array(16)
-  if (globalThis.crypto?.getRandomValues) {
-    globalThis.crypto.getRandomValues(bytes)
-  } else {
-    for (let index = 0; index < bytes.length; index++) {
-      bytes[index] = Math.floor(Math.random() * 256)
-    }
-  }
-
-  bytes[6] = (bytes[6] & 0x0f) | 0x40
-  bytes[8] = (bytes[8] & 0x3f) | 0x80
-
-  const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }

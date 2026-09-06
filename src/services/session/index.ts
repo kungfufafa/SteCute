@@ -48,6 +48,25 @@ export function createDefaultDecorationConfig(
   })
 }
 
+export function isSessionComplete(shots: Array<{ order: number }>, slotCount: number): boolean {
+  if (slotCount <= 0) return false
+
+  const orders = new Set(shots.map((shot) => shot.order))
+  return Array.from({ length: slotCount }, (_, index) => index).every((order) => orders.has(order))
+}
+
+function sessionMatchesFlow(session: Session, config: SessionFlowConfig): boolean {
+  return (
+    session.status !== 'completed' &&
+    session.status !== 'discarded' &&
+    !session.finalRenderId &&
+    session.layoutId === config.layoutId &&
+    session.templateId === config.templateId &&
+    session.slotCount === config.slotCount &&
+    session.captureSource === config.captureSource
+  )
+}
+
 export async function createSession(config: SessionFlowConfig): Promise<string> {
   return sessionRepo.create({
     status: 'idle',
@@ -67,11 +86,17 @@ export async function ensureSession(
   config: SessionFlowConfig,
 ): Promise<string> {
   if (existingSessionId) {
-    await sessionRepo.updateDecorationConfig(
-      existingSessionId,
-      normalizeDecorationConfig(config.decoration),
-    )
-    return existingSessionId
+    const existing = await sessionRepo.getById(existingSessionId)
+
+    if (existing && sessionMatchesFlow(existing, config)) {
+      await sessionRepo.updateDecorationConfig(
+        existingSessionId,
+        normalizeDecorationConfig(config.decoration),
+      )
+      return existingSessionId
+    }
+
+    await resetSessionData(existingSessionId)
   }
 
   return createSession(config)
@@ -157,27 +182,47 @@ export async function getSessionSnapshot(sessionId: string): Promise<SessionSnap
 export async function getReviewSessionSnapshot(
   currentSessionId: string | null,
 ): Promise<SessionSnapshot | null> {
-  if (currentSessionId) {
-    const snapshot = await getSessionSnapshot(currentSessionId)
+  if (!currentSessionId) return null
 
-    if (snapshot && snapshot.shots.length >= snapshot.session.slotCount) {
-      return snapshot
-    }
+  const snapshot = await getSessionSnapshot(currentSessionId)
+
+  if (snapshot && isSessionComplete(snapshot.shots, snapshot.session.slotCount)) {
+    return snapshot
   }
 
+  return null
+}
+
+export async function getLatestIncompleteCameraSnapshot(): Promise<SessionSnapshot | null> {
   const sessions = await sessionRepo.getRecent()
 
   for (const session of sessions) {
-    if (session.status === 'discarded' || session.finalRenderId) continue
+    if (session.captureSource !== 'camera') continue
+    if (session.status === 'discarded' || session.status === 'completed' || session.finalRenderId) {
+      continue
+    }
 
     const shots = await getSessionShots(session.id)
 
-    if (shots.length >= session.slotCount) {
+    if (shots.length > 0 && !isSessionComplete(shots, session.slotCount)) {
       return { session, shots }
     }
   }
 
   return null
+}
+
+export async function abandonIncompleteSession(sessionId: string | null): Promise<void> {
+  if (!sessionId) return
+
+  const snapshot = await getSessionSnapshot(sessionId)
+  if (!snapshot || snapshot.session.status === 'completed' || snapshot.session.finalRenderId) {
+    return
+  }
+
+  if (isSessionComplete(snapshot.shots, snapshot.session.slotCount)) return
+
+  await resetSessionData(sessionId)
 }
 
 export async function resetSessionData(sessionId: string): Promise<void> {

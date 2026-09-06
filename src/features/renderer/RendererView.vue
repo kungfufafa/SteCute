@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import {
   createDefaultDecorationConfig,
   getReviewSessionSnapshot,
+  isSessionComplete,
   renderAndStoreSession,
 } from '@/services/session'
 import { getLayoutById } from '@/layouts'
@@ -11,6 +12,7 @@ import { getTemplateById } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
+import { readStoredSessionId } from '@/services/session/persist'
 import { ui } from '@/ui/styles'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 
@@ -22,7 +24,7 @@ const isRendering = ref(false)
 onMounted(async () => {
   await customTemplateStore.loadPersistedTemplates()
 
-  const snapshot = await getReviewSessionSnapshot(sessionStore.sessionId)
+  const snapshot = await getReviewSessionSnapshot(sessionStore.sessionId ?? readStoredSessionId())
 
   if (snapshot) {
     sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
@@ -42,8 +44,14 @@ onMounted(async () => {
       cameraEffectId: sessionStore.cameraEffectId,
     })
 
-  if (!sessionId || !layout || !template) {
-    sessionStore.setError('Session data is incomplete')
+  if (
+    !sessionId ||
+    !layout ||
+    !template ||
+    !snapshot ||
+    !isSessionComplete(snapshot.shots, snapshot.session.slotCount)
+  ) {
+    sessionStore.setError('Foto sesi belum lengkap. Muat ulang atau mulai sesi baru.')
     router.push('/review')
     return
   }

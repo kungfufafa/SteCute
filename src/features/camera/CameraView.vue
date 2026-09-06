@@ -1,13 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  abandonIncompleteSession,
   createDefaultDecorationConfig,
   ensureSession,
   getSessionShots,
+  getSessionSnapshot,
+  isSessionComplete,
   saveShot,
   updateSessionDecorationConfig,
 } from '@/services/session'
+import {
+  consumePendingSessionConfig,
+  persistCameraFlow,
+  persistActiveSessionId,
+  persistRetakeIndex,
+  readCameraFlow,
+  readRetakeIndex,
+  readStoredSessionId,
+} from '@/services/session/persist'
 import { getTemplateById } from '@/templates'
 import { getLayoutById } from '@/layouts'
 import { useCameraStore } from '@/app/store/useCameraStore'
@@ -58,7 +70,11 @@ const latestOverlayFrameMs = ref(0)
 const cameraDevices = ref<CameraDeviceOption[]>([])
 const cameraPickerOpen = ref(false)
 const isSwitchingCamera = ref(false)
+const isCapturing = ref(false)
+const cameraReady = ref(false)
+const unavailableKind = ref<'missing' | 'in-use' | 'constraint'>('missing')
 let stream: MediaStream | null = null
+let setupGeneration = 0
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
 let autoCaptureRunning = false
@@ -94,6 +110,7 @@ const videoFilterStyle = computed(() => ({ filter: selectedFilter.value.cssFilte
 const canChangeFilter = computed(
   () =>
     !countdownActive.value &&
+    !isCapturing.value &&
     sessionStore.currentShotIndex === 0 &&
     !sessionStore.shotIds.some(Boolean),
 )
@@ -127,8 +144,31 @@ const activeCameraLabel = computed(
   () => activeCamera.value?.label ?? (cameraStore.activeDeviceLabel || 'Kamera aktif'),
 )
 const canSwitchCamera = computed(
-  () => cameraDevices.value.length > 1 && !countdownActive.value && !isSwitchingCamera.value,
+  () =>
+    cameraReady.value &&
+    cameraDevices.value.length > 1 &&
+    !countdownActive.value &&
+    !isSwitchingCamera.value &&
+    !isCapturing.value,
 )
+const unavailableTitle = computed(() => {
+  if (unavailableKind.value === 'in-use') return 'Kamera Sedang Dipakai'
+  if (unavailableKind.value === 'constraint') return 'Kamera Gagal Dibuka'
+  return 'Tidak Ada Kamera'
+})
+const unavailableCopy = computed(() => {
+  if (unavailableKind.value === 'in-use') {
+    return 'Kamera perangkat sedang dipakai aplikasi lain. Tutup aplikasi itu, lalu coba lagi.'
+  }
+  if (unavailableKind.value === 'constraint') {
+    return 'Browser tidak bisa membuka kamera dengan pengaturan saat ini. Coba ganti kamera atau muat ulang halaman.'
+  }
+  return 'Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.'
+})
+
+watch(videoRef, () => {
+  void attachPreviewStream()
+})
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
@@ -165,9 +205,39 @@ function closeOptionPicker() {
 }
 
 function handleGlobalKeydown(event: Event) {
-  if ('key' in event && event.key === 'Escape') {
+  if (!('key' in event)) return
+
+  if (event.key === 'Escape') {
     closeOptionPicker()
     closeCameraPicker()
+    cancelCountdown()
+    return
+  }
+
+  if (
+    event.key === ' ' &&
+    cameraStore.permissionState === 'granted' &&
+    !activeOptionPicker.value &&
+    !cameraPickerOpen.value
+  ) {
+    event.preventDefault()
+    runCountdownAndCapture()
+  }
+}
+
+async function attachPreviewStream(generation = setupGeneration) {
+  if (generation !== setupGeneration) return
+  const video = videoRef.value
+  if (!video || !stream) return
+
+  if (video.srcObject !== stream) {
+    video.srcObject = stream
+  }
+
+  try {
+    await video.play()
+  } catch (error) {
+    console.warn('Camera preview play() was blocked:', error)
   }
 }
 
@@ -189,9 +259,68 @@ function closeCameraPicker() {
   cameraPickerOpen.value = false
 }
 
-async function setupCamera() {
+function applyRetakeIndex() {
+  const retakeIndex = readRetakeIndex()
+  if (retakeIndex == null || retakeIndex >= sessionStore.slotCount) return
+  sessionStore.currentShotIndex = retakeIndex
+}
+
+function applyCameraFlow() {
+  const flow = readCameraFlow()
+  if (!flow) return
+  sessionStore.countdownSeconds = flow.countdownSeconds
+  sessionStore.autoCapture = flow.autoCapture
+}
+
+function sessionMatchesConfig(
+  session: { layoutId: string; templateId: string; slotCount: number },
+  config: { layoutId: string; templateId: string; slotCount: number },
+) {
+  return (
+    session.layoutId === config.layoutId &&
+    session.templateId === config.templateId &&
+    session.slotCount === config.slotCount
+  )
+}
+
+async function restoreStoredCameraSession(requireConfig?: {
+  layoutId: string
+  templateId: string
+  slotCount: number
+}) {
+  const storedId = readStoredSessionId()
+  if (!storedId) return
+
+  const snapshot = await getSessionSnapshot(storedId)
+  if (
+    !snapshot ||
+    snapshot.session.captureSource !== 'camera' ||
+    snapshot.session.status === 'completed' ||
+    snapshot.session.finalRenderId
+  ) {
+    return
+  }
+
+  if (requireConfig && !sessionMatchesConfig(snapshot.session, requireConfig)) {
+    await abandonIncompleteSession(storedId)
+    persistActiveSessionId(null)
+    sessionStore.sessionId = null
+    return
+  }
+
+  sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
+  applyCameraFlow()
+  applyRetakeIndex()
   sessionStore.setCapturing()
-  cameraStore.setPermissionState('prompt')
+}
+
+async function setupCamera() {
+  const generation = ++setupGeneration
+  cameraReady.value = false
+  sessionStore.setCapturing()
+  if (cameraStore.permissionState !== 'granted') {
+    cameraStore.setPermissionState('prompt')
+  }
   cameraStore.setStreamReady(false)
   cameraError.value = null
   liveCamAvailable.value = false
@@ -202,46 +331,106 @@ async function setupCamera() {
   }
 
   try {
-    stream = await initCamera()
-    if (videoRef.value) videoRef.value.srcObject = stream
-    liveCamAvailable.value = isLiveCamRecordingSupported(stream)
-    await refreshCameraDevices()
+    try {
+      await customTemplateStore.loadPersistedTemplates()
+    } catch (error) {
+      console.warn('Failed to load custom blanko templates:', error)
+    }
+    if (generation !== setupGeneration) return
 
-    const sessionId = await ensureSession(sessionStore.sessionId, {
-      layoutId: sessionStore.layoutId,
-      templateId: sessionStore.templateId,
-      slotCount: sessionStore.slotCount,
-      captureSource: 'camera',
-      decoration: createDefaultDecorationConfig(activeTemplate.value, {
-        filterId: sessionStore.filterId,
-        cameraEffectId: sessionStore.cameraEffectId,
-      }),
-    })
+    const pendingConfig = consumePendingSessionConfig('camera')
+    if (pendingConfig) {
+      sessionStore.layoutId = pendingConfig.layoutId
+      sessionStore.templateId = pendingConfig.templateId
+      sessionStore.slotCount = pendingConfig.slotCount
+      sessionStore.countdownSeconds = pendingConfig.countdownSeconds
+      sessionStore.autoCapture = pendingConfig.autoCapture
+      persistCameraFlow({
+        countdownSeconds: pendingConfig.countdownSeconds,
+        autoCapture: pendingConfig.autoCapture,
+      })
 
-    if (!sessionStore.sessionId) {
-      sessionStore.startSession(sessionId, 'camera', sessionStore.slotCount)
-      sessionStore.sessionStatus = 'capturing'
+      if (!sessionStore.sessionId) {
+        await restoreStoredCameraSession(pendingConfig)
+      } else if (!sessionMatchesConfig(sessionStore, pendingConfig)) {
+        await abandonIncompleteSession(sessionStore.sessionId)
+        sessionStore.sessionId = null
+      }
+    } else if (!sessionStore.sessionId) {
+      await restoreStoredCameraSession()
     }
 
-    await persistCameraDecoration(sessionId)
+    if (generation !== setupGeneration) return
+
+    const nextStream = await initCamera()
+    if (generation !== setupGeneration) {
+      stopCamera(nextStream)
+      return
+    }
+
+    stream = nextStream
+    liveCamAvailable.value = isLiveCamRecordingSupported(stream)
+    await nextTick()
+    await attachPreviewStream(generation)
+    await refreshCameraDevices()
+
+    if (generation !== setupGeneration) return
+
+    try {
+      const sessionId = await ensureSession(sessionStore.sessionId, {
+        layoutId: sessionStore.layoutId,
+        templateId: sessionStore.templateId,
+        slotCount: sessionStore.slotCount,
+        captureSource: 'camera',
+        decoration: createDefaultDecorationConfig(activeTemplate.value, {
+          filterId: sessionStore.filterId,
+          cameraEffectId: sessionStore.cameraEffectId,
+        }),
+      })
+
+      if (generation !== setupGeneration) return
+
+      if (sessionStore.sessionId !== sessionId) {
+        sessionStore.startSession(sessionId, 'camera', sessionStore.slotCount)
+      }
+
+      sessionStore.setCapturing()
+      persistCameraFlow({
+        countdownSeconds: sessionStore.countdownSeconds,
+        autoCapture: sessionStore.autoCapture,
+      })
+      applyRetakeIndex()
+      await persistCameraDecoration(sessionId)
+      if (generation === setupGeneration) cameraReady.value = true
+    } catch (error) {
+      console.error('Failed to prepare camera session:', error)
+      cameraError.value = isStorageQuotaError(error)
+        ? getStorageErrorMessage(error)
+        : 'Gagal menyiapkan sesi kamera. Coba lagi.'
+      cameraReady.value = false
+    }
   } catch (error) {
+    if (generation !== setupGeneration) return
     const errorName = error instanceof DOMException ? error.name : ''
     const isDeniedError = errorName === 'NotAllowedError' || errorName === 'PermissionDeniedError'
-    const isUnavailableError = [
-      'NotFoundError',
-      'DevicesNotFoundError',
-      'NotReadableError',
-      'TrackStartError',
-      'AbortError',
-      'OverconstrainedError',
-    ].includes(errorName)
+    const isMissingError = errorName === 'NotFoundError' || errorName === 'DevicesNotFoundError'
+    const isInUseError = errorName === 'NotReadableError' || errorName === 'TrackStartError'
+    const isConstraintError = errorName === 'OverconstrainedError' || errorName === 'AbortError'
 
     if (isDeniedError) {
       cameraStore.setPermissionState('denied')
-    } else if (isUnavailableError) {
+    } else if (isMissingError) {
+      unavailableKind.value = 'missing'
+      cameraStore.setPermissionState('unavailable')
+    } else if (isInUseError) {
+      unavailableKind.value = 'in-use'
+      cameraStore.setPermissionState('unavailable')
+    } else if (isConstraintError) {
+      unavailableKind.value = 'constraint'
       cameraStore.setPermissionState('unavailable')
     } else {
       console.error('Camera init failed:', error)
+      unavailableKind.value = 'constraint'
       cameraStore.setPermissionState('unavailable')
     }
   }
@@ -388,9 +577,15 @@ async function selectCameraDevice(deviceId: string) {
   if (videoRef.value) videoRef.value.srcObject = null
 
   try {
-    stream = await switchCamera(deviceId)
-    if (videoRef.value) videoRef.value.srcObject = stream
+    const selected = cameraDevices.value.find((device) => device.deviceId === deviceId)
+    const facingHint =
+      selected?.facingMode === 'user' || selected?.facingMode === 'environment'
+        ? selected.facingMode
+        : undefined
+    stream = await switchCamera(deviceId, facingHint)
     liveCamAvailable.value = isLiveCamRecordingSupported(stream)
+    await nextTick()
+    await attachPreviewStream()
     await refreshCameraDevices()
     closeCameraPicker()
   } catch (error) {
@@ -453,7 +648,6 @@ async function handleCapture(liveClip: LiveCamClip | null = null) {
 
   const order = sessionStore.currentShotIndex
   const capturedCameraEffectId = getCaptureCameraEffectId()
-  const hadShotAtOrder = !!(await getSessionShots(sessionId)).find((shot) => shot.order === order)
 
   let shots: Awaited<ReturnType<typeof getSessionShots>>
 
@@ -473,12 +667,8 @@ async function handleCapture(liveClip: LiveCamClip | null = null) {
       liveClip,
     })
 
-    if (hadShotAtOrder) {
-      sessionStore.replaceShotId(order, shotId)
-    } else {
-      sessionStore.addShotId(shotId)
-    }
-
+    sessionStore.setShotIdAt(order, shotId)
+    persistRetakeIndex(null)
     shots = await getSessionShots(sessionId)
   } catch (error) {
     console.error('Failed to save captured photo:', error)
@@ -488,7 +678,7 @@ async function handleCapture(liveClip: LiveCamClip | null = null) {
     return
   }
 
-  if (shots.length >= sessionStore.slotCount) {
+  if (isSessionComplete(shots, sessionStore.slotCount)) {
     sessionStore.setReviewing()
     if (stream) {
       stopCamera(stream)
@@ -541,7 +731,16 @@ function cancelCountdown() {
 }
 
 function runCountdownAndCapture() {
-  if (countdownActive.value) return
+  if (
+    !cameraReady.value ||
+    !stream ||
+    !sessionStore.sessionId ||
+    countdownActive.value ||
+    isCapturing.value ||
+    isSwitchingCamera.value
+  ) {
+    return
+  }
 
   cameraError.value = null
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
@@ -570,15 +769,19 @@ function runCountdownAndCapture() {
       }
 
       countdownActive.value = false
+      isCapturing.value = true
       triggerFlash()
-      const liveClip = await stopActiveLiveCamRecording(450)
-      await handleCapture(liveClip)
+      try {
+        const liveClip = await stopActiveLiveCamRecording(450)
+        await handleCapture(liveClip)
+      } finally {
+        isCapturing.value = false
+      }
     }
   }, 1000)
 }
 
-function goBack() {
-  // Cancel any running auto-capture
+async function goBack() {
   if (autoCaptureTimeout) {
     clearTimeout(autoCaptureTimeout)
     autoCaptureTimeout = null
@@ -587,7 +790,18 @@ function goBack() {
   cancelCountdown()
   void stopActiveLiveCamRecording()
 
-  // Reset session so user starts fresh from config
+  const sessionId = sessionStore.sessionId
+  if (sessionId) {
+    const snapshot = await getSessionSnapshot(sessionId)
+    if (snapshot && isSessionComplete(snapshot.shots, snapshot.session.slotCount)) {
+      persistRetakeIndex(null)
+      sessionStore.setReviewing()
+      router.push('/review')
+      return
+    }
+  }
+
+  await abandonIncompleteSession(sessionId)
   sessionStore.reset()
 
   router.push({ path: '/config', query: { source: 'camera' } })
@@ -703,7 +917,7 @@ function goBack() {
               >
                 +
               </span>
-              <span>More</span>
+              <span>Lainnya</span>
             </button>
           </div>
         </div>
@@ -817,8 +1031,9 @@ function goBack() {
             </button>
 
             <button
-              class="camera-shutter group border-stc-border shadow-stc-md hover:border-stc-pink/40 active:border-stc-pink relative inline-flex size-[72px] items-center justify-center rounded-full border-[5px] bg-white transition-all duration-200 hover:scale-105 active:scale-95 sm:size-20"
+              class="camera-shutter group border-stc-border shadow-stc-md hover:border-stc-pink/40 active:border-stc-pink relative inline-flex size-[72px] items-center justify-center rounded-full border-[5px] bg-white transition-all duration-200 hover:scale-105 active:scale-95 sm:size-20 disabled:pointer-events-none disabled:opacity-60"
               aria-label="Ambil foto"
+              :disabled="!cameraReady || countdownActive || isCapturing"
               @click="runCountdownAndCapture"
             >
               <span
@@ -936,7 +1151,7 @@ function goBack() {
               >
                 +
               </span>
-              <span>More</span>
+              <span>Lainnya</span>
             </button>
           </div>
         </div>
@@ -1198,17 +1413,17 @@ function goBack() {
             <path d="M9.5 9.5L14.5 14.5" />
           </svg>
         </div>
-        <h3 class="text-stc-text text-xl font-bold">Tidak Ada Kamera</h3>
+        <h3 class="text-stc-text text-xl font-bold">{{ unavailableTitle }}</h3>
         <p
           class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
         >
-          Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.
+          {{ unavailableCopy }}
         </p>
         <div class="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button :class="ui.primaryButton" @click="router.push('/upload')">
+          <button :class="ui.primaryButton" @click="setupCamera">Coba Lagi</button>
+          <button :class="ui.secondaryButton" @click="router.push('/upload')">
             Upload Foto Lokal
           </button>
-          <button :class="ui.secondaryButton" @click="router.push('/')">Kembali</button>
         </div>
       </div>
     </div>

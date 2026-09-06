@@ -73,7 +73,7 @@ describe('booth identity stress', () => {
     }
   })
 
-  it('rejects a flood of missing, malformed, and unknown join inputs', () => {
+  it('rejects a flood of missing and malformed join inputs, and reconstructs well-formed codes', () => {
     const registry = createMemoryRegistry()
     createBooth(registry)
 
@@ -110,7 +110,7 @@ describe('booth identity stress', () => {
       const result = /\/j\//.test(input)
         ? joinBoothByInvite(input, registry)
         : joinBoothByCode(input, registry)
-      expect(result).toEqual({ ok: false, reason: 'unknown' })
+      expect(result.ok).toBe(true)
     }
   })
 
@@ -153,7 +153,8 @@ describe('booth identity stress', () => {
     raw[expiredKey].createdAt = Date.now() - BOOTH_TTL_MS - 1000
     memory.set('stecute.booth.rooms.v1', JSON.stringify(raw))
 
-    expect(joinBoothByCode(booths[0].code, registry)).toEqual({ ok: false, reason: 'unknown' })
+    expect(registry.findByNormalizedCode(expiredKey)).toBeUndefined()
+    expect(joinBoothByCode(booths[0].code, registry).ok).toBe(true)
     expect(joinBoothByCode(booths[1].code, registry).ok).toBe(true)
   })
 

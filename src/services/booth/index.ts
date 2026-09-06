@@ -1,3 +1,5 @@
+export { createBoothRoomTransport } from './room'
+export { identityFromNormalizedCode } from './identity'
 export {
   BOOTH_CODE_ALPHABET,
   BOOTH_CODE_LENGTH,

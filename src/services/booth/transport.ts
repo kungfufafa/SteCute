@@ -3,10 +3,13 @@ export type BoothPeerRole = 'host' | 'guest'
 export type BoothWireMessage =
   | { type: 'hello'; peerId: string; role: BoothPeerRole }
   | { type: 'welcome'; peerId: string; role: BoothPeerRole }
+  | { type: 'bye'; peerId: string }
+  | { type: 'reject'; peerId: string; toPeerId: string; reason: 'full' }
   | {
       type: 'start-moment'
       momentIndex: number
       countdownMs: number
+      nonce?: string
     }
   | {
       type: 'still'
@@ -79,6 +82,47 @@ export function createBroadcastBoothTransport(channelName: string): BoothTranspo
 
 export function boothChannelName(normalizedCode: string): string {
   return `stecute.booth.${normalizedCode}`
+}
+
+export function createFanoutBoothTransport(): BoothTransport & {
+  add(transport: BoothTransport): void
+} {
+  const transports: BoothTransport[] = []
+  const handlers = new Set<(message: BoothWireMessage) => void>()
+  const handlerUnsubscribers = new Map<
+    (message: BoothWireMessage) => void,
+    Array<() => void>
+  >()
+
+  return {
+    add(transport) {
+      transports.push(transport)
+      for (const handler of handlers) {
+        const unsubscribers = handlerUnsubscribers.get(handler) ?? []
+        unsubscribers.push(transport.subscribe(handler))
+        handlerUnsubscribers.set(handler, unsubscribers)
+      }
+    },
+    send(message) {
+      for (const transport of transports) transport.send(message)
+    },
+    subscribe(handler) {
+      handlers.add(handler)
+      const unsubscribers = transports.map((transport) => transport.subscribe(handler))
+      handlerUnsubscribers.set(handler, unsubscribers)
+      return () => {
+        handlers.delete(handler)
+        for (const unsubscribe of handlerUnsubscribers.get(handler) ?? []) unsubscribe()
+        handlerUnsubscribers.delete(handler)
+      }
+    },
+    dispose() {
+      handlers.clear()
+      handlerUnsubscribers.clear()
+      for (const transport of transports) transport.dispose?.()
+      transports.length = 0
+    },
+  }
 }
 
 function cloneMessage(message: BoothWireMessage): BoothWireMessage {
