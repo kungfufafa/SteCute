@@ -24,6 +24,8 @@ test.describe('Booth Bareng join paths', () => {
 
     await expect(page).toHaveURL('/booth')
     await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
+    await expect(page.getByText(/hotspot|4G vs Wi-Fi kantor sering gagal/i)).toHaveCount(0)
+    await expect(page.getByText(/Perangkat bisa beda jaringan/)).toBeVisible()
 
     await page.getByRole('button', { name: 'Buat Booth' }).click()
 
@@ -52,6 +54,32 @@ test.describe('Booth Bareng join paths', () => {
     await expect(guest).toHaveURL(new RegExp(`/j/${roomCode}$`))
     await expect(guest.getByTestId('booth-code')).toHaveText(roomCode)
     await expect(guest.getByLabel('Link undangan')).toHaveValue(new RegExp(`/j/${roomCode}$`))
+  })
+
+  test('guest on a separate browser profile joins without a shared tab channel', async ({
+    browser,
+  }) => {
+    const hostContext = await browser.newContext()
+    const guestContext = await browser.newContext()
+    const host = await hostContext.newPage()
+    const guest = await guestContext.newPage()
+
+    await host.route(/peerjs/i, (route) => route.abort())
+    await guest.route(/peerjs/i, (route) => route.abort())
+
+    await host.goto('/')
+    await cta(host, 'Booth Bareng').click()
+    await host.getByRole('button', { name: 'Buat Booth' }).click()
+    const roomCode = (await host.getByTestId('booth-code').innerText()).trim()
+    const inviteUrl = await host.getByLabel('Link undangan').inputValue()
+
+    await guest.goto(inviteUrl)
+    await expect(guest.getByTestId('booth-code')).toHaveText(roomCode)
+    await expect(host.getByText('Teman sudah masuk')).toBeVisible({ timeout: 15_000 })
+    await expect(guest.getByText('Menunggu host memulai pose.')).toBeVisible({ timeout: 15_000 })
+
+    await hostContext.close()
+    await guestContext.close()
   })
 
   test('invite URL enters the same booth as the host code', async ({ context, page }) => {

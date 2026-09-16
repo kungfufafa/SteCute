@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findTransparentWindows } from '@/services/template-upload'
+import { findTransparentWindows, validateStripTemplateFile } from '@/services/template-upload'
 
 function alphaGrid(
   width: number,
@@ -55,5 +55,23 @@ describe('strip template upload analysis', () => {
     const windows = findTransparentWindows(alphaGrid(100, 160, [[0, 40, 70, 40]]), 100, 160)
 
     expect(windows).toMatchObject([{ x: 0, y: 40, width: 70, height: 40 }])
+  })
+
+  it('keeps full-width photo holes that touch three edges', () => {
+    const windows = findTransparentWindows(alphaGrid(100, 200, [[0, 0, 100, 50]]), 100, 200)
+
+    expect(windows).toMatchObject([{ x: 0, y: 0, width: 100, height: 50 }])
+  })
+
+  it('accepts PNG/WebP blanko files when the browser omits MIME type', () => {
+    expect(() =>
+      validateStripTemplateFile({ name: 'blanko.png', type: '', size: 2048 } as File),
+    ).not.toThrow()
+    expect(() =>
+      validateStripTemplateFile({ name: 'blanko.webp', type: '', size: 2048 } as File),
+    ).not.toThrow()
+    expect(() =>
+      validateStripTemplateFile({ name: 'blanko.jpg', type: '', size: 2048 } as File),
+    ).toThrow(/PNG atau WebP/)
   })
 })

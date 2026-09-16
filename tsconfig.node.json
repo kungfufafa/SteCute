@@ -10,6 +10,7 @@
   "include": [
     "vite.config.*",
     "vitest.config.*",
-    "playwright.config.*"
+    "playwright.config.*",
+    "server/booth-relay.d.ts"
   ]
 }

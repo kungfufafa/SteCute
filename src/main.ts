@@ -1,6 +1,5 @@
 import './styles/main.css'
 
-const LANDING_MOUNT_DELAY_MS = 4000
 let mountPromise: Promise<void> | null = null
 
 function mountApp() {
@@ -22,13 +21,4 @@ function mountApp() {
   return mountPromise
 }
 
-const isStaticLanding =
-  window.location.pathname === '/' && document.querySelector('.seo-fallback') !== null
-
-if (isStaticLanding) {
-  window.setTimeout(() => {
-    void mountApp()
-  }, LANDING_MOUNT_DELAY_MS)
-} else {
-  void mountApp()
-}
+void mountApp()

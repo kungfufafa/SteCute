@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: https://0.peerjs.com wss://0.peerjs.com https://peerjs.com wss://*.peerjs.com stun:stun.l.google.com:19302; worker-src 'self' blob:; media-src 'self' blob:; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self' blob: https://0.peerjs.com wss://0.peerjs.com https://peerjs.com wss://*.peerjs.com https://*.metered.live https://*.metered.ca stun: turn: turns:; worker-src 'self' blob:; media-src 'self' blob:; frame-ancestors 'none'
   Permissions-Policy: camera=(self), microphone=()
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -62,6 +62,15 @@
   X-Robots-Tag: noindex, nofollow
 
 /gallery
+  X-Robots-Tag: noindex, nofollow
+
+/booth
+  X-Robots-Tag: noindex, nofollow
+
+/j/*
+  X-Robots-Tag: noindex, nofollow
+
+/reset
   X-Robots-Tag: noindex, nofollow
 
 /privacyscreen

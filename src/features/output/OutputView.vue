@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getRenderById, getSessionSnapshot, resetSessionData } from '@/services/session'
+import { abandonIncompleteSession, getRenderById, getSessionSnapshot } from '@/services/session'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import {
   detectOutputCapabilities,
@@ -75,10 +75,14 @@ async function handleDownload() {
   outputActionError.value = null
   outputActionNotice.value = null
   try {
-    const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
+    const filename = generateFilename(
+      sessionStore.layoutId,
+      sessionStore.templateId,
+      getExtensionForMimeType(blob.type),
+    )
     await downloadBlob(blob, filename)
-    outputActionNotice.value = 'Download dimulai.'
+    outputActionNotice.value = 'Unduhan dimulai.'
   } catch (error) {
     console.error('Download failed:', error)
     outputActionError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
@@ -96,7 +100,7 @@ async function handleDownloadLive() {
     const extension = getExtensionForMimeType(liveOutputMimeType.value ?? blob.type)
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, extension)
     await downloadBlob(blob, filename)
-    outputActionNotice.value = 'Download Live Cam dimulai.'
+    outputActionNotice.value = 'Unduhan Live Cam dimulai.'
   } catch (error) {
     console.error('Live Cam download failed:', error)
     outputActionError.value = 'Live Cam belum tersedia. Download foto tetap bisa dipakai.'
@@ -110,14 +114,18 @@ async function handleShare() {
   outputActionError.value = null
   outputActionNotice.value = null
   try {
-    const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
+    const filename = generateFilename(
+      sessionStore.layoutId,
+      sessionStore.templateId,
+      getExtensionForMimeType(blob.type),
+    )
     const shared = await shareBlob(blob, filename)
     if (shared === 'unsupported') {
       outputActionError.value =
         'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
     } else if (shared === 'shared') {
-      outputActionNotice.value = 'Share sheet dibuka.'
+      outputActionNotice.value = 'Lembar bagikan dibuka.'
     }
   } catch (error) {
     console.error('Share failed:', error)
@@ -132,14 +140,18 @@ async function handleSave() {
   outputActionError.value = null
   outputActionNotice.value = null
   try {
-    const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, 'png')
     const blob = await getOutputBlob()
+    const filename = generateFilename(
+      sessionStore.layoutId,
+      sessionStore.templateId,
+      getExtensionForMimeType(blob.type),
+    )
     const saved = await saveBlob(blob, filename)
     if (saved) {
       outputActionNotice.value = 'Hasil berhasil disimpan.'
     } else {
       outputActionError.value =
-        'Save to device tidak tersedia atau dibatalkan. Download tetap bisa dipakai.'
+        'Simpan ke perangkat tidak tersedia atau dibatalkan. Unduh tetap bisa dipakai.'
     }
   } catch (error) {
     console.error('Save failed:', error)
@@ -176,9 +188,7 @@ function toggleMoreActions() {
 }
 
 async function handleNewSession() {
-  if (sessionStore.sessionId) {
-    await resetSessionData(sessionStore.sessionId)
-  }
+  await abandonIncompleteSession(sessionStore.sessionId)
   sessionStore.reset()
   router.push('/')
 }
@@ -220,6 +230,9 @@ async function loadOutputRender() {
 
     const snapshot = await getSessionSnapshot(render.sessionId)
 
+    sessionStore.layoutId = render.layoutId
+    sessionStore.templateId = render.templateId
+
     if (snapshot) {
       sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
     } else {
@@ -252,84 +265,30 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="ui.page">
-    <div
-      v-if="isLoadingOutput"
-      :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']"
-    >
-      <div class="flex flex-col items-center space-y-3 text-center">
-        <div
-          class="bg-stc-pink-soft text-stc-pink shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
-        >
-          <div
-            class="border-r-stc-pink/30 border-t-stc-pink size-8 animate-spin rounded-full border-[3px] border-transparent"
-          ></div>
-        </div>
-        <div>
-          <h3 :class="[ui.title, 'text-2xl']">Memuat Hasil</h3>
-          <p :class="ui.subtitle">Mengambil photo strip dari penyimpanan lokal.</p>
-        </div>
+    <div v-if="isLoadingOutput" :class="ui.header">
+      <div class="min-w-0">
+        <h3 :class="ui.title">Memuat Hasil</h3>
+        <p :class="ui.subtitle">Mengambil photo strip dari penyimpanan lokal.</p>
       </div>
     </div>
 
-    <div
-      v-else-if="outputError"
-      :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']"
-    >
-      <div class="flex flex-col items-center space-y-3 text-center">
-        <div
-          class="bg-stc-warning-soft text-stc-warning shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
-        >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
-        </div>
-        <div>
-          <h3 :class="[ui.title, 'text-2xl']">Hasil Tidak Ditemukan</h3>
-          <p :class="ui.subtitle">{{ outputError }}</p>
-        </div>
+    <div v-else-if="outputError" :class="ui.header">
+      <div class="min-w-0">
+        <h3 :class="ui.title">Hasil Tidak Ditemukan</h3>
+        <p :class="ui.subtitle">{{ outputError }}</p>
       </div>
     </div>
 
-    <div v-else :class="[ui.header, 'justify-center border-none pt-8 pb-4 sm:pt-10']">
-      <div class="flex flex-col items-center space-y-3 text-center">
-        <div
-          class="bg-stc-success-soft text-stc-success shadow-stc-xs flex size-14 items-center justify-center rounded-xl"
-        >
-          <svg
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="3"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </div>
-        <div>
-          <h3 :class="[ui.title, 'text-2xl']">Selesai!</h3>
-          <p :class="ui.subtitle">
-            {{
-              hasLiveCamOutput
-                ? 'Photo strip dan Live Cam kamu sudah jadi.'
-                : 'Photo strip kamu sudah jadi dan siap diunduh.'
-            }}
-          </p>
-        </div>
+    <div v-else :class="ui.header">
+      <div class="min-w-0">
+        <h3 :class="ui.title">Selesai!</h3>
+        <p :class="ui.subtitle">
+          {{
+            hasLiveCamOutput
+              ? 'Photo strip dan Live Cam kamu sudah jadi.'
+              : 'Photo strip kamu sudah jadi dan siap diunduh.'
+          }}
+        </p>
       </div>
     </div>
 
@@ -338,15 +297,11 @@ onBeforeUnmount(() => {
     <div :class="[ui.content, 'flex flex-col']">
       <div v-if="isLoadingOutput" :class="[ui.pageContent, 'items-center gap-8']">
         <div :class="ui.emptyPanel">
-          <div :class="ui.surfaceIcon">
-            <div
-              class="border-r-stc-pink/30 border-t-stc-pink size-8 animate-spin rounded-full border-[3px] border-transparent"
-            ></div>
-          </div>
-          <h4 class="text-stc-text text-xl font-bold">Menyiapkan Preview</h4>
-          <p
-            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
-          >
+          <div
+            class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
+          ></div>
+          <h4 class="text-stc-text text-[15px] font-medium">Menyiapkan Preview</h4>
+          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
             Hasil akan muncul setelah data lokal selesai dibaca.
           </p>
         </div>
@@ -354,13 +309,11 @@ onBeforeUnmount(() => {
 
       <div v-else-if="outputError" :class="[ui.pageContent, 'items-center gap-8']">
         <div :class="ui.emptyPanel">
-          <h4 class="text-stc-text text-xl font-bold">Belum Ada Hasil Aktif</h4>
-          <p
-            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
-          >
+          <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil Aktif</h4>
+          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
             Buka galeri untuk melihat render yang tersimpan, atau mulai sesi baru.
           </p>
-          <div class="mt-8 grid w-full max-w-md grid-cols-1 gap-3 sm:grid-cols-2">
+          <div class="mt-4 flex items-center justify-center gap-2">
             <button :class="ui.secondaryButton" @click="handleGallery">Buka Galeri</button>
             <button :class="ui.primaryButton" @click="handleNewSession">Mulai Foto</button>
           </div>
@@ -377,8 +330,8 @@ onBeforeUnmount(() => {
             <img
               v-if="previewUrl"
               :src="previewUrl"
-              alt="Rendered strip"
-              class="rendered-strip block h-auto transition-transform duration-300 hover:scale-[1.02]"
+              alt="Photo strip hasil render"
+              class="rendered-strip block h-auto"
               decoding="async"
             />
           </figure>
@@ -388,7 +341,7 @@ onBeforeUnmount(() => {
             <video
               v-if="livePreviewUrl"
               :src="livePreviewUrl"
-              class="rendered-strip block h-auto transition-transform duration-300 hover:scale-[1.02]"
+              class="rendered-strip block h-auto"
               controls
               autoplay
               muted
@@ -400,12 +353,8 @@ onBeforeUnmount(() => {
 
         <div
           v-if="outputActionError || outputActionNotice"
-          class="shadow-stc-xs w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-medium"
-          :class="
-            outputActionError
-              ? 'border-stc-error/30 bg-stc-error-soft text-stc-error'
-              : 'border-stc-success/30 bg-stc-success-soft text-stc-success'
-          "
+          class="w-full max-w-xl"
+          :class="outputActionError ? ui.alertError : ui.alert"
         >
           {{ outputActionError ?? outputActionNotice }}
         </div>
@@ -433,7 +382,7 @@ onBeforeUnmount(() => {
           </div>
 
           <button
-            class="text-stc-text-soft hover:text-stc-pink focus-visible:ring-stc-pink inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-offset-2 active:scale-[0.98]"
+            :class="ui.ghostButton"
             :aria-expanded="showMoreActions"
             aria-controls="output-secondary-actions"
             @click="toggleMoreActions"
@@ -460,7 +409,7 @@ onBeforeUnmount(() => {
           <div
             v-if="showMoreActions"
             id="output-secondary-actions"
-            class="border-stc-border/60 bg-stc-bg-2 shadow-stc-xs grid w-full grid-cols-2 gap-3 rounded-xl border p-3 duration-200 sm:grid-cols-4 sm:p-4"
+            class="border-stc-border grid w-full grid-cols-2 gap-2 rounded-lg border p-2 sm:grid-cols-4"
           >
             <button
               v-if="capabilities.canShare"

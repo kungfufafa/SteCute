@@ -233,7 +233,7 @@ function footerLogoStyle() {
 <template>
   <div
     v-if="previewLayout && templateConfig"
-    class="strip-canvas-preview border-stc-border shadow-stc-sm [container-type:inline-size] relative overflow-hidden rounded-xl border"
+    class="strip-canvas-preview border-stc-border [container-type:inline-size] relative overflow-hidden rounded-lg border"
     :class="{ 'strip-canvas-preview--fit': fitViewport }"
     :style="canvasStyle"
   >
@@ -270,11 +270,14 @@ function footerLogoStyle() {
         <CameraEffectCanvas
           :effect-id="slotCameraEffectId(index)"
           :face-bounds="slotShot(index)?.faceBounds"
+          fallback-face-bounds
+          :source-width="slotShot(index)?.width"
+          :source-height="slotShot(index)?.height"
           :frame-ms="slotShot(index)?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
         />
         <span
-          class="text-stc-text shadow-stc-xs absolute top-2 left-2 z-[2] inline-flex min-w-7 items-center justify-center rounded-lg bg-white/90 px-2 py-1 text-[10px] font-bold"
+          class="text-stc-text shadow-stc-xs absolute top-2 left-2 z-[2] inline-flex min-w-8 items-center justify-center rounded-xl bg-white px-2 py-1 text-xs font-semibold"
         >
           {{ index + 1 }}
         </span>
@@ -294,6 +297,9 @@ function footerLogoStyle() {
         <CameraEffectCanvas
           :effect-id="slotCameraEffectId(index)"
           :face-bounds="slotShot(index)?.faceBounds"
+          fallback-face-bounds
+          :source-width="slotShot(index)?.width"
+          :source-height="slotShot(index)?.height"
           :frame-ms="slotShot(index)?.cameraEffectFrameMs"
           class="pointer-events-none absolute inset-0 z-[1] h-full w-full"
         />

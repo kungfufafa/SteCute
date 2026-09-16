@@ -66,10 +66,6 @@ const KICAU_MANIA_SOURCE_LOOP_MS = KICAU_MANIA_FRAME_DURATIONS_MS.reduce(
   0,
 )
 const WINDUT_FRAME_DURATION_MS = 100
-const WINDUT_SOURCE_LOOP_MS = Math.max(
-  WINDUT_FRAME_DURATION_MS,
-  WINDUT_ASSET_URLS.length * WINDUT_FRAME_DURATION_MS,
-)
 const WINDUT_DIZZY_ORBIT_COUNT = 2
 
 export interface CameraEffectConfig {
@@ -161,7 +157,8 @@ export type PhotoBoothAssetKey = CameraEffectAssetKey
 
 export interface CameraEffectAsset {
   key: CameraEffectAssetKey
-  url: string
+  url?: string
+  loadUrl?: () => Promise<string>
 }
 
 interface LoadedCameraEffectAsset {
@@ -200,8 +197,13 @@ const WINDUT_ASSETS: CameraEffectAsset[] = WINDUT_ASSET_URLS.map((url, index) =>
   key: `windut-${index}` as CameraEffectAssetKey,
   url,
 }))
+const WINDUT_SOURCE_LOOP_MS = Math.max(
+  WINDUT_FRAME_DURATION_MS,
+  WINDUT_ASSETS.length * WINDUT_FRAME_DURATION_MS,
+)
 const loadedAssets = new Map<CameraEffectAssetKey, LoadedCameraEffectAsset | null>()
 const loadingAssets = new Map<CameraEffectAssetKey, Promise<LoadedCameraEffectAsset | null>>()
+const resolvedAssetUrls = new Map<CameraEffectAssetKey, string>()
 
 export function getCameraEffectById(effectId?: string | null): CameraEffectConfig {
   return EFFECT_BY_ID.get(effectId ?? '') ?? CAMERA_EFFECTS[0]
@@ -258,6 +260,63 @@ export function resolveFaceTrackingEffectFaces(
   return []
 }
 
+export function getCoverCropRect(
+  sourceWidth: number,
+  sourceHeight: number,
+  targetWidth: number,
+  targetHeight: number,
+) {
+  const sourceRatio = sourceWidth / sourceHeight
+  const targetRatio = targetWidth / targetHeight
+  let sx = 0
+  let sy = 0
+  let sw = sourceWidth
+  let sh = sourceHeight
+
+  if (sourceRatio > targetRatio) {
+    sw = sourceHeight * targetRatio
+    sx = (sourceWidth - sw) / 2
+  } else if (sourceRatio < targetRatio) {
+    sh = sourceWidth / targetRatio
+    sy = (sourceHeight - sh) / 2
+  }
+
+  return { sx, sy, sw, sh }
+}
+
+export function mapFaceBoundsToCoverSlot(
+  faces: FaceBounds[],
+  source: { width: number; height: number },
+  slot: { width: number; height: number },
+): FaceBounds[] {
+  if (!source.width || !source.height || !slot.width || !slot.height) return faces
+
+  const crop = getCoverCropRect(source.width, source.height, slot.width, slot.height)
+  if (crop.sw <= 0 || crop.sh <= 0) return faces
+
+  return faces.map((face) => ({
+    x: (face.x * source.width - crop.sx) / crop.sw,
+    y: (face.y * source.height - crop.sy) / crop.sh,
+    width: (face.width * source.width) / crop.sw,
+    height: (face.height * source.height) / crop.sh,
+  }))
+}
+
+export function resolveFacesForSlotRender(
+  faceBounds: FaceBounds[] | null | undefined,
+  slot: { width: number; height: number },
+  source?: { width: number; height: number } | null,
+): FaceBounds[] {
+  const detectedFaces = (faceBounds ?? []).filter(isRenderableFaceBounds)
+  if (detectedFaces.length === 0) {
+    return resolveFaceTrackingEffectFaces([], slot)
+  }
+
+  if (!source?.width || !source.height) return detectedFaces
+
+  return mapFaceBoundsToCoverSlot(detectedFaces, source, slot)
+}
+
 export function getCameraEffectAssetManifest(effectId?: string | null): CameraEffectAsset[] {
   const normalizedEffectId = normalizeCameraEffectId(effectId)
 
@@ -277,6 +336,21 @@ export async function preloadCameraEffectAssets(effectId?: string | null): Promi
   await Promise.all(assets.map((asset) => loadCameraEffectAsset(asset)))
 }
 
+async function resolveCameraEffectAssetUrl(asset: CameraEffectAsset): Promise<string> {
+  if (asset.url) return asset.url
+
+  const cached = resolvedAssetUrls.get(asset.key)
+  if (cached) return cached
+
+  if (!asset.loadUrl) {
+    throw new Error(`Missing overlay asset ${asset.key}`)
+  }
+
+  const url = await asset.loadUrl()
+  resolvedAssetUrls.set(asset.key, url)
+  return url
+}
+
 async function loadCameraEffectAsset(
   asset: CameraEffectAsset,
 ): Promise<LoadedCameraEffectAsset | null> {
@@ -287,7 +361,8 @@ async function loadCameraEffectAsset(
   const currentLoad = loadingAssets.get(asset.key)
   if (currentLoad) return currentLoad
 
-  const load = loadCanvasImageSource(asset.url)
+  const load = resolveCameraEffectAssetUrl(asset)
+    .then((url) => loadCanvasImageSource(url))
     .catch((error) => {
       console.warn(`Failed to load camera overlay asset ${asset.key}:`, error)
       return null

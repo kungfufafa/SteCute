@@ -59,71 +59,106 @@ function joinRoom() {
 
 <template>
   <div :class="ui.page">
-    <nav :class="ui.header">
+    <div :class="ui.header">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali" @click="router.push('/')">
+        <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="router.push('/')">
           <svg
-            aria-hidden="true"
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="M15 18l-6-6 6-6" />
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <div>
-          <p :class="ui.sectionLabel">Mode online opsional</p>
+        <div class="min-w-0">
           <h1 :class="ui.title">Booth Bareng</h1>
+          <p :class="ui.subtitle">Foto berdua lewat kode, tanpa akun dan tanpa audio.</p>
         </div>
       </div>
-    </nav>
+      <span :class="ui.badge">Opsional</span>
+    </div>
 
-    <main :class="[ui.content, 'flex-col gap-6 pb-12']">
-      <p :class="ui.sectionCopy">
-        Photobooth untuk dua orang, tanpa akun dan tanpa audio. Teman bisa gabung lewat kode atau
-        link, termasuk dari HP lain. Foto tetap dikirim langsung antar perangkat, tidak diunggah ke
-        server Stecute. Alur <strong>Mulai Foto</strong> dan <strong>Upload Lokal</strong> tetap
-        jalan tanpa mode ini.
+    <main :class="[ui.content, 'flex-col gap-6 py-6 pb-16']">
+      <section class="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+        <article :class="[ui.panel, 'flex flex-col p-4']">
+          <h2 class="text-stc-text text-[15px] font-medium">Buat booth</h2>
+          <p class="text-stc-text-soft mt-1 flex-1 text-[13px] leading-normal">
+            Kamu jadi host. Dapat kode dan link, lalu mulai pose setelah teman masuk.
+          </p>
+          <button :class="[ui.primaryButton, 'mt-4 self-start']" @click="createRoom">
+            Buat Booth
+          </button>
+          <p v-if="createError" class="text-stc-error-strong mt-2 text-[13px]">
+            {{ createError }}
+          </p>
+        </article>
+
+        <article :class="[ui.panel, 'flex flex-col p-4']">
+          <h2 class="text-stc-text text-[15px] font-medium">Gabung dengan kode</h2>
+          <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
+            Masukkan 6 karakter dari host, atau buka link undangan di HP lain.
+          </p>
+          <form class="mt-4 flex flex-1 flex-col gap-2" @submit.prevent="joinRoom">
+            <label class="sr-only" for="booth-join-code">Kode booth</label>
+            <input
+              id="booth-join-code"
+              v-model="joinCode"
+              :class="[ui.input, 'h-10 text-center text-base tracking-[0.18em] uppercase']"
+              name="booth-code"
+              aria-label="Kode booth"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="ABC-DEF"
+              maxlength="7"
+            />
+            <button :class="ui.secondaryButton" type="submit">Gabung</button>
+          </form>
+          <p v-if="joinError" class="text-stc-error-strong mt-2 text-[13px]" role="alert">
+            {{ joinError }}
+          </p>
+        </article>
+      </section>
+
+      <section class="border-stc-border divide-stc-border divide-y border-y">
+        <div class="flex gap-3 py-3">
+          <span class="text-stc-text-faint w-4 text-[13px]">1</span>
+          <div>
+            <p class="text-stc-text text-[13px] font-medium">Buat atau gabung</p>
+            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
+              Host bagikan kode. Tamu masuk dari HP atau laptop lain.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-3 py-3">
+          <span class="text-stc-text-faint w-4 text-[13px]">2</span>
+          <div>
+            <p class="text-stc-text text-[13px] font-medium">Tunggu berdua</p>
+            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
+              Kalau 2 orang sudah masuk, host mulai pose.
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-3 py-3">
+          <span class="text-stc-text-faint w-4 text-[13px]">3</span>
+          <div>
+            <p class="text-stc-text text-[13px] font-medium">Strip jadi satu</p>
+            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
+              Tiap pose menggabungkan foto host dan tamu ke satu baris.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <p class="text-stc-text-faint max-w-[42em] text-[13px] leading-normal">
+        Foto tidak disimpan di server. Perangkat bisa beda jaringan, termasuk 4G dan Wi-Fi kantor.
+        Alur Mulai Foto dan Upload Lokal tetap jalan tanpa mode ini.
       </p>
-
-      <section :class="[ui.panel, 'p-5 sm:p-6']">
-        <h2 class="text-stc-text text-lg font-bold">Buat booth</h2>
-        <p class="text-stc-text-soft mt-2 text-sm font-medium">
-          Kamu jadi host. Bagikan kode atau link ke teman, lalu mulai pose setelah 2 orang hadir.
-        </p>
-        <button class="mt-5" :class="ui.primaryButton" @click="createRoom">Buat Booth</button>
-        <p v-if="createError" class="text-stc-error mt-3 text-sm font-semibold">
-          {{ createError }}
-        </p>
-      </section>
-
-      <section :class="[ui.panel, 'p-5 sm:p-6']">
-        <h2 class="text-stc-text text-lg font-bold">Gabung dengan kode</h2>
-        <form class="mt-4 flex flex-col gap-3" @submit.prevent="joinRoom">
-          <label class="sr-only" for="booth-join-code">Kode booth</label>
-          <input
-            id="booth-join-code"
-            v-model="joinCode"
-            :class="[
-              'border-stc-border text-stc-text shadow-stc-xs focus-visible:ring-stc-pink min-h-12 w-full rounded-xl border bg-white px-4 text-center text-lg font-bold tracking-[0.2em] uppercase outline-none focus-visible:ring-2',
-            ]"
-            name="booth-code"
-            aria-label="Kode booth"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="ABC-DEF"
-          />
-          <button :class="ui.secondaryButton" type="submit">Gabung</button>
-        </form>
-        <p v-if="joinError" class="text-stc-error mt-3 text-sm font-semibold" role="alert">
-          {{ joinError }}
-        </p>
-      </section>
     </main>
   </div>
 </template>

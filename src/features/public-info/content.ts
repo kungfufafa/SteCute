@@ -78,7 +78,7 @@ export const publicPages = {
         id: 'yang-tidak-dilakukan',
         title: 'Yang tidak dilakukan Stecute',
         body: [
-          'Fitur inti tidak mewajibkan akun, cloud sync, share link, QR handoff server, atau upload foto otomatis ke backend.',
+          'Fitur inti tidak mewajibkan akun, cloud sync, share link, QR handoff server, atau upload foto otomatis ke backend. Booth Bareng boleh memakai relay HTTPS ephemeral terenkripsi agar dua perangkat di jaringan berbeda tetap terhubung; payload itu bukan galeri dan tidak disimpan setelah sesi.',
           'Jika analytics, cloud, atau integrasi pihak ketiga ditambahkan nanti, kebijakan privasi harus diperbarui sebelum fitur dipakai.',
         ],
         bullets: [
@@ -178,7 +178,7 @@ export const publicPages = {
     eyebrow: 'Pertanyaan umum',
     title: 'FAQ',
     summary: 'Jawaban singkat sebelum memakai Stecute di perangkat pribadi atau event.',
-    updatedLabel: 'Terakhir diperbarui: 4 Mei 2026',
+    updatedLabel: 'Terakhir diperbarui: 16 September 2026',
     sections: [
       {
         id: 'pertanyaan-utama',
@@ -190,7 +190,7 @@ export const publicPages = {
             question: 'Apakah foto saya diupload ke server?',
             answer: [
               'Tidak untuk fitur inti. Foto dari kamera atau upload lokal diproses di browser untuk preview, review, render, dan output lokal.',
-              'Booth Bareng adalah mode opsional dua orang. Foto dikirim langsung antar perangkat (P2P). Untuk mempertemukan kedua browser, Stecute memakai signaling ephemeral dan STUN publik; metadata koneksi itu bukan foto. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
+              'Booth Bareng adalah mode opsional dua orang. Foto tidak disimpan di server. Kedua perangkat boleh beda jaringan, termasuk 4G vs Wi-Fi kantor. Stecute memakai signaling ephemeral, STUN/TURN publik bila tersedia, dan relay HTTPS ephemeral terenkripsi di origin aplikasi agar kedua browser tetap bisa bertemu. Payload relay bukan galeri dan dihapus setelah sesi. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
             ],
           },
           {

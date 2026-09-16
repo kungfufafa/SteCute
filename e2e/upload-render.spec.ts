@@ -88,7 +88,7 @@ test.describe('real browser upload flow', () => {
     await page.getByRole('button', { name: 'Buat Hasil' }).click()
 
     await expect(page).toHaveURL(/\/output\?renderId=.+/, { timeout: 20_000 })
-    const renderedStrip = page.getByRole('img', { name: 'Rendered strip' })
+    const renderedStrip = page.getByRole('img', { name: 'Photo strip hasil render' })
     await expect(renderedStrip).toBeVisible({ timeout: 20_000 })
     await expect
       .poll(

@@ -148,6 +148,20 @@ if (failures.length === 0) {
     `service worker has duplicate precache URLs: ${duplicatePrecacheUrls.join(', ')}`,
   )
 
+  const precachedEffectFrames = precacheUrls.filter((url) =>
+    /(?:kicauMania\d+|windut\d+|bird(?:Small|Medium|Large)\d+|(?:small|medium|large)Heart)/i.test(
+      url,
+    ),
+  )
+  assert(
+    precachedEffectFrames.length === 0,
+    `service worker should not precache camera effect frames on first visit: ${precachedEffectFrames.slice(0, 8).join(', ')}`,
+  )
+  assert(
+    sw.includes('stecute-camera-effects'),
+    'service worker is missing runtime cache for camera effect frames',
+  )
+
   const forbiddenRuntimeOrigins = [
     'cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm',
     'storage.googleapis.com/mediapipe-models',

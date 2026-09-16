@@ -89,10 +89,7 @@ export function createFanoutBoothTransport(): BoothTransport & {
 } {
   const transports: BoothTransport[] = []
   const handlers = new Set<(message: BoothWireMessage) => void>()
-  const handlerUnsubscribers = new Map<
-    (message: BoothWireMessage) => void,
-    Array<() => void>
-  >()
+  const handlerUnsubscribers = new Map<(message: BoothWireMessage) => void, Array<() => void>>()
 
   return {
     add(transport) {

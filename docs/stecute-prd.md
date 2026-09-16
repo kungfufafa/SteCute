@@ -212,7 +212,7 @@ Batasan yang dikunci:
 
 - Tepat 2 peserta. Late join setelah capture, 3+ orang, dan waiting room admit tidak termasuk mode ini.
 - Tidak ada mic, chat, screen share, atau permukaan panggilan ala Meet selain identitas join.
-- Signaling boleh online; still tidak disimpan di server dan ruang bersifat ephemeral.
+- Signaling boleh online; still tidak disimpan di server dan ruang bersifat ephemeral. Dua perangkat tidak wajib satu jaringan.
 - `Mulai Foto` dan `Upload Lokal` tetap jalan tanpa booth, tanpa signaling, dan tanpa jaringan setelah cache awal.
 
 ---
@@ -394,12 +394,14 @@ Acceptance criteria:
 - Kode kosong, tidak dikenal, atau tidak valid ditolak dengan pesan yang jelas.
 - Countdown bersama menghasilkan satu still per peserta per momen; still disusun pair-row `host | tamu` lalu dirender PNG lewat pipeline strip yang ada.
 - Mode ini membutuhkan koneksi untuk signaling; alur kamera dan upload lokal v1 tidak boleh bergantung padanya.
+- Dua perangkat tidak wajib satu LAN atau hotspot; 4G vs Wi-Fi kantor harus tetap bisa join.
 
 Acceptance criteria:
 
 - Landing tetap menampilkan `Mulai Foto` dan `Upload Lokal`, plus entri Booth Bareng.
 - Join lewat URL dan join lewat kode resolve ke booth id yang sama.
 - Tidak ada login, audio, atau penyimpanan still di server.
+- Copy produk tidak menyuruh pengguna memakai jaringan yang sama atau hotspot.
 
 ---
 

@@ -111,7 +111,7 @@ test.describe('offline behavior', () => {
       .catch((error) => {
         throw new Error(`${error.message}\nConsole problems:\n${consoleProblems.join('\n')}`)
       })
-    await expect(page.getByRole('img', { name: 'Rendered strip' })).toBeVisible({
+    await expect(page.getByRole('img', { name: 'Photo strip hasil render' })).toBeVisible({
       timeout: 20_000,
     })
 

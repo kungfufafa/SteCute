@@ -7,7 +7,7 @@ const appStore = useAppStore()
 <template>
   <div
     v-if="appStore.offlineMode"
-    class="border-stc-warning/30 bg-stc-warning-soft text-stc-text fixed inset-x-0 top-0 z-50 border-b px-4 py-3 text-center text-sm font-medium [contain:layout_style_paint]"
+    class="bg-stc-warning-soft text-stc-text border-stc-warning/20 fixed inset-x-0 top-0 z-50 border-b px-4 py-2 text-center text-[13px] [contain:layout_style_paint]"
   >
     {{
       appStore.offlineReady

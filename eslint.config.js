@@ -57,6 +57,8 @@ export default [
       'playwright.config.js',
       'vite.config.js',
       'vitest.config.js',
+      'functions/**',
+      'netlify/**',
     ],
   },
   js.configs.recommended,
@@ -79,9 +81,13 @@ export default [
     },
   },
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'server/**/*.mjs'],
     languageOptions: {
-      globals: nodeGlobals,
+      globals: {
+        ...nodeGlobals,
+        Buffer: 'readonly',
+        TextEncoder: 'readonly',
+      },
     },
   },
   {

@@ -16,11 +16,12 @@ function dismiss() {
 
 <template>
   <div v-if="error" :class="[ui.page, 'items-center justify-center p-4']">
-    <div :class="[ui.panelSoft, 'w-full max-w-sm p-6 text-center']">
-      <div :class="[ui.statusIcon, 'bg-stc-error-soft text-stc-error !mb-4 !size-14']">!</div>
-      <h2 class="text-stc-error mb-2 text-lg font-bold">Ada yang bermasalah</h2>
-      <p class="text-stc-text-soft mb-4 text-sm leading-relaxed">{{ error.message }}</p>
-      <button :class="[ui.secondaryButton, 'w-full']" @click="dismiss">Tutup</button>
+    <div :class="[ui.panel, 'w-full max-w-sm p-5']">
+      <h2 class="text-stc-text text-[15px] font-medium">Ada yang bermasalah</h2>
+      <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">{{ error.message }}</p>
+      <div class="mt-4 flex justify-end">
+        <button :class="ui.secondaryButton" @click="dismiss">Tutup</button>
+      </div>
     </div>
   </div>
   <slot v-else />

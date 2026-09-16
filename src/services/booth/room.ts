@@ -1,3 +1,4 @@
+import { createHttpBoothTransport } from './http-relay'
 import { createWebRtcBoothTransport } from './webrtc'
 import {
   boothChannelName,
@@ -16,15 +17,21 @@ export async function createBoothRoomTransport(
   const fanout = createFanoutBoothTransport()
   let disposed = false
   const abort = new AbortController()
-  const originalDispose = fanout.dispose.bind(fanout)
+  const originalDispose = fanout.dispose
   fanout.dispose = () => {
     disposed = true
     abort.abort()
-    originalDispose()
+    originalDispose?.()
   }
+
+  const http = await createHttpBoothTransport(normalizedCode, abort.signal)
+  if (http) fanout.add(http)
 
   if (typeof BroadcastChannel !== 'undefined') {
     fanout.add(createBroadcastBoothTransport(boothChannelName(normalizedCode)))
+  }
+
+  if (http || typeof BroadcastChannel !== 'undefined') {
     void attachWebRtc(normalizedCode, role, fanout, () => disposed, abort.signal)
     return fanout
   }

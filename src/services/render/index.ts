@@ -12,7 +12,7 @@ import {
   isFaceTrackingEffect,
   drawFaceTrackingEffect,
   preloadCameraEffectAssets,
-  resolveFaceTrackingEffectFaces,
+  resolveFacesForSlotRender,
 } from '@/services/camera-effects'
 import type { FaceBounds } from '@/services/face-tracking'
 import { getPhotoFilterCanvas } from '@/services/filter'
@@ -240,6 +240,7 @@ async function renderStripOnMainThread(job: RenderJob): Promise<RenderResult> {
       resolveRenderedShotCameraEffectId(shot, decoration.cameraEffectId),
       shot.faceBounds,
       shot.cameraEffectFrameMs,
+      { width: img.width, height: img.height },
     )
     img.close?.()
   }
@@ -760,6 +761,7 @@ function drawCameraEffectInSlot(
   effectId?: string | null,
   faceBounds?: FaceBounds[],
   cameraEffectFrameMs = 0,
+  sourceSize?: { width: number; height: number },
 ) {
   if (!effectId || effectId === 'none') return
 
@@ -769,7 +771,7 @@ function drawCameraEffectInSlot(
   ctx.translate(slot.x, slot.y)
 
   if (isFaceTrackingEffect(effectId)) {
-    const faces = resolveFaceTrackingEffectFaces(faceBounds)
+    const faces = resolveFacesForSlotRender(faceBounds, slot, sourceSize)
     drawFaceTrackingEffect(ctx, slot.width, slot.height, effectId, faces, {
       timeMs: cameraEffectFrameMs,
     })

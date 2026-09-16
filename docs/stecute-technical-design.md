@@ -118,7 +118,7 @@ Keputusan utama:
 - QR delivery berbasis server.
 - Server-side rendering.
 - Kustomisasi manual pasca-capture seperti frame color, sticker, date/time, dan logo text.
-- Audio, 3+ peserta, TURN production, atau retensi still di server untuk Booth Bareng.
+- Audio, 3+ peserta, TURN berbayar sebagai syarat rilis, atau retensi still di server untuk Booth Bareng.
 
 ---
 
@@ -320,7 +320,7 @@ Tanggung jawab:
 - menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
 - tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
 
-Transport signaling bersifat swappable. Tes unit menyuntik dua peer in-process tanpa server publik. Video hanya preview kehadiran; artefak capture adalah still. Alur kamera dan upload lokal tidak memuat modul ini.
+Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. Video hanya preview kehadiran; artefak capture adalah still. Alur kamera dan upload lokal tidak memuat modul ini.
 
 ---
 
@@ -778,6 +778,7 @@ Aturan:
 - App shell: precache
 - Layout and template assets: cache-first
 - Template visual assets: cache-first
+- Camera overlay animation frames (Kicau Mania, Windut, hearts, bluebirds): runtime CacheFirst, bukan precache first-visit
 - Face detector runtime assets: precache lokal dari `/vendor/mediapipe/`; production tidak boleh memuat MediaPipe WASM atau model dari CDN, dan file vendor harus cocok dengan checksum di `public/vendor/mediapipe/manifest.json`.
 - Navigation requests: network-first with offline fallback atau app-shell fallback tergantung hosting
 - Remote optional APIs di fase depan: stale-while-revalidate atau network-first sesuai jenis data
@@ -1113,7 +1114,7 @@ Dengan pola ini, implementasi awal cukup local-only. Pada fase berikutnya, adapt
 - Auto-reset timer.
 - Idle screen state.
 - Tauri wrapper untuk kiosk dan file system integration yang lebih kuat.
-- Signaling server dan TURN/STUN production untuk Booth Bareng lintas NAT; implementasi awal memakai transport in-process/lokal yang bisa diganti.
+- Signaling server dan TURN/STUN production opsional untuk Booth Bareng; v1 memakai PeerJS, STUN publik, TURN publik bila dikonfigurasi, dan mailbox HTTPS ephemeral di origin agar lintas NAT tidak bergantung satu jaringan.
 
 ---
 

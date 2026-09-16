@@ -45,28 +45,18 @@ defineExpose({ promptUpdate })
       v-if="show"
       class="bg-stc-text/45 fixed inset-0 z-50 flex items-center justify-center p-4 [contain:layout_style_paint]"
     >
-      <div :class="[ui.panel, 'w-full max-w-sm p-6 text-center']">
-        <div :class="[ui.surfaceIcon, '!mb-4 !size-14 text-xl']">↑</div>
-        <h2 class="text-stc-text mb-2 text-lg font-bold">Update Tersedia</h2>
-        <p class="text-stc-text-soft mb-6 text-sm leading-relaxed">
+      <div :class="[ui.panel, 'w-full max-w-sm p-5']">
+        <h2 class="text-stc-text text-[15px] font-medium">Update Tersedia</h2>
+        <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
           Versi baru Stecute tersedia. Muat ulang sekarang?
         </p>
-        <p
-          v-if="updateError"
-          class="border-stc-error/30 bg-stc-error-soft text-stc-error mb-4 rounded-xl border px-4 py-3 text-sm font-semibold"
-        >
+        <p v-if="updateError" :class="[ui.alertError, 'mt-3']">
           {{ updateError }}
         </p>
-        <div class="space-y-2">
-          <button
-            :class="[ui.primaryButton, 'w-full']"
-            :disabled="isUpdating"
-            @click="acceptUpdate"
-          >
+        <div class="mt-4 flex items-center justify-end gap-2">
+          <button :class="ui.ghostButton" :disabled="isUpdating" @click="dismiss">Nanti</button>
+          <button :class="ui.primaryButton" :disabled="isUpdating" @click="acceptUpdate">
             {{ isUpdating ? 'Memuat Update...' : 'Muat Ulang' }}
-          </button>
-          <button :class="[ui.secondaryButton, 'w-full']" :disabled="isUpdating" @click="dismiss">
-            Nanti
           </button>
         </div>
       </div>

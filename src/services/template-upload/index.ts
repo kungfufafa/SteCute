@@ -165,8 +165,15 @@ export async function loadUploadedStripTemplates(): Promise<UploadedStripTemplat
     })
 }
 
+function isAcceptedTemplateType(file: File) {
+  if (ACCEPTED_TEMPLATE_TYPES.includes(file.type)) return true
+
+  const extension = file.name.split('.').pop()?.toLowerCase()
+  return extension === 'png' || extension === 'webp'
+}
+
 export function validateStripTemplateFile(file: File) {
-  if (!ACCEPTED_TEMPLATE_TYPES.includes(file.type)) {
+  if (!isAcceptedTemplateType(file)) {
     throw new Error('Blanko harus berupa PNG atau WebP dengan area foto transparan.')
   }
 
@@ -241,7 +248,11 @@ export function findTransparentWindows(
     const edgeCount =
       Number(touchesLeft) + Number(touchesRight) + Number(touchesTop) + Number(touchesBottom)
     const areaRatio = area / (width * height)
-    const isBackgroundWash = edgeCount >= 3 || areaRatio >= 0.35
+    const isThinHorizontalWash =
+      touchesLeft && touchesRight && windowHeight / height <= 0.15
+    const isThinVerticalWash = touchesTop && touchesBottom && windowWidth / width <= 0.15
+    const isBackgroundWash =
+      edgeCount === 4 || areaRatio >= 0.5 || isThinHorizontalWash || isThinVerticalWash
 
     if (!isBackgroundWash && area >= minArea && windowWidth >= minWidth && windowHeight >= minHeight) {
       windows.push({

@@ -33,54 +33,27 @@ const currentIndex = computed(() =>
 
 <template>
   <nav
-    class="mx-auto w-full max-w-6xl px-4 pb-4 sm:px-6 md:px-8"
+    class="border-stc-border flex w-full items-center border-b px-4 py-2 sm:px-5"
     aria-label="Progress sesi Stecute"
   >
-    <ol
-      class="border-stc-border/70 shadow-stc-xs flex w-full gap-1 rounded-xl border bg-white/85 p-1 sm:grid sm:grid-cols-6 sm:p-1.5"
-    >
-      <li
-        v-for="(step, index) in steps"
-        :key="step.id"
-        :class="[
-          'min-w-0 transition-all duration-300 ease-out',
-          index === currentIndex ? 'flex-[2.5] sm:flex-none' : 'flex-1 sm:flex-none',
-        ]"
-      >
-        <div
-          class="flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-[0.5rem] px-1 text-[0.6875rem] font-bold transition-colors duration-200 sm:min-h-11 sm:flex-col sm:gap-1 sm:rounded-lg sm:px-2 sm:text-[0.625rem] md:flex-row md:gap-2 md:px-3 lg:text-xs"
+    <ol class="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+      <li v-for="(step, index) in steps" :key="step.id" class="flex min-w-0 items-center gap-1.5">
+        <span
+          class="whitespace-nowrap"
           :class="
             index === currentIndex
-              ? 'bg-stc-pink shadow-stc-xs text-white'
+              ? 'text-stc-text font-medium'
               : index < currentIndex
-                ? 'bg-stc-pink-soft text-stc-pink hover:bg-stc-pink/20'
-                : 'text-stc-text-faint hover:bg-stc-bg-2'
+                ? 'text-stc-text-soft'
+                : 'text-stc-text-faint'
           "
           :aria-current="index === currentIndex ? 'step' : undefined"
         >
-          <span
-            class="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] transition-colors"
-            :class="
-              index === currentIndex
-                ? 'bg-white/20 text-white'
-                : index < currentIndex
-                  ? 'text-stc-pink bg-white'
-                  : 'bg-stc-bg-2 text-stc-text-faint group-hover:bg-stc-border'
-            "
-          >
-            {{ index + 1 }}
-          </span>
-          <span
-            class="overflow-hidden whitespace-nowrap transition-all duration-300"
-            :class="[
-              index === currentIndex
-                ? 'max-w-[80px] opacity-100 sm:max-w-full'
-                : 'max-w-0 opacity-0 sm:max-w-full sm:opacity-100',
-            ]"
-          >
-            {{ step.label }}
-          </span>
-        </div>
+          {{ step.label }}
+        </span>
+        <span v-if="index < steps.length - 1" class="text-stc-text-faint" aria-hidden="true">
+          /
+        </span>
       </li>
     </ol>
   </nav>

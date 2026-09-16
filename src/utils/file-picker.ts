@@ -22,6 +22,7 @@ export function openHiddenFilePicker(options: {
 
     let settled = false
     let cancelTimer: ReturnType<typeof setTimeout> | null = null
+    const openedAt = Date.now()
 
     const selectedFiles = () => (input.files && input.files.length > 0 ? input.files : null)
 
@@ -56,7 +57,7 @@ export function openHiddenFilePicker(options: {
         if (settled) return
         if (finishIfSelected()) return
         finish(null)
-      }, 750)
+      }, 1_500)
     }
 
     const handleWindowFocus = () => {
@@ -66,6 +67,7 @@ export function openHiddenFilePicker(options: {
     const handleUserGesture = () => {
       if (settled) return
       if (finishIfSelected()) return
+      if (Date.now() - openedAt < 400) return
       scheduleCancelCheck()
     }
 

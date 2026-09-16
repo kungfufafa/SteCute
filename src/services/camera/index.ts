@@ -347,8 +347,8 @@ export function captureFrame(
           reject(new Error('Failed to capture frame'))
         }
       },
-      'image/png',
-      1.0,
+      'image/jpeg',
+      0.92,
     )
   })
 }

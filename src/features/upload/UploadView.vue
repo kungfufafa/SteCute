@@ -14,15 +14,15 @@ import { useSessionStore } from '@/app/store/useSessionStore'
 import {
   createAdjustedImageBlob,
   createAutoUploadImageAdjustment,
+  createOrientedImageSource,
   clampUploadImageAdjustment,
   getAdjustedCropRect,
-  getImageDimensions,
   openImagePicker,
   type UploadImageAdjustment,
   validateFile,
   validateFiles,
 } from '@/services/upload'
-import { consumePendingSessionConfig } from '@/services/session/persist'
+import { readPendingSessionConfig } from '@/services/session/persist'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
@@ -168,14 +168,14 @@ async function createUploadItems(files: File[], firstSlotIndex = 0): Promise<Upl
 
   try {
     for (const [index, file] of files.entries()) {
-      const dimensions = await getImageDimensions(file)
+      const preview = await createOrientedImageSource(file)
       const slot = getSlotForIndex(firstSlotIndex + index)
       items.push({
-        file,
-        url: URL.createObjectURL(file),
-        width: dimensions.width,
-        height: dimensions.height,
-        adjustment: createAutoAdjustment(dimensions.width, dimensions.height, slot),
+        file: preview.file,
+        url: preview.url,
+        width: preview.width,
+        height: preview.height,
+        adjustment: createAutoAdjustment(preview.width, preview.height, slot),
       })
     }
 
@@ -413,7 +413,7 @@ onMounted(async () => {
   } catch (error) {
     console.warn('Failed to load custom blanko templates:', error)
   }
-  const pending = consumePendingSessionConfig('upload')
+  const pending = readPendingSessionConfig('upload')
   if (!pending) return
 
   sessionStore.layoutId = pending.layoutId
@@ -432,12 +432,12 @@ onBeforeUnmount(() => resetUploadItems())
       <div :class="ui.headerGroup">
         <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
           <svg
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -478,36 +478,14 @@ onBeforeUnmount(() => resetUploadItems())
 
           <button
             v-if="!hasUploads"
-            class="group border-stc-border-strong shadow-stc-xs hover:border-stc-pink hover:bg-stc-pink-soft hover:shadow-stc-sm focus-visible:ring-stc-pink flex min-h-[280px] w-full max-w-[38rem] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-white px-5 py-8 text-center transition-all duration-200 outline-none hover:-translate-y-1 focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60 sm:min-h-[330px] sm:px-6 sm:py-10"
+            class="border-stc-border hover:bg-stc-bg-2 focus-visible:ring-stc-pink/40 flex min-h-48 w-full max-w-[34em] flex-col items-center justify-center rounded-lg border border-dashed bg-white px-6 py-8 text-center outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-40"
             :disabled="isBusy"
             @click="handleFileSelect"
           >
-            <div
-              class="bg-stc-pink-soft text-stc-pink shadow-stc-xs mb-5 flex size-16 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 sm:size-20"
-            >
-              <svg
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-            </div>
-            <h4
-              class="text-stc-text group-hover:text-stc-pink-strong text-xl font-bold transition-colors"
-            >
+            <h4 class="text-stc-text text-[15px] font-medium">
               {{ isPreparing ? 'Menyiapkan...' : 'Pilih Foto Lokal' }}
             </h4>
-            <p
-              class="text-stc-text-faint group-hover:text-stc-pink/80 mt-2 text-sm font-medium transition-colors"
-            >
+            <p class="text-stc-text-faint mt-1 text-[13px]">
               {{ `${sessionStore.slotCount} file untuk sekali render` }}
             </p>
           </button>
@@ -517,15 +495,15 @@ onBeforeUnmount(() => resetUploadItems())
               <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p :class="ui.sectionLabel">Foto Ini</p>
-                  <h3 class="text-stc-text mt-1 text-lg font-bold">
+                  <h3 class="text-stc-text mt-1 text-lg font-semibold">
                     {{ activePhotoLabel }} dari {{ sessionStore.slotCount }}
                   </h3>
                 </div>
-                <span :class="ui.pinkBadge">Slot {{ activeIndex + 1 }}</span>
+                <span :class="ui.badge">Slot {{ activeIndex + 1 }}</span>
               </div>
 
               <div
-                class="border-stc-border bg-stc-bg-2 relative mx-auto w-full max-w-2xl cursor-grab touch-none overflow-hidden rounded-xl border select-none active:cursor-grabbing"
+                class="border-stc-border bg-stc-bg-2 relative mx-auto w-full max-w-2xl cursor-grab touch-none overflow-hidden rounded-lg border select-none active:cursor-grabbing"
                 :style="{ aspectRatio: activeCropAspectRatio }"
                 @pointerdown="beginPhotoDrag"
                 @pointermove="movePhotoDrag"
@@ -600,7 +578,7 @@ onBeforeUnmount(() => resetUploadItems())
                 <button
                   v-for="(item, index) in uploadItems"
                   :key="item.url"
-                  class="group focus-visible:ring-stc-pink shadow-stc-xs relative aspect-[4/3] overflow-hidden rounded-xl border bg-white transition-all duration-200 outline-none hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 active:translate-y-0 active:scale-[0.98]"
+                  class="group focus-visible:ring-stc-pink/40 relative aspect-[4/3] overflow-hidden rounded-lg border bg-white outline-none focus-visible:ring-2"
                   :class="
                     index === activeIndex
                       ? 'border-stc-pink ring-stc-pink/20 ring-4'
@@ -617,7 +595,7 @@ onBeforeUnmount(() => resetUploadItems())
                     decoding="async"
                   />
                   <span
-                    class="text-stc-text shadow-stc-xs absolute top-1.5 left-1.5 flex size-7 items-center justify-center rounded-lg bg-white/95 text-xs font-bold"
+                    class="text-stc-text shadow-stc-xs absolute top-1.5 left-1.5 flex size-7 items-center justify-center rounded-lg bg-white/95 text-xs font-semibold"
                   >
                     {{ index + 1 }}
                   </span>
@@ -691,58 +669,44 @@ onBeforeUnmount(() => resetUploadItems())
             </div>
           </div>
 
-          <div
-            v-if="errors.length > 0"
-            class="border-stc-error/30 bg-stc-error-soft shadow-stc-xs rounded-xl border p-5 sm:p-6"
-          >
-            <p class="text-stc-error mb-4 text-[0.6875rem] font-bold uppercase">Masalah Upload</p>
-            <div class="space-y-3">
-              <div
-                v-for="(error, index) in errors"
-                :key="error"
-                class="text-stc-error flex items-start gap-3 text-sm font-medium"
-              >
-                <span
-                  class="text-stc-error shadow-stc-xs mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold"
-                >
-                  {{ index + 1 }}
-                </span>
-                <span class="leading-relaxed">{{ error }}</span>
-              </div>
-            </div>
+          <div v-if="errors.length > 0" :class="ui.alertError">
+            <p class="mb-2 font-medium">Masalah Upload</p>
+            <ul class="space-y-1">
+              <li v-for="error in errors" :key="error">{{ error }}</li>
+            </ul>
           </div>
         </section>
 
-        <aside class="lg:sticky lg:top-8" aria-label="Ringkasan format upload">
-          <div :class="[ui.panel, 'p-5 sm:p-6']">
-            <div class="mb-5 flex items-start justify-between gap-4">
+        <aside class="lg:sticky lg:top-4" aria-label="Ringkasan format upload">
+          <div :class="[ui.panel, 'p-4']">
+            <div class="mb-3 flex items-start justify-between gap-3">
               <div>
                 <p :class="ui.sectionLabel">Slot</p>
-                <h3 class="text-stc-text mt-1 text-lg font-bold">
+                <h3 class="text-stc-text mt-0.5 text-[13px] font-medium">
                   {{ activeLayout?.printFormat.label ?? `${sessionStore.slotCount} Foto` }}
                 </h3>
               </div>
               <span :class="ui.badge">{{ sessionStore.slotCount }} Foto</span>
             </div>
 
-            <div class="mx-auto max-w-[190px]">
+            <div class="mx-auto max-w-[160px]">
               <StripCanvasPreview :layout="activeLayout" :template-config="activeTemplate" />
             </div>
 
-            <div class="mt-6 space-y-3">
-              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
-                <span class="text-stc-text-soft text-sm font-semibold">Template</span>
-                <span class="text-stc-text text-sm font-bold">
-                  {{ activeTemplate?.name ?? 'Classic' }}
-                </span>
+            <div class="border-stc-border divide-stc-border mt-3 divide-y border-t text-[13px]">
+              <div class="flex items-center justify-between gap-3 py-2">
+                <span class="text-stc-text-soft">Template</span>
+                <span class="text-stc-text font-medium">{{
+                  activeTemplate?.name ?? 'Classic'
+                }}</span>
               </div>
-              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
-                <span class="text-stc-text-soft text-sm font-semibold">Format</span>
-                <span class="text-stc-text text-sm font-bold">JPG/PNG/WebP</span>
+              <div class="flex items-center justify-between gap-3 py-2">
+                <span class="text-stc-text-soft">Format</span>
+                <span class="text-stc-text font-medium">JPG/PNG/WebP</span>
               </div>
-              <div :class="['flex items-center justify-between gap-4', ui.softTile]">
-                <span class="text-stc-text-soft text-sm font-semibold">Batas file</span>
-                <span class="text-stc-text text-sm font-bold">10 MB</span>
+              <div class="flex items-center justify-between gap-3 py-2">
+                <span class="text-stc-text-soft">Batas file</span>
+                <span class="text-stc-text font-medium">10 MB</span>
               </div>
             </div>
           </div>

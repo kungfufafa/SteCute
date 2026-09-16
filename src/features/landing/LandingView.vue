@@ -5,10 +5,10 @@ import { useAppStore } from '@/app/store/useAppStore'
 import { useCapabilityStore } from '@/app/store/useCapabilityStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import { abandonIncompleteSession } from '@/services/session'
+import { clearPendingSessionConfig } from '@/services/session/persist'
 import { promptPwaInstall } from '@/services/pwa/install'
 import { requestPersistentStorage } from '@/services/storage'
 import { ui } from '@/ui/styles'
-import FlowProgress from '@/components/common/FlowProgress.vue'
 import PublicLinksFooter from '@/features/public-info/PublicLinksFooter.vue'
 
 const router = useRouter()
@@ -48,7 +48,7 @@ const showcaseImages = [
     width: 241,
     height: 723,
     priority: 'low',
-    baseClass: 'relative w-[56%] z-20 shadow-stc-lg',
+    baseClass: 'relative z-20 w-[56%]',
   },
 ] as const
 
@@ -58,6 +58,7 @@ async function startFreshSession(source: 'camera' | 'upload') {
   void requestPersistentStorage()
   await abandonIncompleteSession(sessionStore.sessionId)
   sessionStore.reset()
+  clearPendingSessionConfig()
   router.push({ path: '/config', query: { source } })
 }
 
@@ -96,7 +97,7 @@ async function installApp() {
     <nav :class="ui.headerWide">
       <div :class="ui.headerGroup">
         <img
-          class="block h-auto w-[116px] md:w-[132px]"
+          class="block h-auto w-[108px]"
           src="/icons.svg"
           alt="Stecute"
           width="442"
@@ -104,13 +105,10 @@ async function installApp() {
           decoding="async"
         />
       </div>
-      <div class="flex items-center gap-3">
-        <button
-          :class="[ui.secondaryButton, '!hidden !min-h-11 !w-auto !px-5 !py-2.5 !text-sm md:!flex']"
-          @click="startWithUpload"
-        >
-          Upload Lokal
-        </button>
+      <div class="flex items-center gap-1.5">
+        <div class="hidden md:block">
+          <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
+        </div>
         <button
           :class="ui.iconButton"
           aria-label="Buka galeri"
@@ -119,12 +117,12 @@ async function installApp() {
         >
           <svg
             aria-hidden="true"
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -136,123 +134,48 @@ async function installApp() {
       </div>
     </nav>
 
-    <FlowProgress current="landing" />
-
     <main
-      class="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 items-start gap-8 px-4 pt-3 pb-12 sm:px-6 md:px-8 md:pt-6 md:pb-16 lg:grid-cols-[minmax(0,0.95fr)_minmax(340px,1.05fr)] lg:items-center lg:gap-12 xl:gap-16"
+      class="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 items-start gap-10 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)] lg:items-center lg:gap-12 lg:py-14"
     >
-      <section class="flex min-w-0 flex-col items-center text-center lg:items-start lg:text-left">
-        <p :class="[ui.sectionLabel, 'text-stc-pink mb-3 sm:mb-4']">Photo booth lokal</p>
+      <section class="flex min-w-0 flex-col">
+        <p :class="ui.sectionLabel">Photo booth lokal</p>
         <h1
-          class="text-stc-text max-w-[11ch] text-[2.75rem] leading-[1.05] font-bold tracking-[0] sm:text-[3.5rem] lg:text-[4rem]"
+          class="text-stc-text mt-2 max-w-[14ch] text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
         >
           Stecute Photo Booth
         </h1>
 
-        <p
-          class="text-stc-text-soft mt-6 max-w-[34rem] text-[1rem] leading-relaxed font-medium sm:text-[1.0625rem] lg:max-w-[31rem]"
-        >
+        <p class="text-stc-text-soft mt-3 max-w-[38em] text-[13px] leading-normal sm:text-sm">
           Buka kamera, ambil beberapa pose, lalu simpan photo strip langsung di perangkat.
           {{ offlineStatusText }}
         </p>
 
-        <div
-          class="mt-9 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:flex-wrap"
-        >
-          <button :class="[ui.primaryButton, 'sm:!w-auto']" @click="startWithCamera">
-            Mulai Foto
-          </button>
-          <button :class="[ui.secondaryButton, 'sm:!w-auto']" @click="startBoothBareng">
-            Booth Bareng
-          </button>
-          <button
-            v-if="canPromptInstall"
-            :class="[ui.secondaryButton, 'sm:!w-auto']"
-            @click="installApp"
-          >
+        <div class="mt-6 flex flex-wrap items-center gap-2">
+          <button :class="ui.primaryButton" @click="startWithCamera">Mulai Foto</button>
+          <button :class="ui.secondaryButton" @click="startBoothBareng">Booth Bareng</button>
+          <button v-if="canPromptInstall" :class="ui.ghostButton" @click="installApp">
             Pasang App
           </button>
-          <div class="flex w-full sm:hidden">
-            <button :class="ui.secondaryButton" @click="startWithUpload">Upload Lokal</button>
+          <div class="md:hidden">
+            <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
           </div>
         </div>
-        <p
-          v-if="installFeedback"
-          class="text-stc-text-soft mt-3 max-w-[32rem] text-center text-xs font-semibold lg:text-left"
-        >
+        <p v-if="installFeedback" class="text-stc-text-soft mt-2 max-w-[32rem] text-[13px]">
           {{ installFeedback }}
         </p>
 
-        <div
-          class="mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:mt-10 lg:justify-start"
-        >
-          <div
-            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
-          >
-            <div
-              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
-            >
-              <svg
-                aria-hidden="true"
-                class="size-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="4"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            Tanpa Login
-          </div>
-          <div
-            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
-          >
-            <div
-              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
-            >
-              <svg
-                aria-hidden="true"
-                class="size-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="4"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            Privasi Terjaga
-          </div>
-          <div
-            class="text-stc-text-soft shadow-stc-xs ring-stc-border/70 flex items-center gap-1.5 rounded-full bg-white/80 px-3.5 py-2 text-[0.8125rem] font-bold ring-1 backdrop-blur-sm"
-          >
-            <div
-              class="bg-stc-success-soft text-stc-success flex size-5 items-center justify-center rounded-full"
-            >
-              <svg
-                aria-hidden="true"
-                class="size-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="4"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            Hasil Lokal
-          </div>
-        </div>
+        <p class="text-stc-text-faint mt-6 text-[13px]">
+          Tanpa Login · Privasi Terjaga · Hasil Lokal
+        </p>
       </section>
 
       <section
-        class="border-stc-border shadow-stc-lg relative mx-auto flex h-[400px] w-full max-w-[560px] flex-col overflow-hidden rounded-xl border bg-white/40 sm:h-[500px]"
+        class="border-stc-border bg-stc-bg-2 relative mx-auto flex h-[22rem] w-full max-w-md flex-col overflow-hidden rounded-lg border sm:h-[26rem]"
         aria-label="Preview Stecute"
       >
         <div class="relative flex-1 overflow-hidden">
           <div
-            class="absolute top-6 left-1/2 flex w-[260px] -translate-x-1/2 justify-center sm:top-10 sm:w-[320px]"
+            class="absolute top-6 left-1/2 flex w-[240px] -translate-x-1/2 justify-center sm:top-8 sm:w-[280px]"
           >
             <img
               v-for="image in showcaseImages"
@@ -264,28 +187,25 @@ async function installApp() {
               loading="lazy"
               decoding="async"
               :fetchpriority="image.priority"
-              :class="[
-                image.baseClass,
-                'shadow-stc-md rounded-xl border-[4px] border-white bg-white transition-transform duration-500 hover:-translate-y-2',
-              ]"
+              :class="[image.baseClass, 'shadow-stc-sm rounded-md border border-white/80 bg-white']"
             />
           </div>
         </div>
 
         <div
-          class="border-stc-border bg-stc-bg-2 relative z-30 grid grid-cols-3 border-t px-5 py-4 text-center sm:px-8"
+          class="border-stc-border relative z-30 grid grid-cols-3 border-t bg-white px-4 py-3 text-center"
         >
           <div>
             <p :class="ui.sectionLabel">Layout</p>
-            <p class="text-stc-text mt-1 text-sm font-bold">2/3/4/6</p>
+            <p class="text-stc-text mt-0.5 text-[13px] font-medium">2/3/4/6</p>
           </div>
           <div class="border-stc-border border-x">
             <p :class="ui.sectionLabel">Timer</p>
-            <p class="text-stc-text mt-1 text-sm font-bold">3-10s</p>
+            <p class="text-stc-text mt-0.5 text-[13px] font-medium">3-10s</p>
           </div>
           <div>
             <p :class="ui.sectionLabel">Penyimpanan</p>
-            <p class="text-stc-text mt-1 text-sm font-bold">Lokal</p>
+            <p class="text-stc-text mt-0.5 text-[13px] font-medium">Lokal</p>
           </div>
         </div>
       </section>

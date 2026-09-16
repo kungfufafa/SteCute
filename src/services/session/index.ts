@@ -185,8 +185,11 @@ export async function getReviewSessionSnapshot(
   if (!currentSessionId) return null
 
   const snapshot = await getSessionSnapshot(currentSessionId)
+  if (!snapshot) return null
 
-  if (snapshot && isSessionComplete(snapshot.shots, snapshot.session.slotCount)) {
+  if (snapshot.session.finalRenderId) return snapshot
+
+  if (isSessionComplete(snapshot.shots, snapshot.session.slotCount)) {
     return snapshot
   }
 

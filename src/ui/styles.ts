@@ -1,54 +1,59 @@
+const focus = 'outline-none focus-visible:ring-2 focus-visible:ring-stc-pink/40'
+
+const btn = `inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md text-[13px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 ${focus}`
+
 export const ui = {
-  // Layout
-  page: 'mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-stc-bg text-stc-text selection:bg-stc-pink/20 selection:text-stc-pink',
+  page: 'mx-auto flex min-h-dvh w-full flex-col overflow-x-hidden bg-stc-bg text-stc-text selection:bg-stc-pink/15 selection:text-stc-pink-strong',
   pageContent: 'mx-auto flex w-full max-w-3xl flex-1 flex-col',
-  pageContentWide: 'mx-auto flex w-full max-w-6xl flex-1 flex-col',
+  pageContentWide: 'mx-auto flex w-full max-w-5xl flex-1 flex-col',
 
-  // Header
   header:
-    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 md:px-8 lg:py-8',
+    'flex w-full shrink-0 items-center justify-between gap-3 border-b border-stc-border px-4 py-2.5 sm:px-5',
   headerWide:
-    'mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6 md:px-8 lg:py-8',
-  headerGroup: 'flex min-w-0 flex-1 items-center gap-3 sm:gap-4',
-  title: 'text-lg font-bold leading-tight text-stc-text sm:text-xl',
-  subtitle: 'mt-1 max-w-[34rem] text-xs font-medium leading-relaxed text-stc-text-soft sm:text-sm',
+    'flex w-full shrink-0 items-center justify-between gap-3 border-b border-stc-border px-4 py-2.5 sm:px-5',
+  headerGroup: 'flex min-w-0 flex-1 items-center gap-2.5',
+  title: 'text-[15px] leading-snug font-medium text-stc-text',
+  subtitle: 'mt-0.5 max-w-[42em] text-[13px] leading-normal text-stc-text-soft',
 
-  // Content areas
-  content: 'mx-auto flex w-full max-w-6xl flex-1 px-4 pb-6 sm:px-6 sm:pb-8 md:px-8',
+  content: 'mx-auto flex w-full max-w-5xl flex-1 px-4 pb-8 sm:px-5',
   bottomActions:
-    'stc-safe-bottom mt-auto flex w-full flex-col items-stretch gap-3 pt-6 sm:flex-row sm:items-center',
+    'stc-safe-bottom mt-auto flex w-full flex-col items-stretch gap-2 pt-6 sm:flex-row sm:items-center',
 
-  // Buttons (Base states: active scale, focus ring, transition)
-  iconButton:
-    'inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-stc-border bg-white text-stc-text-soft shadow-stc-xs transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-bg-2 hover:text-stc-text active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-pink focus-visible:ring-offset-2',
-  primaryButton:
-    'inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stc-pink px-6 py-3.5 text-[0.9375rem] font-bold text-white shadow-stc-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-pink-strong hover:shadow-stc-md active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-pink focus-visible:ring-offset-2',
-  secondaryButton:
-    'inline-flex min-h-[52px] w-full items-center justify-center rounded-xl border border-stc-border bg-white px-6 py-3.5 text-[0.9375rem] font-bold text-stc-text shadow-stc-xs transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-bg-2 active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-pink focus-visible:ring-offset-2',
-  successButton:
-    'inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stc-success px-6 py-3.5 text-[0.9375rem] font-bold text-white shadow-stc-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-success-strong hover:shadow-stc-md active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-success focus-visible:ring-offset-2',
-  dangerButton:
-    'inline-flex min-h-[52px] w-full items-center justify-center rounded-xl bg-stc-error px-6 py-3.5 text-[0.9375rem] font-bold text-white shadow-stc-sm transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-error-strong active:translate-y-0 active:scale-[0.97] disabled:pointer-events-none disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-error focus-visible:ring-offset-2',
+  iconButton: `${btn} size-8 text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text`,
+  primaryButton: `${btn} h-8 px-2.5 bg-stc-pink text-white hover:bg-stc-pink-strong`,
+  secondaryButton: `${btn} h-8 px-2.5 bg-stc-bg-2 text-stc-text hover:bg-stc-bg-3`,
+  successButton: `${btn} h-8 px-2.5 bg-stc-success text-white hover:bg-stc-success-strong`,
+  dangerButton: `${btn} h-8 px-2.5 bg-stc-error text-white hover:bg-stc-error-strong`,
+  ghostButton: `${btn} h-8 px-2.5 text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text`,
+  tertiaryButton: `${btn} h-8 px-1.5 text-stc-text-soft hover:text-stc-text`,
 
-  // Badges
   badge:
-    'inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-lg border border-stc-border bg-white px-3 py-1.5 text-xs font-semibold text-stc-text-soft shadow-stc-xs',
+    'inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded px-1.5 text-xs font-medium text-stc-text-soft bg-stc-bg-2',
   pinkBadge:
-    'inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-lg bg-stc-pink-soft px-3 py-1.5 text-[0.6875rem] font-bold uppercase text-stc-pink',
+    'inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded px-1.5 text-xs font-medium text-stc-pink-strong bg-stc-pink-soft',
 
-  // Panels & Text
-  sectionLabel: 'text-[0.6875rem] font-bold uppercase text-stc-text-faint',
-  sectionTitle: 'text-2xl font-bold leading-tight text-stc-text sm:text-3xl',
-  sectionCopy:
-    'max-w-xl text-sm font-medium leading-relaxed text-stc-text-soft sm:text-[0.9375rem]',
-  panel: 'overflow-hidden rounded-xl border border-stc-border bg-white shadow-stc-sm',
-  panelSoft: 'overflow-hidden rounded-xl border border-stc-border bg-white shadow-stc-xs',
+  sectionLabel: 'text-[13px] font-medium text-stc-text-soft',
+  sectionTitle: 'text-lg leading-snug font-semibold text-stc-text sm:text-xl',
+  sectionCopy: 'max-w-[42em] text-[13px] leading-normal text-stc-text-soft sm:text-sm',
+  panel: 'overflow-hidden rounded-lg border border-stc-border bg-white',
+  panelSoft: 'overflow-hidden rounded-lg border border-stc-border bg-stc-bg-2',
   emptyPanel:
-    'mx-auto w-full max-w-xl rounded-xl border border-stc-border/70 bg-white px-6 py-12 text-center shadow-stc-sm sm:px-8 sm:py-14',
+    'mx-auto w-full max-w-md rounded-lg border border-stc-border bg-white px-5 py-10 text-center',
   surfaceIcon:
-    'mx-auto mb-5 flex size-16 items-center justify-center rounded-xl bg-stc-pink-soft text-stc-pink shadow-stc-xs',
-  statusIcon: 'mx-auto mb-5 flex size-16 items-center justify-center rounded-xl shadow-stc-xs',
-  softTile: 'rounded-xl bg-stc-bg-2 px-4 py-3',
-  actionTile:
-    'flex min-h-20 flex-col items-center justify-center gap-2 rounded-xl border border-stc-border bg-white p-3 text-center text-xs font-bold text-stc-text shadow-stc-xs transition-all duration-200 hover:-translate-y-[1px] hover:bg-stc-bg-2 active:translate-y-0 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stc-pink focus-visible:ring-offset-2',
+    'mx-auto mb-3 flex size-8 items-center justify-center rounded-md bg-stc-bg-2 text-stc-text-soft',
+  statusIcon: 'mx-auto mb-3 flex size-8 items-center justify-center rounded-md',
+  softTile: 'rounded-md bg-stc-bg-2 px-3 py-2.5',
+  actionTile: `${btn} h-auto min-h-16 w-full flex-col gap-1.5 rounded-md border border-stc-border bg-white p-3 text-center text-xs font-medium text-stc-text hover:bg-stc-bg-2`,
+  input: `h-8 w-full rounded-md border border-stc-border bg-white px-2.5 text-[13px] text-stc-text placeholder:text-stc-text-faint ${focus}`,
+  segmented: 'inline-flex h-8 items-center gap-0.5 rounded-md bg-stc-bg-2 p-0.5',
+  segmentedItem: `${btn} h-7 px-2.5 text-stc-text-soft hover:text-stc-text`,
+  segmentedItemActive: 'bg-white text-stc-text shadow-stc-xs hover:bg-white hover:text-stc-text',
+  alert:
+    'rounded-md border border-stc-border bg-white px-3 py-2 text-[13px] leading-normal text-stc-text',
+  alertError:
+    'rounded-md border border-stc-error/20 bg-stc-error-soft px-3 py-2 text-[13px] leading-normal text-stc-error-strong',
+  alertWarning:
+    'rounded-md border border-stc-warning/20 bg-stc-warning-soft px-3 py-2 text-[13px] leading-normal text-stc-text',
+  selectedCard: 'border-stc-text bg-stc-bg-2',
+  card: 'rounded-lg border border-stc-border bg-white transition-colors hover:bg-stc-bg-2',
 } as const

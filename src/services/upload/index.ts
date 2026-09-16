@@ -481,6 +481,60 @@ async function decodeUploadImage(file: File): Promise<DecodedUploadImage> {
   })
 }
 
+function isJpegUpload(file: File) {
+  return JPEG_MIME_ALIASES.has(file.type) || /\.jpe?g$/i.test(file.name)
+}
+
+export async function createOrientedImageSource(file: File): Promise<{
+  file: File
+  url: string
+  width: number
+  height: number
+}> {
+  const oriented = await bakeImageOrientation(file)
+  const nextFile =
+    oriented.blob === file
+      ? file
+      : new File([oriented.blob], file.name, {
+          type: oriented.blob.type || file.type || DEFAULT_ADJUSTED_IMAGE_TYPE,
+        })
+
+  return {
+    file: nextFile,
+    url: URL.createObjectURL(nextFile),
+    width: oriented.width,
+    height: oriented.height,
+  }
+}
+
+async function bakeImageOrientation(
+  file: File,
+): Promise<{ blob: Blob; width: number; height: number }> {
+  const dimensions = await getImageDimensions(file)
+  if (!isJpegUpload(file) || typeof createImageBitmap !== 'function') {
+    return { blob: file, width: dimensions.width, height: dimensions.height }
+  }
+
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+    const canvas = document.createElement('canvas')
+    canvas.width = bitmap.width
+    canvas.height = bitmap.height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      bitmap.close()
+      return { blob: file, width: bitmap.width, height: bitmap.height }
+    }
+
+    ctx.drawImage(bitmap, 0, 0)
+    bitmap.close()
+    const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92)
+    return { blob, width: canvas.width, height: canvas.height }
+  } catch {
+    return { blob: file, width: dimensions.width, height: dimensions.height }
+  }
+}
+
 function canvasToBlob(
   canvas: HTMLCanvasElement,
   type: 'image/jpeg' | 'image/png' | 'image/webp',

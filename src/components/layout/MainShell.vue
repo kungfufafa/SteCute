@@ -1,14 +1,28 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { RouterView } from 'vue-router'
+import { onMounted, ref, watch } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { useAppStore } from '@/app/store/useAppStore'
+import { useSessionStore } from '@/app/store/useSessionStore'
+import { shouldHoldPwaUpdate } from '@/services/pwa/update'
 import OfflineBanner from '@/components/common/OfflineBanner.vue'
 import ErrorBoundary from '@/components/common/ErrorBoundary.vue'
 import UpdatePrompt from '@/components/common/UpdatePrompt.vue'
 
 const updatePromptRef = ref<InstanceType<typeof UpdatePrompt> | null>(null)
 const appStore = useAppStore()
+const sessionStore = useSessionStore()
+const route = useRoute()
 let applyServiceWorkerUpdate: ((reloadPage?: boolean) => Promise<void>) | null = null
+let pendingUpdateAction: (() => Promise<void> | void) | null = null
+let updatePromptOffered = false
+
+function maybePromptUpdate() {
+  if (!pendingUpdateAction || updatePromptOffered) return
+  if (shouldHoldPwaUpdate(route.path, sessionStore.sessionStatus)) return
+
+  updatePromptOffered = true
+  updatePromptRef.value?.promptUpdate(pendingUpdateAction)
+}
 
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) {
@@ -27,8 +41,9 @@ async function registerServiceWorker() {
         appStore.setOfflineReady()
       },
       onNeedRefresh() {
+        pendingUpdateAction = () => applyServiceWorkerUpdate?.(true)
         appStore.setServiceWorkerUpdateAvailable()
-        updatePromptRef.value?.promptUpdate(() => applyServiceWorkerUpdate?.(true))
+        maybePromptUpdate()
       },
       onRegisteredSW(_, registration) {
         if (!registration) return
@@ -45,6 +60,13 @@ async function registerServiceWorker() {
     appStore.setServiceWorkerError(error)
   }
 }
+
+watch(
+  () => [route.path, sessionStore.sessionStatus] as const,
+  () => {
+    maybePromptUpdate()
+  },
+)
 
 onMounted(() => {
   void registerServiceWorker()

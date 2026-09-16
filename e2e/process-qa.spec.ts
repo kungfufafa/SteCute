@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 test.use({
-  baseURL: process.env.QA_BASE_URL ?? 'http://localhost:5173',
+  baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
   launchOptions: {
     args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
   },

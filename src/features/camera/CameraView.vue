@@ -12,13 +12,14 @@ import {
   updateSessionDecorationConfig,
 } from '@/services/session'
 import {
-  consumePendingSessionConfig,
   persistCameraFlow,
   persistActiveSessionId,
   persistRetakeIndex,
   readCameraFlow,
+  readPendingSessionConfig,
   readRetakeIndex,
   readStoredSessionId,
+  writePendingSessionConfig,
 } from '@/services/session/persist'
 import { getTemplateById } from '@/templates'
 import { getLayoutById } from '@/layouts'
@@ -33,6 +34,7 @@ import {
   stopCamera,
   switchCamera,
   type CameraDeviceOption,
+  type CapturedFrame,
 } from '@/services/camera'
 import {
   CAMERA_EFFECTS,
@@ -239,6 +241,30 @@ async function attachPreviewStream(generation = setupGeneration) {
   } catch (error) {
     console.warn('Camera preview play() was blocked:', error)
   }
+
+  await waitForPreviewPixels(generation)
+}
+
+async function waitForPreviewPixels(generation = setupGeneration) {
+  const video = videoRef.value
+  if (!video || generation !== setupGeneration) return
+  if (video.videoWidth > 0 && video.videoHeight > 0) return
+
+  await new Promise<void>((resolve) => {
+    const finish = () => {
+      window.clearTimeout(timeout)
+      video.removeEventListener('loadeddata', onReady)
+      video.removeEventListener('loadedmetadata', onReady)
+      resolve()
+    }
+    const onReady = () => {
+      if (video.videoWidth > 0) finish()
+    }
+    const timeout = window.setTimeout(finish, 2500)
+    video.addEventListener('loadeddata', onReady)
+    video.addEventListener('loadedmetadata', onReady)
+    if (video.videoWidth > 0) finish()
+  })
 }
 
 async function refreshCameraDevices() {
@@ -338,7 +364,7 @@ async function setupCamera() {
     }
     if (generation !== setupGeneration) return
 
-    const pendingConfig = consumePendingSessionConfig('camera')
+    const pendingConfig = readPendingSessionConfig('camera')
     if (pendingConfig) {
       sessionStore.layoutId = pendingConfig.layoutId
       sessionStore.templateId = pendingConfig.templateId
@@ -401,7 +427,9 @@ async function setupCamera() {
       })
       applyRetakeIndex()
       await persistCameraDecoration(sessionId)
-      if (generation === setupGeneration) cameraReady.value = true
+      if (generation === setupGeneration) {
+        cameraReady.value = Boolean(videoRef.value && videoRef.value.videoWidth > 0)
+      }
     } catch (error) {
       console.error('Failed to prepare camera session:', error)
       cameraError.value = isStorageQuotaError(error)
@@ -518,6 +546,7 @@ function cameraEffectSwatchStyle(effectId: string) {
 }
 
 onUnmounted(() => {
+  setupGeneration += 1
   window.removeEventListener('keydown', handleGlobalKeydown)
 
   if (countdownTimer) {
@@ -568,6 +597,7 @@ async function selectCameraDevice(deviceId: string) {
     return
   }
 
+  const generation = setupGeneration
   isSwitchingCamera.value = true
   cameraError.value = null
 
@@ -582,18 +612,25 @@ async function selectCameraDevice(deviceId: string) {
       selected?.facingMode === 'user' || selected?.facingMode === 'environment'
         ? selected.facingMode
         : undefined
-    stream = await switchCamera(deviceId, facingHint)
+    const nextStream = await switchCamera(deviceId, facingHint)
+    if (generation !== setupGeneration) {
+      stopCamera(nextStream)
+      return
+    }
+    stream = nextStream
     liveCamAvailable.value = isLiveCamRecordingSupported(stream)
     await nextTick()
-    await attachPreviewStream()
+    await attachPreviewStream(generation)
     await refreshCameraDevices()
     closeCameraPicker()
   } catch (error) {
     console.error('Failed to switch camera:', error)
-    await setupCamera()
-    cameraError.value = 'Kamera itu belum bisa dibuka. Coba pilih kamera lain.'
+    if (generation === setupGeneration) {
+      await setupCamera()
+      cameraError.value = 'Kamera itu belum bisa dibuka. Coba pilih kamera lain.'
+    }
   } finally {
-    isSwitchingCamera.value = false
+    if (generation === setupGeneration) isSwitchingCamera.value = false
   }
 }
 
@@ -631,17 +668,22 @@ async function stopActiveLiveCamRecording(delayMs = 0): Promise<LiveCamClip | nu
   }
 }
 
-async function handleCapture(liveClip: LiveCamClip | null = null) {
+async function handleCapture(liveClip: LiveCamClip | null = null, preCaptured?: CapturedFrame) {
   if (!videoRef.value || !stream) return
-  let frame: Awaited<ReturnType<typeof captureFrame>>
+  const captureGeneration = setupGeneration
+  let frame: CapturedFrame
 
   try {
-    frame = await captureFrame(videoRef.value, { mirrored: shouldMirrorActiveCamera.value })
+    frame =
+      preCaptured ??
+      (await captureFrame(videoRef.value, { mirrored: shouldMirrorActiveCamera.value }))
   } catch (error) {
     console.error('Capture failed:', error)
     cameraError.value = 'Preview kamera belum siap. Coba ambil foto lagi.'
     return
   }
+
+  if (captureGeneration !== setupGeneration) return
 
   const sessionId = sessionStore.sessionId
   if (!sessionId) return
@@ -771,9 +813,24 @@ function runCountdownAndCapture() {
       countdownActive.value = false
       isCapturing.value = true
       triggerFlash()
+      const captureGeneration = setupGeneration
       try {
+        let frame: CapturedFrame | undefined
+        try {
+          if (videoRef.value) {
+            frame = await captureFrame(videoRef.value, {
+              mirrored: shouldMirrorActiveCamera.value,
+            })
+          }
+        } catch (error) {
+          console.error('Capture failed:', error)
+          cameraError.value = 'Preview kamera belum siap. Coba ambil foto lagi.'
+          return
+        }
+
         const liveClip = await stopActiveLiveCamRecording(450)
-        await handleCapture(liveClip)
+        if (captureGeneration !== setupGeneration || !frame) return
+        await handleCapture(liveClip, frame)
       } finally {
         isCapturing.value = false
       }
@@ -806,6 +863,18 @@ async function goBack() {
 
   router.push({ path: '/config', query: { source: 'camera' } })
 }
+
+function goToUploadFallback() {
+  writePendingSessionConfig({
+    layoutId: sessionStore.layoutId,
+    templateId: sessionStore.templateId,
+    slotCount: sessionStore.slotCount,
+    countdownSeconds: sessionStore.countdownSeconds,
+    autoCapture: sessionStore.autoCapture,
+    source: 'upload',
+  })
+  router.push('/upload')
+}
 </script>
 
 <template>
@@ -813,16 +882,21 @@ async function goBack() {
     v-if="cameraStore.permissionState === 'granted'"
     :class="[ui.page, 'lg:h-dvh lg:overflow-hidden']"
   >
-    <div :class="[ui.headerWide, '!pt-4 !pb-3 sm:!pt-5 lg:!pt-6']">
+    <div :class="ui.headerWide">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+        <button
+          :class="ui.iconButton"
+          aria-label="Kembali ke setup sesi"
+          :disabled="countdownActive || isCapturing"
+          @click="goBack"
+        >
           <svg
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -840,21 +914,22 @@ async function goBack() {
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
-        <span :class="ui.pinkBadge">
+        <span :class="ui.badge">
           {{ activeLayout?.printFormat.paperSize ?? `${sessionStore.slotCount} Foto` }}
         </span>
         <button
           :class="ui.iconButton"
           aria-label="Ubah setup sesi"
+          :disabled="countdownActive || isCapturing"
           @click="router.push({ path: '/config', query: { source: 'camera' } })"
         >
           <svg
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
@@ -877,7 +952,7 @@ async function goBack() {
         ]"
       >
         <div
-          class="border-stc-border shadow-stc-xs order-2 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
+          class="border-stc-border order-2 w-full rounded-lg border bg-white px-3 py-3 sm:px-3 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
           <p :class="[ui.sectionLabel, 'mb-2 px-1']">Efek Kamera</p>
           <div
@@ -891,15 +966,15 @@ async function goBack() {
               :aria-pressed="filter.id === sessionStore.filterId"
               :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
               :class="[
-                'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
+                'focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
                 filter.id === sessionStore.filterId
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
               ]"
               @click="selectFilter(filter.id)"
             >
               <span
-                class="border-stc-border/50 block size-8 rounded-lg border shadow-inner"
+                class="border-stc-border/50 block size-8 rounded-xl border shadow-inner"
                 :style="filterSwatchStyle(filter.id)"
               ></span>
               <span class="max-w-full truncate">{{ filter.label }}</span>
@@ -907,12 +982,12 @@ async function goBack() {
             <button
               v-if="hiddenFilterOptions.length > 0"
               type="button"
-              class="border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border bg-white px-2 text-[0.6875rem] font-bold transition-all duration-200 hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:w-full"
+              class="border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border bg-white px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 lg:w-full"
               aria-label="Buka semua efek kamera"
               @click="openOptionPicker('filter')"
             >
               <span
-                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-lg border text-base font-bold"
+                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-xl border text-base font-semibold"
                 aria-hidden="true"
               >
                 +
@@ -924,7 +999,7 @@ async function goBack() {
 
         <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
           <div
-            class="camera-preview border-stc-border shadow-stc-md relative mx-auto aspect-[4/3] w-full max-w-5xl shrink-0 overflow-hidden rounded-xl border bg-black/95"
+            class="camera-preview border-stc-border relative mx-auto aspect-[4/3] w-full max-w-5xl shrink-0 overflow-hidden rounded-lg border bg-black"
           >
             <video
               ref="videoRef"
@@ -940,7 +1015,7 @@ async function goBack() {
 
             <div
               v-if="liveCamAvailable"
-              class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-[0.6875rem] font-bold text-white shadow-sm backdrop-blur-sm sm:top-4 sm:left-4"
+              class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-sm sm:top-4 sm:left-4"
             >
               <span
                 class="bg-stc-pink inline-flex size-2 rounded-full"
@@ -993,15 +1068,15 @@ async function goBack() {
               v-if="countdownActive"
               class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
             >
-              <div class="text-[5rem] leading-none font-bold drop-shadow-2xl sm:text-[7rem]">
+              <div class="text-6xl leading-none font-semibold drop-shadow-2xl sm:text-7xl">
                 {{ countdownValue }}
               </div>
-              <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-bold">
+              <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-semibold">
                 Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari
                 {{ sessionStore.slotCount }}
               </div>
               <button
-                class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-white/20 active:scale-95"
+                class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
                 @click="cancelCountdown"
               >
                 Batal
@@ -1031,7 +1106,7 @@ async function goBack() {
             </button>
 
             <button
-              class="camera-shutter group border-stc-border shadow-stc-md hover:border-stc-pink/40 active:border-stc-pink relative inline-flex size-[72px] items-center justify-center rounded-full border-[5px] bg-white transition-all duration-200 hover:scale-105 active:scale-95 sm:size-20 disabled:pointer-events-none disabled:opacity-60"
+              class="camera-shutter group border-stc-border hover:border-stc-text relative inline-flex size-[72px] items-center justify-center rounded-full border-[4px] bg-white disabled:pointer-events-none disabled:opacity-60 sm:size-20"
               aria-label="Ambil foto"
               :disabled="!cameraReady || countdownActive || isCapturing"
               @click="runCountdownAndCapture"
@@ -1066,7 +1141,7 @@ async function goBack() {
 
           <div
             v-if="cameraDevices.length > 1"
-            class="text-stc-text-soft -mt-1 max-w-full text-center text-xs font-bold"
+            class="text-stc-text-soft -mt-1 max-w-full text-center text-xs font-semibold"
           >
             <span class="truncate">
               {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
@@ -1078,9 +1153,9 @@ async function goBack() {
               v-for="index in sessionStore.slotCount"
               :key="index"
               :class="[
-                'shadow-stc-xs flex h-12 w-10 items-center justify-center rounded-xl border text-[10px] font-bold transition-all duration-300 sm:h-14 sm:w-11 sm:text-xs',
+                'flex h-8 w-8 items-center justify-center rounded-md border text-[11px] font-medium',
                 index - 1 === sessionStore.currentShotIndex
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm z-10 scale-110'
+                  ? 'border-stc-text bg-stc-text text-white'
                   : sessionStore.shotIds[index - 1]
                     ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
                     : 'border-stc-border text-stc-text-faint bg-white',
@@ -1094,16 +1169,13 @@ async function goBack() {
             </div>
           </div>
 
-          <div
-            v-if="cameraError"
-            class="border-stc-error/30 bg-stc-error-soft text-stc-error shadow-stc-xs mx-auto max-w-sm rounded-xl border px-4 py-3 text-center text-sm font-semibold"
-          >
+          <div v-if="cameraError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
             {{ cameraError }}
           </div>
         </div>
 
         <div
-          class="border-stc-border shadow-stc-xs order-3 w-full rounded-xl border bg-white/95 px-3 py-3 sm:px-4 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
+          class="border-stc-border order-3 w-full rounded-lg border bg-white px-3 py-3 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
           <p :class="[ui.sectionLabel, 'mb-2 px-1']">Overlay Kamera</p>
           <div
@@ -1118,15 +1190,15 @@ async function goBack() {
               :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
               :title="effect.description"
               :class="[
-                'focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.6875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
+                'focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
                 effect.id === sessionStore.cameraEffectId
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
               ]"
               @click="selectCameraEffect(effect.id)"
             >
               <span
-                class="border-stc-border/50 relative block size-8 overflow-hidden rounded-lg border shadow-inner"
+                class="border-stc-border/50 relative block size-8 overflow-hidden rounded-xl border shadow-inner"
                 :style="cameraEffectSwatchStyle(effect.id)"
               >
                 <img
@@ -1141,12 +1213,12 @@ async function goBack() {
             <button
               v-if="hiddenCameraEffectOptions.length > 0"
               type="button"
-              class="border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text focus-visible:ring-stc-pink flex h-[4.75rem] w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-xl border bg-white px-2 text-[0.6875rem] font-bold transition-all duration-200 hover:-translate-y-[1px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none lg:w-full"
+              class="border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border bg-white px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 lg:w-full"
               aria-label="Buka semua overlay kamera"
               @click="openOptionPicker('overlay')"
             >
               <span
-                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-lg border text-base font-bold"
+                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-xl border text-base font-semibold"
                 aria-hidden="true"
               >
                 +
@@ -1166,7 +1238,7 @@ async function goBack() {
       @click.self="closeOptionPicker"
     >
       <div
-        class="border-stc-border shadow-stc-lg max-h-[min(42rem,calc(100dvh-2.5rem))] w-full max-w-2xl overflow-hidden rounded-xl border bg-white"
+        class="border-stc-border max-h-[min(42rem,calc(100dvh-2.5rem))] w-full max-w-2xl overflow-hidden rounded-lg border bg-white"
       >
         <div
           class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
@@ -1208,15 +1280,15 @@ async function goBack() {
               :aria-pressed="filter.id === sessionStore.filterId"
               :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
               :class="[
-                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-row items-center justify-start gap-4 rounded-xl border px-4 py-2 text-[0.875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                'focus-visible:ring-stc-pink/40 flex min-h-12 min-w-0 flex-row items-center justify-start gap-3 rounded-md border px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
                 filter.id === sessionStore.filterId
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
               ]"
               @click="selectFilterFromPicker(filter.id)"
             >
               <span
-                class="border-stc-border/50 block size-10 shrink-0 rounded-lg border shadow-inner"
+                class="border-stc-border/50 block size-10 shrink-0 rounded-xl border shadow-inner"
                 :style="filterSwatchStyle(filter.id)"
               ></span>
               <span class="max-w-full truncate">{{ filter.label }}</span>
@@ -1233,15 +1305,15 @@ async function goBack() {
               :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
               :title="effect.description"
               :class="[
-                'focus-visible:ring-stc-pink flex min-h-[5.25rem] min-w-0 flex-row items-center justify-start gap-4 rounded-xl border px-4 py-2 text-[0.875rem] font-bold transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-45',
+                'focus-visible:ring-stc-pink/40 flex min-h-12 min-w-0 flex-row items-center justify-start gap-3 rounded-md border px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
                 effect.id === sessionStore.cameraEffectId
-                  ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                  : 'border-stc-border text-stc-text-soft shadow-stc-xs hover:border-stc-pink/40 hover:text-stc-text bg-white hover:-translate-y-[1px]',
+                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
               ]"
               @click="selectCameraEffectFromPicker(effect.id)"
             >
               <span
-                class="border-stc-border/50 relative block size-10 shrink-0 overflow-hidden rounded-lg border shadow-inner"
+                class="border-stc-border/50 relative block size-10 shrink-0 overflow-hidden rounded-xl border shadow-inner"
                 :style="cameraEffectSwatchStyle(effect.id)"
               >
                 <img
@@ -1266,14 +1338,14 @@ async function goBack() {
       @click.self="closeCameraPicker"
     >
       <div
-        class="border-stc-border shadow-stc-lg max-h-[min(36rem,calc(100dvh-2.5rem))] w-full max-w-lg overflow-hidden rounded-xl border bg-white"
+        class="border-stc-border max-h-[min(36rem,calc(100dvh-2.5rem))] w-full max-w-lg overflow-hidden rounded-lg border bg-white"
       >
         <div
           class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
         >
           <div class="min-w-0">
             <p :class="ui.sectionLabel">Pilih Kamera</p>
-            <p class="text-stc-text mt-1 truncate text-sm font-bold">{{ activeCameraLabel }}</p>
+            <p class="text-stc-text mt-1 truncate text-sm font-semibold">{{ activeCameraLabel }}</p>
           </div>
           <button
             :class="ui.iconButton"
@@ -1306,15 +1378,15 @@ async function goBack() {
             :aria-pressed="device.deviceId === cameraStore.activeDeviceId"
             :disabled="isSwitchingCamera"
             :class="[
-              'focus-visible:ring-stc-pink flex min-h-[4.75rem] w-full min-w-0 items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-all duration-200 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+              'focus-visible:ring-stc-pink/40 flex min-h-12 w-full min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2 text-left outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50',
               device.deviceId === cameraStore.activeDeviceId
-                ? 'border-stc-pink bg-stc-pink-soft text-stc-pink shadow-stc-sm'
-                : 'border-stc-border text-stc-text shadow-stc-xs hover:border-stc-pink/40 bg-white hover:-translate-y-[1px]',
+                ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                : 'border-stc-border text-stc-text hover:bg-stc-bg-2 bg-white',
             ]"
             @click="selectCameraDevice(device.deviceId)"
           >
             <span class="min-w-0">
-              <span class="block truncate text-sm font-bold">{{ device.label }}</span>
+              <span class="block truncate text-sm font-semibold">{{ device.label }}</span>
               <span
                 v-if="device.rawLabel && device.rawLabel !== device.label"
                 class="text-stc-text-soft mt-0.5 block truncate text-xs font-semibold"
@@ -1324,7 +1396,7 @@ async function goBack() {
             </span>
             <span
               v-if="device.deviceId === cameraStore.activeDeviceId"
-              class="bg-stc-pink inline-flex shrink-0 rounded-full px-2.5 py-1 text-[0.6875rem] font-bold text-white"
+              class="bg-stc-pink inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-white"
             >
               Aktif
             </span>
@@ -1335,95 +1407,73 @@ async function goBack() {
   </div>
 
   <div v-else-if="cameraStore.permissionState === 'denied'" :class="ui.page">
+    <div :class="ui.header">
+      <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+      </button>
+    </div>
     <FlowProgress current="capture" source="camera" />
 
-    <div class="m-auto flex w-full max-w-xl flex-col px-5 py-10">
-      <div :class="[ui.panel, 'w-full px-6 py-10 sm:px-10']">
-        <div :class="[ui.statusIcon, 'bg-stc-error-soft text-stc-error']">
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-            />
-            <line x1="1" y1="1" x2="23" y2="23" />
-          </svg>
-        </div>
-        <h3 class="text-stc-text text-center text-xl font-bold">Kamera Tidak Diizinkan</h3>
-        <p
-          class="text-stc-text-soft mx-auto mt-3 max-w-sm text-center text-[0.9375rem] leading-relaxed font-medium"
-        >
+    <div class="m-auto flex w-full max-w-md flex-col px-4 py-10">
+      <div :class="[ui.panel, 'w-full p-5']">
+        <h3 class="text-stc-text text-[15px] font-medium">Kamera Tidak Diizinkan</h3>
+        <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
           Aplikasi membutuhkan akses kamera. Izinkan lewat pengaturan browser lalu coba lagi.
         </p>
-        <div
-          class="bg-stc-bg-2 text-stc-text-soft mt-8 space-y-3 rounded-xl p-5 text-sm font-medium"
-        >
-          <div
-            v-for="(step, index) in cameraRecoverySteps"
-            :key="step"
-            class="flex items-center gap-3"
-          >
-            <span
-              class="text-stc-text shadow-stc-xs flex size-7 shrink-0 items-center justify-center rounded-full bg-white font-bold"
-            >
-              {{ index + 1 }}
-            </span>
-            <span>{{ step }}</span>
-          </div>
-        </div>
-        <div class="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ol class="text-stc-text-soft mt-4 list-decimal space-y-1.5 pl-4 text-[13px]">
+          <li v-for="step in cameraRecoverySteps" :key="step">{{ step }}</li>
+        </ol>
+        <div class="mt-4 flex flex-wrap gap-2">
           <button :class="ui.primaryButton" @click="setupCamera">Coba Lagi</button>
-          <button :class="ui.secondaryButton" @click="router.push('/upload')">
-            Upload Foto Lokal
-          </button>
+          <button :class="ui.secondaryButton" @click="goToUploadFallback">Upload Foto Lokal</button>
         </div>
       </div>
     </div>
   </div>
 
   <div v-else-if="cameraStore.permissionState === 'unavailable'" :class="ui.page">
+    <div :class="ui.header">
+      <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="19" y1="12" x2="5" y2="12" />
+          <polyline points="12 19 5 12 12 5" />
+        </svg>
+      </button>
+    </div>
     <FlowProgress current="capture" source="camera" />
 
-    <div class="m-auto flex w-full max-w-xl flex-col px-5 py-10">
-      <div :class="[ui.panel, 'w-full px-6 py-10 text-center sm:px-10']">
-        <div
-          class="bg-stc-warning-soft text-stc-warning shadow-stc-xs mx-auto mb-6 flex size-16 items-center justify-center rounded-xl"
-        >
-          <svg
-            width="36"
-            height="36"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <path
-              d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
-            />
-            <line x1="1" y1="1" x2="23" y2="23" />
-            <path d="M9.5 9.5L14.5 14.5" />
-          </svg>
-        </div>
-        <h3 class="text-stc-text text-xl font-bold">{{ unavailableTitle }}</h3>
-        <p
-          class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
-        >
+    <div class="m-auto flex w-full max-w-md flex-col px-4 py-10">
+      <div :class="[ui.panel, 'w-full p-5']">
+        <h3 class="text-stc-text text-[15px] font-medium">{{ unavailableTitle }}</h3>
+        <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
           {{ unavailableCopy }}
         </p>
-        <div class="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="mt-4 flex flex-wrap gap-2">
           <button :class="ui.primaryButton" @click="setupCamera">Coba Lagi</button>
-          <button :class="ui.secondaryButton" @click="router.push('/upload')">
-            Upload Foto Lokal
-          </button>
+          <button :class="ui.secondaryButton" @click="goToUploadFallback">Upload Foto Lokal</button>
         </div>
       </div>
     </div>
@@ -1432,13 +1482,13 @@ async function goBack() {
   <div v-else :class="ui.page">
     <FlowProgress current="capture" source="camera" />
 
-    <div class="m-auto flex w-full max-w-md flex-col px-5 py-10">
-      <div :class="[ui.panelSoft, 'w-full px-6 py-12 text-center']">
+    <div class="m-auto flex w-full max-w-sm flex-col px-4 py-10">
+      <div :class="[ui.panel, 'w-full p-5 text-center']">
         <div
-          class="border-r-stc-pink/20 border-t-stc-pink mx-auto mb-6 size-12 animate-spin rounded-full border-[4px] border-transparent"
+          class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
         ></div>
-        <h3 class="text-stc-text text-xl font-bold">Menyiapkan Kamera...</h3>
-        <p class="text-stc-text-soft mt-2 text-sm font-medium">Memuat preview perangkat.</p>
+        <h3 class="text-stc-text text-[15px] font-medium">Menyiapkan Kamera...</h3>
+        <p class="text-stc-text-soft mt-1 text-[13px]">Memuat preview perangkat.</p>
       </div>
     </div>
   </div>

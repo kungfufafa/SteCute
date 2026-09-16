@@ -66,8 +66,6 @@ export function persistActiveSessionId(id: string | null): void {
 
     sessionStorage.removeItem(ACTIVE_SESSION_KEY)
     sessionStorage.removeItem(RETAKE_INDEX_KEY)
-    sessionStorage.removeItem(CAMERA_FLOW_KEY)
-    sessionStorage.removeItem(PENDING_CAMERA_CONFIG_KEY)
   } catch {
     // sessionStorage can be blocked in private browsing.
   }
@@ -84,19 +82,18 @@ export function writePendingSessionConfig(config: PendingSessionConfig): void {
   writeJson(PENDING_CAMERA_CONFIG_KEY, config)
 }
 
-export function consumePendingSessionConfig(
-  source: PendingSessionSource,
+export function clearPendingSessionConfig(): void {
+  writeJson(PENDING_CAMERA_CONFIG_KEY, null)
+  writeJson(CAMERA_FLOW_KEY, null)
+}
+
+function parsePendingSessionConfig(
+  config: PendingSessionConfig | null,
 ): PendingSessionConfig | null {
-  const config = readJson<PendingSessionConfig>(PENDING_CAMERA_CONFIG_KEY)
-  if (!config || typeof config.layoutId !== 'string') {
-    writeJson(PENDING_CAMERA_CONFIG_KEY, null)
-    return null
-  }
+  if (!config || typeof config.layoutId !== 'string') return null
 
   const configSource: PendingSessionSource = config.source === 'upload' ? 'upload' : 'camera'
-  if (configSource !== source) return null
 
-  writeJson(PENDING_CAMERA_CONFIG_KEY, null)
   return {
     layoutId: config.layoutId,
     templateId: typeof config.templateId === 'string' ? config.templateId : 'classic',
@@ -108,6 +105,31 @@ export function consumePendingSessionConfig(
     autoCapture: Boolean(config.autoCapture),
     source: configSource,
   }
+}
+
+export function readPendingSessionConfig(
+  source: PendingSessionSource,
+): PendingSessionConfig | null {
+  const parsed = parsePendingSessionConfig(readJson<PendingSessionConfig>(PENDING_CAMERA_CONFIG_KEY))
+  if (!parsed || parsed.source !== source) return null
+  return parsed
+}
+
+export function consumePendingSessionConfig(
+  source: PendingSessionSource,
+): PendingSessionConfig | null {
+  const raw = readJson<PendingSessionConfig>(PENDING_CAMERA_CONFIG_KEY)
+  const parsed = parsePendingSessionConfig(raw)
+
+  if (!raw || typeof raw.layoutId !== 'string') {
+    writeJson(PENDING_CAMERA_CONFIG_KEY, null)
+    return null
+  }
+
+  if (!parsed || parsed.source !== source) return null
+
+  writeJson(PENDING_CAMERA_CONFIG_KEY, null)
+  return parsed
 }
 
 export function consumePendingCameraConfig(): PendingCameraConfig | null {

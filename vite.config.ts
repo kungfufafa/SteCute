@@ -4,13 +4,42 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
+import { createBoothRelayConnectMiddleware } from './server/booth-relay.mjs'
+
+function boothRelayPlugin() {
+  const middleware = createBoothRelayConnectMiddleware()
+  return {
+    name: 'stecute-booth-relay',
+    configureServer(server: { middlewares: { use: (handler: typeof middleware) => void } }) {
+      server.middlewares.use(middleware)
+    },
+    configurePreviewServer(server: { middlewares: { use: (handler: typeof middleware) => void } }) {
+      server.middlewares.use(middleware)
+    },
+  }
+}
 
 function isPublicImagePng(url: string) {
   return /^images\/[^/]+\.png$/.test(url)
 }
 
+function isCameraEffectFrame(url: string) {
+  const file = url.split('/').pop() ?? url
+  return (
+    /^kicauMania\d+/i.test(file) ||
+    /^windut\d+/i.test(file) ||
+    /^bird(?:Small|Medium|Large)\d+/i.test(file) ||
+    /^(?:small|medium|large)Heart/i.test(file)
+  )
+}
+
 function isPwaGeneratedPrecacheDuplicate(url: string) {
-  return url === 'manifest.webmanifest' || /^icons\/[^/]+\.png$/.test(url) || isPublicImagePng(url)
+  return (
+    url === 'manifest.webmanifest' ||
+    /^icons\/[^/]+\.png$/.test(url) ||
+    isPublicImagePng(url) ||
+    isCameraEffectFrame(url)
+  )
 }
 
 function loadDevHttpsOptions() {
@@ -35,6 +64,7 @@ const devHttpsOptions = loadDevHttpsOptions()
 
 export default defineConfig({
   plugins: [
+    boothRelayPlugin(),
     vue(),
     tailwindcss(),
     VitePWA({
@@ -47,7 +77,7 @@ export default defineConfig({
         lang: 'id-ID',
         dir: 'ltr',
         theme_color: '#f45b8d',
-        background_color: '#f8f9fc',
+        background_color: '#ffffff',
         display: 'standalone',
         display_override: ['standalone', 'browser'],
         orientation: 'any',
@@ -111,16 +141,45 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2,webp,png,json,webmanifest,wasm,tflite}'],
-        globIgnores: ['images/*.png', '**/images/*.png'],
+        globIgnores: [
+          'images/*.png',
+          '**/images/*.png',
+          '**/kicauMania*.png',
+          '**/windut[0-9]*.png',
+          '**/birdSmall*.png',
+          '**/birdMedium*.png',
+          '**/birdLarge*.png',
+          '**/*Heart.png',
+        ],
         manifestTransforms: [
           async (entries) => ({
-            manifest: entries.filter((entry) => !isPublicImagePng(entry.url)),
+            manifest: entries.filter(
+              (entry) => !isPublicImagePng(entry.url) && !isCameraEffectFrame(entry.url),
+            ),
             warnings: [],
           }),
         ],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         navigateFallback: '/index.html',
-        runtimeCaching: [],
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern:
+              /\/assets\/(?:kicauMania\d+|windut\d+|bird(?:Small|Medium|Large)\d+|(?:small|medium|large)Heart)[^/]*\.png$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'stecute-camera-effects',
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
+        ],
       },
     }),
   ],

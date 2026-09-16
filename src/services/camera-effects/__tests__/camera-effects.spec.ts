@@ -8,6 +8,8 @@ import {
   CAMERA_EFFECT_LOOP_MS,
   getCameraEffectAssetManifest,
   resolveFaceTrackingEffectFaces,
+  resolveFacesForSlotRender,
+  mapFaceBoundsToCoverSlot,
 } from '@/services/camera-effects'
 
 describe('camera effects', () => {
@@ -51,6 +53,31 @@ describe('camera effects', () => {
     expect(resolveFaceTrackingEffectFaces([])).toEqual([])
     expect(resolveFaceTrackingEffectFaces([{ x: 0, y: 0, width: 0, height: 0 }])).toEqual([])
     expect(resolveFaceTrackingEffectFaces([], { width: 400, height: 300 })).toHaveLength(1)
+    expect(resolveFacesForSlotRender([], { width: 1080, height: 810 })).toHaveLength(1)
+    expect(
+      resolveFacesForSlotRender([{ x: 0.2, y: 0.1, width: 0.4, height: 0.5 }], {
+        width: 1080,
+        height: 810,
+      }),
+    ).toEqual([{ x: 0.2, y: 0.1, width: 0.4, height: 0.5 }])
+  })
+
+  it('remaps face bounds through the same cover crop used by slot rendering', () => {
+    const faces = [{ x: 0.2, y: 0.1, width: 0.4, height: 0.5 }]
+
+    expect(
+      mapFaceBoundsToCoverSlot(faces, { width: 1080, height: 810 }, { width: 1080, height: 810 }),
+    ).toEqual(faces)
+
+    const mapped = mapFaceBoundsToCoverSlot(
+      faces,
+      { width: 1200, height: 900 },
+      { width: 900, height: 900 },
+    )
+    expect(mapped[0].x).toBeCloseTo(0.1)
+    expect(mapped[0].y).toBeCloseTo(0.1)
+    expect(mapped[0].width).toBeCloseTo(0.5333, 3)
+    expect(mapped[0].height).toBeCloseTo(0.5)
   })
 
   it('maps Photo Booth sprite assets to the local overlay presets', () => {

@@ -1,6 +1,11 @@
 import type { DecorationConfig, LayoutConfig, Shot, SlotConfig, TemplateConfig } from '@/db/schema'
-import { drawFaceTrackingEffect, preloadCameraEffectAssets } from '@/services/camera-effects'
-import { resolveFaceTrackingEffectFaces } from '@/services/camera-effects'
+import {
+  drawCameraEffect,
+  drawFaceTrackingEffect,
+  isFaceTrackingEffect,
+  preloadCameraEffectAssets,
+  resolveFacesForSlotRender,
+} from '@/services/camera-effects'
 import { getPhotoFilterCanvas } from '@/services/filter'
 import { renderStrip } from '@/services/render'
 import { resolveTemplateLayout } from '@/templates'
@@ -414,15 +419,26 @@ function drawLiveStripFrame(
 
     const effectId = shot.cameraEffectId || params.decoration.cameraEffectId
     if (effectId && effectId !== 'none') {
-      const faces = resolveFaceTrackingEffectFaces(shot.faceBounds)
-      if (faces.length > 0) {
-        ctx.save()
-        ctx.translate(slot.x, slot.y)
-        drawFaceTrackingEffect(ctx, slot.width, slot.height, effectId, faces, {
+      ctx.save()
+      ctx.translate(slot.x, slot.y)
+      if (isFaceTrackingEffect(effectId)) {
+        drawFaceTrackingEffect(
+          ctx,
+          slot.width,
+          slot.height,
+          effectId,
+          resolveFacesForSlotRender(shot.faceBounds, slot, {
+            width: shot.width,
+            height: shot.height,
+          }),
+          { timeMs: (shot.cameraEffectFrameMs ?? 0) + params.elapsedMs },
+        )
+      } else {
+        drawCameraEffect(ctx, slot.width, slot.height, effectId, {
           timeMs: (shot.cameraEffectFrameMs ?? 0) + params.elapsedMs,
         })
-        ctx.restore()
       }
+      ctx.restore()
     }
 
     ctx.restore()

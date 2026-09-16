@@ -56,6 +56,7 @@ export function createBoothPeerSession(options: {
   const recentMessageAt = new Map<string, number>()
   let startNonce = 0
   let remotePeerId: string | null = null
+  let remoteRole: BoothPeerRole | null = null
   let lastRemoteAt = 0
   let rejectedReason: 'full' | null = null
   let disposed = false
@@ -76,9 +77,12 @@ export function createBoothPeerSession(options: {
       return
     }
 
+    if (rejectedReason) return
+
     if (message.type === 'bye') {
       if (message.peerId === remotePeerId) {
         remotePeerId = null
+        remoteRole = null
         lastRemoteAt = 0
       }
       return
@@ -100,6 +104,7 @@ export function createBoothPeerSession(options: {
       }
       const isNewRemote = remotePeerId !== message.peerId
       remotePeerId = message.peerId
+      remoteRole = message.role === 'host' || message.role === 'guest' ? message.role : remoteRole
       lastRemoteAt = Date.now()
       if (message.type === 'hello') {
         options.transport.send({ type: 'welcome', peerId: options.peerId, role: options.role })
@@ -124,14 +129,26 @@ export function createBoothPeerSession(options: {
         return
       }
 
+      const stillRole = resolveStillRole(message.peerId)
+      if (!stillRole) return
+
       const still: BoothStill = {
         blob: new Blob([message.bytes], { type: message.mimeType || 'image/png' }),
         width: message.width,
         height: message.height,
       }
-      storeStill(message.role, message.momentIndex, still)
+      storeStill(stillRole, message.momentIndex, still)
       await maybeCompose(message.momentIndex)
     }
+  }
+
+  function resolveStillRole(peerId: string): BoothPeerRole | null {
+    if (peerId === options.peerId) return options.role
+    if (peerId === remotePeerId) {
+      if (remoteRole === 'host' || remoteRole === 'guest') return remoteRole
+      return options.role === 'host' ? 'guest' : 'host'
+    }
+    return null
   }
 
   function storeStill(role: BoothPeerRole, momentIndex: number, still: BoothStill) {
@@ -316,6 +333,7 @@ export function createBoothPeerSession(options: {
     getRemotePeerId() {
       if (remotePeerId && lastRemoteAt > 0 && Date.now() - lastRemoteAt > REMOTE_TIMEOUT_MS) {
         remotePeerId = null
+        remoteRole = null
       }
       return remotePeerId
     },

@@ -229,3 +229,67 @@ Perbaikan yang sebelumnya masih mitigasi:
 - Waiter countdown/start di-reject saat dispose; still WebRTC dikirim sebagai frame biner.
 - Status booth tidak menimpa “strip siap” setiap 400ms.
 - Print memakai iframe same-origin, tanpa `window.open` dan tanpa inline `onload`.
+
+---
+
+## Bugfix pass 2026-09-16
+
+Iterasi QA terhadap alur kamera, upload, render, output, gallery, dan Booth Bareng. Perbaikan yang masuk kode:
+
+| Severity | Temuan | Perbaikan | Status |
+|---|---|---|---|
+| P1 | Still kamera diambil ~450ms setelah flash karena menunggu trailer Live Cam, sehingga pose sudah lepas. | Capture frame segera saat flash, lalu hentikan Live Cam; shot memakai still yang sudah diambil. | Fixed |
+| P1 | Reload `/upload` menghilangkan layout/slot/blanko karena pending config di-consume di mount pertama. | Pending config dibaca tanpa dihapus; `persistActiveSessionId(null)` tidak lagi mengosongkan pending. | Fixed |
+| P1 | Back setelah render membuka review/render kosong karena shot sudah dihapus. | Session selesai diarahkan ke `/output?renderId=`; `/render` memakai `replace`. | Fixed |
+| P2 | Query `?role=host` bisa merampas peran host Booth. | Host hanya dari `sessionStorage` yang di-set saat Buat Booth. | Fixed |
+| P2 | Peer ke-3 tetap mendapat koneksi WebRTC; still bisa memakai role palsu. | Host hanya menjaga 1 koneksi tamu; still memakai role handshake. | Fixed |
+| P2 | Overlay wajah hilang di PNG/Live Cam jika deteksi wajah kosong. | Render slot memakai fallback face bounds. | Fixed |
+| P2 | Retake index stale menempel di sesi baru; switch kamera bisa bocor stream. | `startSession` menghapus retake index; switch/unmount memakai generation token. | Fixed |
+| P2 | Framing JPEG iPhone tidak mengikuti EXIF; blanko 3-tepi dan MIME kosong ditolak. | Preview/framing memakai gambar berorientasi; window 3-tepi yang cukup besar tetap diterima; ekstensi PNG/WebP diterima. | Fixed |
+| P2 | Filename output mengabaikan metadata render; sesi selesai terhapus saat Foto Baru. | Output memakai layout/template/mime render; Foto Baru hanya membuang sesi incomplete. | Fixed |
+| P3 | Copy galeri `Download`, landing delay 4 detik, `_headers` tidak noindex booth. | Unduh, mount Vue segera, noindex `/booth` `/j/*` `/reset`. | Fixed |
+
+### Verifikasi
+
+- `npm run typecheck` passed
+- `npx vue-tsc -b --noEmit` passed
+- `npm run lint` passed
+- `npm run test` passed: 71 tests
+- Playwright Chromium: `app`, `booth`, `upload-render`, `camera-config-visual`, `process-qa` passed
+
+### Masih terbuka / di luar pass ini
+
+- Precache PWA masih memuat frame efek kamera di first visit.
+- Prompt update PWA belum ditahan selama sesi capture/render.
+- Overlay custom blanko non-4:3 belum di-remap ke crop cover.
+- Booth lintas NAT/TURN dan device fisik Safari/Chrome belum diverifikasi.
+
+---
+
+## Follow-up pass 2026-09-16
+
+| Severity | Temuan | Perbaikan | Status |
+|---|---|---|---|
+| P2 | First-visit PWA precache menelan ratusan frame Kicau Mania/Windut. | Frame animasi overlay tidak ikut precache; di-cache CacheFirst saat overlay dipakai. | Fixed |
+| P2 | Prompt update bisa reload di tengah capture/review/render/output/booth. | Prompt ditahan sampai route/sesi idle, sesuai policy teknis §11.3. | Fixed |
+| P2 | Overlay wajah meleset di blanko custom yang slotnya bukan 4:3. | Bounds di-remap lewat crop cover yang sama dengan foto di slot. | Fixed |
+| P2 | Booth lintas NAT gagal diam-diam. | STUN tambahan, copy jaringan, timeout 20 detik, dan tombol coba hubungkan lagi. TURN server tetap tidak ditambah (bukan dependency wajib v1). | Superseded |
+
+Device fisik Safari/Chrome dan NAT simetris tetap perlu QA lapangan; tidak ada server TURN di v1.
+
+---
+
+## Booth lintas jaringan 2026-09-16
+
+| Severity | Temuan | Perbaikan | Status |
+|---|---|---|---|
+| P1 | Booth Bareng gagal 4G vs Wi-Fi kantor; UI menyuruh pakai jaringan yang sama atau hotspot. | Mailbox HTTPS ephemeral terenkripsi di origin, STUN port 80/443, ICE 20 detik, CSP `stun:`/`turn:`/`turns:`. Copy hotspot/4G dihapus. | Fixed |
+
+### Verifikasi follow-up
+
+- `npm run typecheck` passed
+- `npm run lint` passed
+- `npm run test` passed: 75 tests
+- `npm run build` passed; PWA audit passed (frame overlay tidak ikut precache)
+- Playwright Chromium: `app`, `booth`, `camera-config-visual`, `process-qa` passed
+

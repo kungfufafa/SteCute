@@ -86,7 +86,7 @@ Tidak masuk v1:
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 - `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
 - audio, chat, atau permukaan panggilan untuk Booth Bareng; mode ini 2 orang, still only
-- TURN berbayar sebagai syarat rilis v1; STUN publik dan signaling ephemeral boleh dipakai agar Booth Bareng bisa join lintas perangkat tanpa mengunggah foto
+- TURN berbayar sebagai syarat rilis v1; STUN/TURN publik gratis dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar Booth Bareng bisa join lintas jaringan (termasuk 4G vs Wi-Fi kantor) tanpa menyimpan foto
 
 Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
 
@@ -97,7 +97,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 - `Gallery lokal` menyimpan final render PNG, dengan optional Live Cam video berpasangan bila tersedia. Raw shots dan raw clip per-shot disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
 - `Kustomisasi manual` selain preset filter dan overlay kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
-- `Booth Bareng` adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional, countdown bersama, pair-row `host | tamu`, render PNG lewat pipeline strip yang sama, lalu simpan ke gallery lokal. Still tidak diunggah ke server; hanya signaling/SDP ephemeral yang boleh lewat layanan perantara. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai.
+- `Booth Bareng` adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional, countdown bersama, pair-row `host | tamu`, render PNG lewat pipeline strip yang sama, lalu simpan ke gallery lokal. Still tidak disimpan di server. Signaling/SDP ephemeral, STUN/TURN, dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar dua perangkat di jaringan berbeda tetap bertemu. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai.
 
 ---
 
@@ -139,7 +139,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
 4. Setelah 2 peserta hadir, host memulai countdown bersama. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
 5. Still disusun side-by-side `host | tamu` per momen, lalu dirender jadi PNG strip lewat pipeline lokal yang sama.
-6. Masing-masing peserta mengunduh hasil di perangkatnya. Ruang booth bersifat ephemeral dan tidak menahan still di server.
+6. Masing-masing peserta mengunduh hasil di perangkatnya. Ruang booth bersifat ephemeral dan tidak menahan still di server setelah sesi.
 
 ### 3.4 Flow error
 
@@ -380,7 +380,7 @@ Baseline policy produksi:
 - `style-src 'self' 'unsafe-inline'`
 - `img-src 'self' blob: data:`
 - `font-src 'self'`
-- `connect-src 'self'`
+- `connect-src 'self'` plus PeerJS signaling, STUN/TURN, and same-origin Booth relay as needed for Booth Bareng
 - `worker-src 'self' blob:`
 - `media-src 'self' blob:`
 - `frame-ancestors 'none'`

@@ -155,6 +155,44 @@ describe('booth two-peer capture protocol', () => {
     extra.dispose()
   })
 
+  it('stores stills by handshake role instead of the sender-chosen role', async () => {
+    const hostStill = stillFromColor([220, 24, 32, 255])
+    const guestStill = stillFromColor([32, 64, 220, 255])
+    const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: hostTransport,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: guestTransport,
+      slot: PAIR_SLOT,
+    })
+
+    await host.submitStill(0, hostStill)
+    guestTransport.send({
+      type: 'still',
+      momentIndex: 0,
+      peerId: 'guest-peer',
+      role: 'host',
+      mimeType: 'image/png',
+      width: guestStill.width,
+      height: guestStill.height,
+      bytes: await guestStill.blob.arrayBuffer(),
+    })
+
+    const composed = await host.waitForComposed(0, 5_000)
+    const composedPixels = await readPng(composed.blob)
+    expect(pixelAt(composedPixels, 1, 4)).toEqual([220, 24, 32, 255])
+    expect(pixelAt(composedPixels, 14, 4)).toEqual([32, 64, 220, 255])
+
+    host.dispose()
+    guest.dispose()
+  })
+
   it('replays a pose when the host starts the same moment again', async () => {
     const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
     const host = createBoothPeerSession({

@@ -8,6 +8,7 @@ import {
   normalizeCameraEffectFrameMs,
   preloadCameraEffectAssets,
   resolveFaceTrackingEffectFaces,
+  resolveFacesForSlotRender,
 } from '@/services/camera-effects'
 
 import type { FaceBounds } from '@/services/face-tracking'
@@ -17,6 +18,8 @@ const props = withDefaults(
     effectId?: string
     faceBounds?: FaceBounds[]
     fallbackFaceBounds?: boolean
+    sourceWidth?: number
+    sourceHeight?: number
     frameMs?: number
     animated?: boolean
   }>(),
@@ -24,6 +27,8 @@ const props = withDefaults(
     effectId: 'none',
     faceBounds: () => [],
     fallbackFaceBounds: false,
+    sourceWidth: undefined,
+    sourceHeight: undefined,
     frameMs: 0,
     animated: false,
   },
@@ -74,10 +79,15 @@ function renderEffect(frameMs = shouldAnimate.value ? getLiveFrameMs() : getStat
 
   const effectId = normalizedEffectId.value
   if (isFaceTrackingEffect(effectId)) {
-    const faces = resolveFaceTrackingEffectFaces(
-      props.faceBounds,
-      props.fallbackFaceBounds ? { width: rect.width, height: rect.height } : undefined,
-    )
+    const slotSize = { width: rect.width, height: rect.height }
+    const sourceSize =
+      props.sourceWidth && props.sourceHeight
+        ? { width: props.sourceWidth, height: props.sourceHeight }
+        : null
+    const faces =
+      sourceSize || props.fallbackFaceBounds
+        ? resolveFacesForSlotRender(props.faceBounds, slotSize, sourceSize)
+        : resolveFaceTrackingEffectFaces(props.faceBounds)
     drawFaceTrackingEffect(ctx, rect.width, rect.height, effectId, faces, { timeMs: frameMs })
   } else {
     drawCameraEffect(ctx, rect.width, rect.height, effectId, { timeMs: frameMs })
@@ -116,7 +126,14 @@ function syncMotionPreference() {
 }
 
 watch(
-  [normalizedEffectId, () => props.frameMs, () => props.faceBounds, () => props.fallbackFaceBounds],
+  [
+    normalizedEffectId,
+    () => props.frameMs,
+    () => props.faceBounds,
+    () => props.fallbackFaceBounds,
+    () => props.sourceWidth,
+    () => props.sourceHeight,
+  ],
   () => {
     void nextTick(renderEffect)
   },

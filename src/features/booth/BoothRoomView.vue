@@ -31,6 +31,7 @@ import { ui } from '@/ui/styles'
 const MOMENT_COUNT = 2
 const ROLE_KEY = 'stecute.booth.role'
 const PEER_KEY = 'stecute.booth.peer'
+const CONNECTION_WAIT_MS = 20_000
 
 const route = useRoute()
 const router = useRouter()
@@ -49,6 +50,9 @@ const composedShots = ref<ComposedPairShot[]>([])
 const renderUrl = ref('')
 const rendering = ref(false)
 const savedToGallery = ref(false)
+const connectionHelp = ref(false)
+const copyNotice = ref('')
+const cameraLive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 let stream: MediaStream | null = null
@@ -57,6 +61,7 @@ let countdownTimer: ReturnType<typeof setInterval> | null = null
 let presenceTimer: ReturnType<typeof setInterval> | null = null
 let captureLoop: Promise<void> | null = null
 let countdownResolve: (() => void) | null = null
+let waitStartedAt = Date.now()
 
 const formattedCode = computed(() => identity.value?.code ?? '')
 const canStart = computed(
@@ -68,13 +73,32 @@ const canStart = computed(
     !rendering.value,
 )
 const waitingLabel = computed(() => `${Math.min(participantCount.value, 2)}/2`)
+const capturedCount = computed(() => composedShots.value.filter(Boolean).length)
+const friendJoined = computed(() => participantCount.value >= 2)
+const cameraReady = computed(() => cameraLive.value && !cameraError.value)
+
+let copyNoticeTimer: number | null = null
+
+async function copyValue(value: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(value)
+    copyNotice.value = `${label} disalin.`
+  } catch {
+    copyNotice.value = `Gagal menyalin. Salin ${label.toLowerCase()} secara manual.`
+  }
+
+  if (copyNoticeTimer) window.clearTimeout(copyNoticeTimer)
+  copyNoticeTimer = window.setTimeout(() => {
+    copyNotice.value = ''
+    copyNoticeTimer = null
+  }, 2000)
+}
 
 function resolveRole(code: string): BoothPeerRole {
   const normalized = normalizeBoothCode(code)
   if (!normalized) return 'guest'
   const stored = sessionStorage.getItem(`${ROLE_KEY}.${normalized}`)
   if (stored === 'host') return 'host'
-  if (route.query.role === 'host') return 'host'
   return 'guest'
 }
 
@@ -114,11 +138,14 @@ async function attachPreviewStream() {
 
 async function startCamera() {
   cameraError.value = ''
+  cameraLive.value = false
   try {
     stream = await initCamera()
+    cameraLive.value = true
     await nextTick()
     await attachPreviewStream()
   } catch {
+    cameraLive.value = false
     cameraError.value = 'Kamera tidak tersedia. Preview opsional; kode booth tetap bisa dibagikan.'
   }
 }
@@ -128,6 +155,7 @@ function stopPreview() {
     stopCamera(stream)
     stream = null
   }
+  cameraLive.value = false
   if (videoRef.value) videoRef.value.srcObject = null
 }
 
@@ -303,6 +331,8 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
   }
 
   if (participantCount.value >= 2) {
+    connectionHelp.value = false
+    waitStartedAt = Date.now()
     statusMessage.value =
       nextRole === 'host'
         ? 'Teman sudah masuk. Mulai pose kapan siap.'
@@ -310,6 +340,22 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
     return
   }
 
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    connectionHelp.value = true
+    statusMessage.value = 'Booth Bareng butuh internet. Cek koneksi, lalu coba hubungkan lagi.'
+    return
+  }
+
+  if (Date.now() - waitStartedAt >= CONNECTION_WAIT_MS) {
+    connectionHelp.value = true
+    statusMessage.value =
+      nextRole === 'guest'
+        ? 'Belum terhubung ke host. Pastikan host masih membuka ruang booth, lalu coba hubungkan lagi.'
+        : 'Teman belum masuk. Pastikan mereka membuka link atau kode yang sama, lalu tetap di halaman ini.'
+    return
+  }
+
+  connectionHelp.value = false
   statusMessage.value =
     nextRole === 'host' ? 'Menunggu teman gabung.' : 'Host belum online. Tetap mencoba…'
 }
@@ -321,6 +367,8 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
   const peerId = readPeerId(next.code)
   persistPeer(next.code, peerId, nextRole)
   disposeSession()
+  waitStartedAt = Date.now()
+  connectionHelp.value = false
 
   try {
     const transport = await createBoothRoomTransport(normalized, nextRole)
@@ -345,6 +393,11 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
   if (nextRole === 'guest') {
     statusMessage.value = 'Menghubungkan ke host…'
   }
+}
+
+function retryConnection() {
+  if (!identity.value) return
+  connectSession(identity.value, role.value)
 }
 
 function enterRoom() {
@@ -385,122 +438,237 @@ watch(
 onUnmounted(() => {
   disposeSession()
   stopPreview()
+  if (copyNoticeTimer) window.clearTimeout(copyNoticeTimer)
   if (renderUrl.value) URL.revokeObjectURL(renderUrl.value)
 })
 </script>
 
 <template>
   <div :class="ui.page">
-    <nav :class="ui.header">
+    <div :class="ui.header">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali" @click="router.push('/booth')">
+        <button
+          :class="ui.iconButton"
+          aria-label="Kembali ke Booth Bareng"
+          @click="router.push('/booth')"
+        >
           <svg
-            aria-hidden="true"
-            width="20"
-            height="20"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2.5"
+            stroke-width="2"
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <path d="M15 18l-6-6 6-6" />
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <div>
-          <p :class="ui.sectionLabel">Booth Bareng</p>
+        <div class="min-w-0">
           <h1 :class="ui.title">{{ joinError ? 'Booth tidak bisa dibuka' : 'Ruang booth' }}</h1>
+          <p :class="ui.subtitle">Booth Bareng · dua perangkat, tanpa audio.</p>
         </div>
       </div>
-    </nav>
+      <span v-if="!joinError" :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
+    </div>
 
-    <main :class="[ui.content, 'flex-col gap-6 pb-12']">
+    <main :class="[ui.content, 'flex-col gap-8 pb-16']">
       <section v-if="joinError" :class="[ui.emptyPanel, 'max-w-lg']">
-        <p class="text-stc-text text-lg font-bold" role="alert">{{ errorCopy(joinError) }}</p>
-        <p class="text-stc-text-soft mt-2 text-sm font-medium">
+        <p class="text-stc-text text-lg font-semibold" role="alert">{{ errorCopy(joinError) }}</p>
+        <p class="text-stc-text-soft mt-2 text-sm leading-normal">
           Cek kode atau minta host membagikan link undangan yang baru.
         </p>
-        <button class="mt-6" :class="ui.secondaryButton" @click="router.push('/booth')">
+        <button
+          class="mt-6"
+          :class="[ui.secondaryButton, 'sm:w-auto sm:self-center']"
+          @click="router.push('/booth')"
+        >
           Kembali ke Booth Bareng
         </button>
       </section>
 
       <template v-else>
-        <section :class="[ui.panel, 'p-5 sm:p-6']">
-          <p :class="ui.sectionLabel">Kode booth</p>
-          <p
-            class="text-stc-text mt-2 text-3xl font-bold tracking-[0.18em]"
-            data-testid="booth-code"
-            aria-label="Kode booth aktif"
-          >
-            {{ formattedCode }}
-          </p>
-          <p class="text-stc-text-soft mt-3 text-sm font-medium">
-            {{ role === 'host' ? 'Host' : 'Tamu' }} · {{ waitingLabel }} orang · tanpa audio
-          </p>
-          <label
-            class="text-stc-text-soft mt-5 block text-xs font-bold uppercase"
-            for="booth-invite-url"
-          >
-            Link undangan
-          </label>
-          <input
-            id="booth-invite-url"
-            :value="inviteUrl"
-            class="border-stc-border text-stc-text shadow-stc-xs mt-2 min-h-12 w-full rounded-xl border bg-white px-3 text-sm font-semibold"
-            data-testid="booth-invite-url"
-            aria-label="Link undangan"
-            readonly
-          />
-        </section>
+        <div
+          class="grid flex-1 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+        >
+          <section class="min-w-0 space-y-4">
+            <div class="border-stc-border relative overflow-hidden rounded-lg border bg-black">
+              <div class="relative mx-auto aspect-[4/3] w-full max-w-xl lg:max-w-none">
+                <video
+                  ref="videoRef"
+                  class="absolute inset-0 h-full w-full object-cover"
+                  autoplay
+                  muted
+                  playsinline
+                />
+                <div
+                  v-if="!cameraReady"
+                  class="bg-stc-text absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
+                >
+                  <span
+                    class="flex size-12 items-center justify-center rounded-xl bg-white/10 text-white"
+                  >
+                    <svg
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"
+                      />
+                      <path d="m16 12 6-3v10l-6-3" />
+                    </svg>
+                  </span>
+                  <p class="text-sm font-semibold text-white">Preview kamera opsional</p>
+                  <p class="max-w-sm text-xs leading-normal text-white/80">
+                    {{
+                      cameraError ||
+                      'Izinkan kamera untuk melihat dirimu. Kode booth tetap bisa dibagikan.'
+                    }}
+                  </p>
+                </div>
+                <div
+                  class="absolute top-3 left-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 truncate rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white"
+                >
+                  <span
+                    :class="[
+                      'inline-flex size-2 rounded-full',
+                      friendJoined ? 'bg-stc-success' : 'bg-stc-pink',
+                    ]"
+                  />
+                  {{ statusMessage }}
+                </div>
+                <p
+                  v-if="countdownValue != null"
+                  class="absolute inset-0 flex items-center justify-center text-6xl font-semibold text-white"
+                  aria-live="assertive"
+                >
+                  {{ countdownValue }}
+                </p>
+              </div>
+            </div>
 
-        <section :class="[ui.panel, 'overflow-hidden']">
-          <div class="bg-black">
-            <video
-              ref="videoRef"
-              class="mx-auto aspect-[4/3] w-full max-w-xl object-cover"
-              autoplay
-              muted
-              playsinline
-            />
-          </div>
-          <div class="p-5">
-            <p class="text-stc-text text-sm font-semibold">{{ statusMessage }}</p>
-            <p v-if="cameraError" class="text-stc-text-soft mt-2 text-xs font-medium">
-              {{ cameraError }}
-            </p>
-            <p
-              v-if="countdownValue != null"
-              class="text-stc-pink mt-4 text-5xl font-bold"
-              aria-live="assertive"
-            >
-              {{ countdownValue }}
-            </p>
-            <div class="mt-5 flex flex-col gap-3 sm:flex-row">
+            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <button
                 v-if="role === 'host'"
-                :class="ui.primaryButton"
+                :class="[ui.primaryButton, 'sm:!w-auto sm:min-w-48']"
                 :disabled="!canStart"
                 @click="startPose"
               >
                 Mulai pose
               </button>
               <button
-                v-if="composedShots.filter(Boolean).length >= MOMENT_COUNT"
-                :class="ui.successButton"
+                v-if="connectionHelp && capturedCount < MOMENT_COUNT"
+                :class="[ui.secondaryButton, 'sm:!w-auto sm:min-w-48']"
+                @click="retryConnection"
+              >
+                Coba Hubungkan Lagi
+              </button>
+              <button
+                v-if="capturedCount >= MOMENT_COUNT"
+                :class="[ui.successButton, 'sm:!w-auto sm:min-w-48']"
                 :disabled="rendering"
                 @click="renderBoothStrip"
               >
-                Render strip
+                {{ rendering ? 'Merender...' : 'Render strip' }}
               </button>
             </div>
-          </div>
-        </section>
+          </section>
+
+          <aside class="lg:sticky lg:top-8" aria-label="Kode dan status booth">
+            <div :class="[ui.panel, 'space-y-5 p-5']">
+              <div>
+                <p :class="ui.sectionLabel">Kode booth</p>
+                <p
+                  class="text-stc-text mt-3 text-3xl font-semibold tracking-[0.18em]"
+                  data-testid="booth-code"
+                  aria-label="Kode booth aktif"
+                >
+                  {{ formattedCode }}
+                </p>
+                <button
+                  type="button"
+                  :class="[ui.secondaryButton, 'mt-3']"
+                  @click="copyValue(formattedCode, 'Kode')"
+                >
+                  Salin kode
+                </button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div :class="ui.softTile">
+                  <p :class="ui.sectionLabel">Kamu</p>
+                  <p class="text-stc-text mt-1 text-sm font-semibold">
+                    {{ role === 'host' ? 'Host' : 'Tamu' }}
+                  </p>
+                </div>
+                <div :class="ui.softTile">
+                  <p :class="ui.sectionLabel">Teman</p>
+                  <p class="text-stc-text mt-1 text-sm font-semibold">
+                    {{ friendJoined ? 'Sudah masuk' : 'Menunggu' }}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p :class="ui.sectionLabel">Pose</p>
+                <div class="mt-3 flex gap-2">
+                  <span
+                    v-for="index in MOMENT_COUNT"
+                    :key="index"
+                    class="inline-flex size-8 items-center justify-center rounded-md text-[13px] font-medium"
+                    :class="
+                      composedShots[index - 1]
+                        ? 'bg-stc-pink text-white'
+                        : currentMoment === index - 1 && countdownValue != null
+                          ? 'bg-stc-pink-soft text-stc-pink-strong'
+                          : 'bg-stc-bg-2 text-stc-text'
+                    "
+                  >
+                    {{ index }}
+                  </span>
+                </div>
+                <p class="text-stc-text-soft mt-2 text-xs">
+                  {{ waitingLabel }} orang · {{ capturedCount }}/{{ MOMENT_COUNT }} pose
+                </p>
+              </div>
+
+              <div>
+                <label
+                  class="text-stc-text-faint block text-xs font-semibold tracking-wide uppercase"
+                  for="booth-invite-url"
+                >
+                  Link undangan
+                </label>
+                <input
+                  id="booth-invite-url"
+                  :value="inviteUrl"
+                  :class="[ui.input, 'mt-2']"
+                  data-testid="booth-invite-url"
+                  aria-label="Link undangan"
+                  readonly
+                />
+                <button
+                  type="button"
+                  :class="[ui.secondaryButton, 'mt-2']"
+                  @click="copyValue(inviteUrl, 'Link')"
+                >
+                  Salin tautan
+                </button>
+                <p v-if="copyNotice" class="text-stc-text-soft mt-2 text-xs">{{ copyNotice }}</p>
+              </div>
+            </div>
+          </aside>
+        </div>
 
         <section v-if="renderUrl" :class="[ui.panel, 'p-5']">
           <p :class="ui.sectionLabel">Hasil</p>
-          <p class="text-stc-text-soft mt-2 text-sm font-medium">
+          <p class="text-stc-text-soft mt-2 text-sm leading-normal">
             {{
               savedToGallery
                 ? 'Hasil sudah tersimpan di galeri lokal perangkat ini.'
@@ -511,7 +679,7 @@ onUnmounted(() => {
           <div class="mt-5 flex flex-col gap-3 sm:flex-row">
             <a
               class="inline-flex"
-              :class="ui.primaryButton"
+              :class="[ui.primaryButton, 'sm:w-auto']"
               :href="renderUrl"
               download="stecute-booth.png"
             >
@@ -519,7 +687,7 @@ onUnmounted(() => {
             </a>
             <button
               v-if="savedToGallery"
-              :class="ui.secondaryButton"
+              :class="[ui.secondaryButton, 'sm:w-auto']"
               @click="router.push('/gallery')"
             >
               Buka Galeri

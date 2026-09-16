@@ -1,9 +1,9 @@
 import type { DataConnection, Peer } from 'peerjs'
+import { boothPeerRtcConfig, getBoothIceServers } from './ice'
 import type { BoothTransport, BoothWireMessage } from './transport'
 
-const STUN_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 const PEER_OPEN_TIMEOUT_MS = 10_000
-const GUEST_CONNECT_TIMEOUT_MS = 4_000
+const GUEST_CONNECT_TIMEOUT_MS = 20_000
 const GUEST_RETRY_DELAY_MS = 1_200
 const HOST_ID_RETRY_DELAY_MS = 1_000
 
@@ -22,10 +22,12 @@ export async function createWebRtcBoothTransport(
   const connections = new Set<DataConnection>()
   let disposed = false
   const hostId = boothHostPeerId(normalizedCode)
+  const iceServers = await getBoothIceServers(signal)
+  const rtcConfig = boothPeerRtcConfig(iceServers)
   const peer =
     role === 'host'
-      ? await openHostPeer(Peer, hostId, signal)
-      : await openGuestPeer(Peer, signal)
+      ? await openHostPeer(Peer, hostId, rtcConfig, signal)
+      : await openGuestPeer(Peer, rtcConfig, signal)
 
   const onAbort = () => {
     if (!disposed) {
@@ -45,18 +47,39 @@ export async function createWebRtcBoothTransport(
     void retryGuestConnect(peer, hostId)
   }
 
+  function hasOtherOpenConnection(except?: DataConnection) {
+    for (const connection of connections) {
+      if (connection !== except && connection.open) return true
+    }
+    return false
+  }
+
   function attachConnection(connection: DataConnection) {
-    connection.on('open', () => {
-      if (!disposed && connection.open) connections.add(connection)
-    })
+    const acceptIfPrimary = () => {
+      if (disposed || !connection.open) {
+        connection.close()
+        return
+      }
+      if (role === 'host' && hasOtherOpenConnection(connection)) {
+        connection.close()
+        return
+      }
+      connections.add(connection)
+    }
+
+    connection.on('open', acceptIfPrimary)
     connection.on('data', (data) => {
+      if (role === 'host' && !connections.has(connection) && hasOtherOpenConnection(connection)) {
+        connection.close()
+        return
+      }
       const message = decodeBoothWirePayload(data)
       if (!message) return
       for (const handler of handlers) handler(message)
     })
     connection.on('close', () => connections.delete(connection))
     connection.on('error', () => connections.delete(connection))
-    if (connection.open && !disposed) connections.add(connection)
+    if (connection.open && !disposed) acceptIfPrimary()
   }
 
   async function retryGuestConnect(guestPeer: Peer, targetId: string) {
@@ -119,6 +142,7 @@ export async function createWebRtcBoothTransport(
 async function openHostPeer(
   PeerCtor: typeof import('peerjs').default,
   hostId: string,
+  rtcConfig: ReturnType<typeof boothPeerRtcConfig>,
   signal?: AbortSignal,
 ): Promise<Peer> {
   let lastError: unknown
@@ -126,7 +150,7 @@ async function openHostPeer(
   while (!signal?.aborted) {
     const peer = new PeerCtor(hostId, {
       debug: 0,
-      config: { iceServers: STUN_SERVERS },
+      config: rtcConfig,
     })
 
     try {
@@ -145,11 +169,12 @@ async function openHostPeer(
 
 async function openGuestPeer(
   PeerCtor: typeof import('peerjs').default,
+  rtcConfig: ReturnType<typeof boothPeerRtcConfig>,
   signal?: AbortSignal,
 ): Promise<Peer> {
   const peer = new PeerCtor({
     debug: 0,
-    config: { iceServers: STUN_SERVERS },
+    config: rtcConfig,
   })
 
   try {
@@ -249,9 +274,7 @@ function isIgnorablePeerError(error: unknown): boolean {
   return type === 'peer-unavailable' || type === 'network' || type === 'disconnected'
 }
 
-export function encodeBoothWirePayload(
-  message: BoothWireMessage,
-): BoothWireMessage | ArrayBuffer {
+export function encodeBoothWirePayload(message: BoothWireMessage): BoothWireMessage | ArrayBuffer {
   if (message.type !== 'still') return message
   return encodeFramedStill(message)
 }
@@ -278,9 +301,7 @@ export function decodeBoothWirePayload(data: unknown): BoothWireMessage | null {
   return message
 }
 
-function encodeFramedStill(
-  message: Extract<BoothWireMessage, { type: 'still' }>,
-): ArrayBuffer {
+function encodeFramedStill(message: Extract<BoothWireMessage, { type: 'still' }>): ArrayBuffer {
   const header = new TextEncoder().encode(
     JSON.stringify({
       type: 'still',
@@ -339,7 +360,9 @@ function toUint8Array(value: ArrayBuffer | ArrayBufferView): Uint8Array {
 function toArrayBuffer(value: unknown): ArrayBuffer | null {
   if (value instanceof ArrayBuffer) return value
   if (ArrayBuffer.isView(value)) {
-    return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength)
+    const copy = new Uint8Array(value.byteLength)
+    copy.set(new Uint8Array(value.buffer, value.byteOffset, value.byteLength))
+    return copy.buffer
   }
   if (Array.isArray(value)) return new Uint8Array(value).buffer
   if (value && typeof value === 'object') {

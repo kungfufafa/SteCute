@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   consumePendingSessionConfig,
+  persistActiveSessionId,
+  readPendingSessionConfig,
   writePendingSessionConfig,
 } from '@/services/session/persist'
 
@@ -77,5 +79,37 @@ describe('pending session config', () => {
     expect(consumePendingSessionConfig('upload')).toBeNull()
     expect(consumePendingSessionConfig('camera')?.layoutId).toBe('strip-2-vertical')
     expect(consumePendingSessionConfig('camera')).toBeNull()
+  })
+
+  it('lets upload and camera reread pending config without consuming it', () => {
+    writePendingSessionConfig({
+      layoutId: 'strip-4-vertical',
+      templateId: 'mono',
+      slotCount: 4,
+      countdownSeconds: 3,
+      autoCapture: false,
+      source: 'upload',
+    })
+
+    expect(readPendingSessionConfig('camera')).toBeNull()
+    expect(readPendingSessionConfig('upload')?.layoutId).toBe('strip-4-vertical')
+    expect(readPendingSessionConfig('upload')?.slotCount).toBe(4)
+    expect(consumePendingSessionConfig('upload')?.templateId).toBe('mono')
+    expect(readPendingSessionConfig('upload')).toBeNull()
+  })
+
+  it('keeps pending config when the active session id is cleared', () => {
+    writePendingSessionConfig({
+      layoutId: 'strip-6-vertical',
+      templateId: 'youth',
+      slotCount: 6,
+      countdownSeconds: 5,
+      autoCapture: true,
+      source: 'upload',
+    })
+    persistActiveSessionId('session-1')
+    persistActiveSessionId(null)
+
+    expect(readPendingSessionConfig('upload')?.layoutId).toBe('strip-6-vertical')
   })
 })

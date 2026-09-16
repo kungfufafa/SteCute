@@ -12,9 +12,9 @@ import { persistRetakeIndex, readStoredSessionId } from '@/services/session/pers
 import {
   createAdjustedImageBlob,
   createAutoUploadImageAdjustment,
+  createOrientedImageSource,
   clampUploadImageAdjustment,
   getAdjustedCropRect,
-  getImageDimensions,
   openImagePicker,
   type UploadImageAdjustment,
   validateFile,
@@ -151,12 +151,21 @@ async function loadShotUrls() {
     return
   }
 
+  if (
+    snapshot.session.finalRenderId &&
+    !isSessionComplete(snapshot.shots, snapshot.session.slotCount)
+  ) {
+    sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
+    isLoadingReview.value = false
+    router.replace({ path: '/output', query: { renderId: snapshot.session.finalRenderId } })
+    return
+  }
+
   sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
   revokeShotUrls()
   const shotsByOrder = new Map(snapshot.shots.map((shot) => [shot.order, shot]))
-  loadedShots.value = Array.from(
-    { length: snapshot.session.slotCount },
-    (_, index) => shotsByOrder.get(index),
+  loadedShots.value = Array.from({ length: snapshot.session.slotCount }, (_, index) =>
+    shotsByOrder.get(index),
   ).filter((shot): shot is Shot => Boolean(shot))
   shotUrls.value = Array.from({ length: snapshot.session.slotCount }, (_, index) => {
     const shot = shotsByOrder.get(index)
@@ -273,7 +282,8 @@ function endReplacementDrag(event: globalThis.PointerEvent) {
 }
 
 async function retakeAll() {
-  if (!window.confirm('Apakah Anda yakin ingin mengulang semua foto? Sesi ini akan dihapus.')) return
+  if (!window.confirm('Apakah Anda yakin ingin mengulang semua foto? Sesi ini akan dihapus.'))
+    return
 
   const previousSource = sessionStore.captureSource ?? 'camera'
   if (sessionStore.sessionId) {
@@ -297,15 +307,15 @@ async function prepareUploadReplacement(index: number) {
   }
 
   try {
-    const dimensions = await getImageDimensions(file)
+    const preview = await createOrientedImageSource(file)
     const slot = getSlotForIndex(index)
     const nextReplacement: ReplacementUpload = {
-      file,
-      url: URL.createObjectURL(file),
-      width: dimensions.width,
-      height: dimensions.height,
+      file: preview.file,
+      url: preview.url,
+      width: preview.width,
+      height: preview.height,
       index,
-      adjustment: createAutoAdjustment(dimensions.width, dimensions.height, slot),
+      adjustment: createAutoAdjustment(preview.width, preview.height, slot),
     }
 
     clearReplacementUpload()
@@ -378,7 +388,7 @@ function proceedToRender() {
     return
   }
 
-  router.push('/render')
+  router.replace('/render')
 }
 </script>
 
@@ -391,7 +401,7 @@ function proceedToRender() {
           Ketuk slot foto jika ingin mengulang tangkapan sebelum hasil akhir.
         </p>
       </div>
-      <span :class="ui.pinkBadge">
+      <span :class="ui.badge">
         {{ activeLayout?.printFormat.paperSize ?? `${sessionStore.slotCount} Foto` }}
       </span>
     </div>
@@ -401,15 +411,11 @@ function proceedToRender() {
     <div :class="[ui.content, 'flex flex-col']">
       <div :class="[ui.pageContent, 'items-center gap-8 text-center']">
         <div v-if="isLoadingReview" :class="ui.emptyPanel">
-          <div :class="ui.surfaceIcon">
-            <div
-              class="border-r-stc-pink/30 border-t-stc-pink size-8 animate-spin rounded-full border-[3px] border-transparent"
-            ></div>
-          </div>
-          <h4 class="text-stc-text text-xl font-bold">Memuat Review</h4>
-          <p
-            class="text-stc-text-soft mx-auto mt-3 max-w-sm text-[0.9375rem] leading-relaxed font-medium"
-          >
+          <div
+            class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
+          ></div>
+          <h4 class="text-stc-text text-[15px] font-medium">Memuat Review</h4>
+          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
             Mengambil ulang foto sesi dari penyimpanan lokal.
           </p>
         </div>
@@ -425,20 +431,19 @@ function proceedToRender() {
           interactive
           fit-viewport
           @retake="retakeShot"
-          class="transition-transform duration-300 hover:scale-[1.02]"
         />
 
-        <div v-if="replacementUpload" :class="[ui.panel, 'w-full max-w-xl p-4 text-left sm:p-5']">
-          <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div v-if="replacementUpload" :class="[ui.panel, 'w-full max-w-xl p-4 text-left']">
+          <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <p :class="ui.sectionLabel">Foto Pengganti</p>
-              <h4 class="text-stc-text mt-1 text-lg font-bold">{{ replacementLabel }}</h4>
+              <h4 class="text-stc-text mt-0.5 text-[15px] font-medium">{{ replacementLabel }}</h4>
             </div>
-            <span :class="ui.pinkBadge">Atur Framing</span>
+            <span :class="ui.badge">Atur Framing</span>
           </div>
 
           <div
-            class="border-stc-border bg-stc-bg-2 relative mx-auto w-full max-w-lg cursor-grab touch-none overflow-hidden rounded-xl border select-none active:cursor-grabbing"
+            class="border-stc-border bg-stc-bg-2 relative mx-auto w-full max-w-lg cursor-grab touch-none overflow-hidden rounded-lg border select-none active:cursor-grabbing"
             :style="{ aspectRatio: replacementCropAspectRatio }"
             @pointerdown="beginReplacementDrag"
             @pointermove="moveReplacementDrag"
@@ -453,20 +458,20 @@ function proceedToRender() {
             <div class="pointer-events-none absolute inset-0 ring-1 ring-white/70 ring-inset"></div>
           </div>
 
-          <p class="text-stc-text-soft mt-3 text-center text-sm font-medium">
+          <p class="text-stc-text-soft mt-3 text-center text-[13px]">
             Seret foto di dalam frame sebelum menyimpan pengganti.
           </p>
 
-          <div class="mt-5 grid gap-3 sm:grid-cols-2">
+          <div class="mt-4 grid gap-2 sm:grid-cols-2">
             <button
-              :class="[ui.secondaryButton, 'px-4 text-sm']"
+              :class="ui.secondaryButton"
               :disabled="isSavingReplacement"
               @click="resetReplacementAdjustment"
             >
               Kembalikan Posisi
             </button>
             <button
-              :class="[ui.secondaryButton, 'px-4 text-sm']"
+              :class="ui.secondaryButton"
               :disabled="isSavingReplacement"
               @click="prepareUploadReplacement(replacementUpload.index)"
             >
@@ -474,16 +479,16 @@ function proceedToRender() {
             </button>
           </div>
 
-          <div class="mt-3 grid gap-3 sm:grid-cols-2">
+          <div class="mt-2 grid gap-2 sm:grid-cols-2">
             <button
-              :class="[ui.secondaryButton, 'px-4 text-sm']"
+              :class="ui.ghostButton"
               :disabled="isSavingReplacement"
               @click="clearReplacementUpload"
             >
               Batal
             </button>
             <button
-              :class="[ui.primaryButton, 'px-4 text-sm']"
+              :class="ui.primaryButton"
               :disabled="isSavingReplacement"
               @click="saveUploadReplacement"
             >
@@ -492,10 +497,7 @@ function proceedToRender() {
           </div>
         </div>
 
-        <div
-          v-if="reviewError"
-          class="border-stc-error/30 bg-stc-error-soft text-stc-error shadow-stc-xs w-full max-w-xl rounded-xl border px-4 py-3 text-sm font-medium"
-        >
+        <div v-if="reviewError" :class="[ui.alertError, 'w-full max-w-xl']">
           {{ reviewError }}
         </div>
 

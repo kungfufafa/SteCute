@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { Session, Shot } from '@/db/schema'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
-import { persistActiveSessionId } from '@/services/session/persist'
+import { persistActiveSessionId, persistRetakeIndex } from '@/services/session/persist'
 
 export type SessionStatus =
   | 'idle'
@@ -32,6 +32,7 @@ export const useSessionStore = defineStore('session', () => {
   const errorMessage = ref<string | null>(null)
 
   function startSession(id: string, source: 'camera' | 'upload', slots: number) {
+    persistRetakeIndex(null)
     sessionId.value = id
     captureSource.value = source
     slotCount.value = slots
