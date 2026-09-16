@@ -1,4 +1,4 @@
-import type { DataConnection, Peer } from 'peerjs'
+import type { DataConnection, MediaConnection, Peer } from 'peerjs'
 import { boothPeerRtcConfig, getBoothIceServers } from './ice'
 import type { BoothTransport, BoothWireMessage } from './transport'
 
@@ -6,6 +6,12 @@ const PEER_OPEN_TIMEOUT_MS = 10_000
 const GUEST_CONNECT_TIMEOUT_MS = 20_000
 const GUEST_RETRY_DELAY_MS = 1_200
 const HOST_ID_RETRY_DELAY_MS = 1_000
+const HOST_ANSWER_WAIT_MS = 2_000
+const PREVIEW_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 640, max: 960 },
+  height: { ideal: 480, max: 720 },
+  frameRate: { ideal: 20, max: 24 },
+}
 
 export function boothHostPeerId(normalizedCode: string): string {
   return `stc-${normalizedCode.toLowerCase()}`
@@ -20,7 +26,15 @@ export async function createWebRtcBoothTransport(
   const { default: Peer } = await import('peerjs')
   const handlers = new Set<(message: BoothWireMessage) => void>()
   const connections = new Set<DataConnection>()
+  const remoteHandlers = new Set<(stream: MediaStream | null) => void>()
   let disposed = false
+  let localStream: MediaStream | null = null
+  let outboundStream: MediaStream | null = null
+  let remoteStream: MediaStream | null = null
+  let mediaCall: MediaConnection | null = null
+  let pendingIncoming: MediaConnection | null = null
+  let answerTimer: ReturnType<typeof setTimeout> | null = null
+  let answerAfter = 0
   const hostId = boothHostPeerId(normalizedCode)
   const iceServers = await getBoothIceServers(signal)
   const rtcConfig = boothPeerRtcConfig(iceServers)
@@ -30,14 +44,15 @@ export async function createWebRtcBoothTransport(
       : await openGuestPeer(Peer, rtcConfig, signal)
 
   const onAbort = () => {
-    if (!disposed) {
-      disposed = true
-      peer.destroy()
-    }
+    if (disposed) return
+    disposed = true
+    closeMedia()
+    peer.destroy()
   }
   signal?.addEventListener('abort', onAbort)
 
   peer.on('connection', (connection) => attachConnection(connection))
+  peer.on('call', (incoming) => handleIncomingCall(incoming))
   peer.on('error', (error) => {
     if (isIgnorablePeerError(error)) return
     console.warn('Booth WebRTC peer error:', error)
@@ -65,6 +80,7 @@ export async function createWebRtcBoothTransport(
         return
       }
       connections.add(connection)
+      tryStartMediaCall()
     }
 
     connection.on('open', acceptIfPrimary)
@@ -93,6 +109,7 @@ export async function createWebRtcBoothTransport(
           await waitForConnectionOpen(connection, GUEST_CONNECT_TIMEOUT_MS)
           if (connection.open && !disposed) {
             connections.add(connection)
+            tryStartMediaCall()
             return
           }
         } catch (error) {
@@ -116,6 +133,162 @@ export async function createWebRtcBoothTransport(
     return false
   }
 
+  function isKnownPeer(peerId: string) {
+    if (!peerId) return false
+    for (const connection of connections) {
+      if (connection.open && connection.peer === peerId) return true
+    }
+    return !hasOpenConnection()
+  }
+
+  function emitRemote(stream: MediaStream | null) {
+    remoteStream = stream
+    for (const handler of remoteHandlers) handler(stream)
+  }
+
+  function videoOnly(stream: MediaStream) {
+    return new MediaStream(stream.getVideoTracks())
+  }
+
+  function stopOutboundTracks(except?: MediaStreamTrack | null) {
+    if (!outboundStream) return
+    for (const track of outboundStream.getTracks()) {
+      if (track !== except) track.stop()
+    }
+    if (!except) outboundStream = null
+  }
+
+  function prepareOutbound(source: MediaStream | null) {
+    const nextTrack = clonePreviewTrack(source) ?? createPlaceholderVideoTrack()
+    stopOutboundTracks(nextTrack)
+    outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+    return outboundStream
+  }
+
+  function clearAnswerTimer() {
+    if (!answerTimer) return
+    clearTimeout(answerTimer)
+    answerTimer = null
+  }
+
+  function handleIncomingCall(incoming: MediaConnection) {
+    if (disposed) {
+      incoming.close()
+      return
+    }
+    if (role === 'host' && hasOtherOpenConnection() && !isKnownPeer(incoming.peer)) {
+      incoming.close()
+      return
+    }
+    if (mediaCall && mediaCall !== incoming) {
+      incoming.close()
+      return
+    }
+    answerAfter = 0
+    pendingIncoming = incoming
+    maybeAnswerIncoming()
+  }
+
+  function maybeAnswerIncoming() {
+    if (disposed || !pendingIncoming) return
+    const canAnswer = Boolean(localStream) || (answerAfter > 0 && Date.now() >= answerAfter)
+    if (!canAnswer) {
+      if (!answerAfter) {
+        answerAfter = Date.now() + HOST_ANSWER_WAIT_MS
+        answerTimer = setTimeout(() => {
+          answerTimer = null
+          maybeAnswerIncoming()
+        }, HOST_ANSWER_WAIT_MS)
+      }
+      return
+    }
+
+    clearAnswerTimer()
+    answerAfter = 0
+    const incoming = pendingIncoming
+    pendingIncoming = null
+    const outbound = outboundStream ?? prepareOutbound(localStream)
+    bindMediaCall(incoming)
+    incoming.answer(outbound ?? undefined)
+  }
+
+  function bindMediaCall(connection: MediaConnection) {
+    if (mediaCall && mediaCall !== connection) mediaCall.close()
+    mediaCall = connection
+
+    connection.on('stream', (stream) => {
+      if (mediaCall !== connection) return
+      emitRemote(videoOnly(stream))
+    })
+    connection.on('close', () => {
+      if (mediaCall !== connection) return
+      mediaCall = null
+      emitRemote(null)
+      if (!disposed && role === 'guest') {
+        void sleep(GUEST_RETRY_DELAY_MS, signal)
+          .then(() => tryStartMediaCall())
+          .catch(() => undefined)
+      }
+    })
+    connection.on('error', () => {
+      if (mediaCall !== connection) return
+      mediaCall = null
+      emitRemote(null)
+    })
+
+    if (connection.remoteStream) emitRemote(videoOnly(connection.remoteStream))
+  }
+
+  function tryStartMediaCall() {
+    if (disposed || role !== 'guest') return
+    if (mediaCall || pendingIncoming) return
+    if (!hasOpenConnection()) return
+    const outbound = outboundStream ?? prepareOutbound(localStream)
+    if (!outbound) return
+
+    const call = peer.call(hostId, outbound, { metadata: { booth: 'preview' } })
+    bindMediaCall(call)
+  }
+
+  async function updateOutbound(source: MediaStream | null) {
+    const nextTrack = clonePreviewTrack(source) ?? createPlaceholderVideoTrack()
+    const sender = mediaCall?.peerConnection
+      ?.getSenders()
+      .find((item) => item.track?.kind === 'video' || item.track == null)
+
+    if (sender) {
+      try {
+        await sender.replaceTrack(nextTrack)
+        stopOutboundTracks(nextTrack)
+        outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+        return
+      } catch {
+        // Fall through and renegotiate from the guest side.
+      }
+    }
+
+    stopOutboundTracks(nextTrack)
+    outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+    if (pendingIncoming) {
+      maybeAnswerIncoming()
+      return
+    }
+    mediaCall?.close()
+    mediaCall = null
+    tryStartMediaCall()
+  }
+
+  function closeMedia() {
+    clearAnswerTimer()
+    pendingIncoming?.close()
+    pendingIncoming = null
+    mediaCall?.close()
+    mediaCall = null
+    stopOutboundTracks()
+    emitRemote(null)
+    remoteHandlers.clear()
+  }
+
   return {
     send(message) {
       const payload = encodeBoothWirePayload(message)
@@ -128,14 +301,63 @@ export async function createWebRtcBoothTransport(
       handlers.add(handler)
       return () => handlers.delete(handler)
     },
+    media: {
+      attachLocalStream(stream) {
+        if (disposed) return
+        localStream = stream
+        if (pendingIncoming) {
+          maybeAnswerIncoming()
+          return
+        }
+        if (mediaCall) {
+          void updateOutbound(stream)
+          return
+        }
+        outboundStream = prepareOutbound(stream)
+        tryStartMediaCall()
+      },
+      subscribeRemoteStream(handler) {
+        remoteHandlers.add(handler)
+        if (remoteStream) handler(remoteStream)
+        return () => remoteHandlers.delete(handler)
+      },
+    },
     dispose() {
       disposed = true
       signal?.removeEventListener('abort', onAbort)
+      closeMedia()
       for (const connection of connections) connection.close()
       connections.clear()
       handlers.clear()
       peer.destroy()
     },
+  }
+}
+
+function clonePreviewTrack(source: MediaStream | null): MediaStreamTrack | null {
+  const track = source?.getVideoTracks().find((item) => item.readyState === 'live')
+  if (!track) return null
+
+  const clone = track.clone()
+  void clone.applyConstraints(PREVIEW_CONSTRAINTS).catch(() => undefined)
+  return clone
+}
+
+function createPlaceholderVideoTrack(): MediaStreamTrack | null {
+  if (typeof document === 'undefined') return null
+
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = 16
+    canvas.height = 16
+    const context = canvas.getContext('2d')
+    if (context) {
+      context.fillStyle = '#0a0a0a'
+      context.fillRect(0, 0, 16, 16)
+    }
+    return canvas.captureStream(1).getVideoTracks()[0] ?? null
+  } catch {
+    return null
   }
 }
 

@@ -3,8 +3,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { strip2Config } from '@/layouts/strip-2/config'
 import { classicTemplate } from '@/templates/classic/config'
-import { useCameraStore } from '@/app/store/useCameraStore'
-import { captureFrame, initCamera, shouldMirrorCamera, stopCamera } from '@/services/camera'
+import { captureFrame, initCamera, stopCamera } from '@/services/camera'
 import {
   createDefaultDecorationConfig,
   createSession,
@@ -24,6 +23,7 @@ import {
   type BoothJoinError,
   type BoothPeerRole,
   type BoothPeerSession,
+  type BoothTransport,
   type ComposedPairShot,
 } from '@/services/booth'
 import { ui } from '@/ui/styles'
@@ -35,7 +35,6 @@ const CONNECTION_WAIT_MS = 20_000
 
 const route = useRoute()
 const router = useRouter()
-const cameraStore = useCameraStore()
 
 const identity = ref<BoothIdentity | null>(null)
 const joinError = ref<BoothJoinError | 'full' | null>(null)
@@ -54,9 +53,14 @@ const connectionHelp = ref(false)
 const copyNotice = ref('')
 const cameraLive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
+const remoteVideoRef = ref<HTMLVideoElement | null>(null)
+const remoteStream = ref<MediaStream | null>(null)
+const remoteVideoReady = ref(false)
 
 let stream: MediaStream | null = null
 let peerSession: BoothPeerSession | null = null
+let roomTransport: BoothTransport | null = null
+let unsubRemoteStream: (() => void) | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let presenceTimer: ReturnType<typeof setInterval> | null = null
 let captureLoop: Promise<void> | null = null
@@ -76,6 +80,11 @@ const waitingLabel = computed(() => `${Math.min(participantCount.value, 2)}/2`)
 const capturedCount = computed(() => composedShots.value.filter(Boolean).length)
 const friendJoined = computed(() => participantCount.value >= 2)
 const cameraReady = computed(() => cameraLive.value && !cameraError.value)
+const localTileLabel = computed(() => (role.value === 'host' ? 'Kamu · Host' : 'Kamu · Tamu'))
+const remoteTileLabel = computed(() => (role.value === 'host' ? 'Teman · Tamu' : 'Teman · Host'))
+const remoteWaitingCopy = computed(() =>
+  friendJoined.value ? 'Menghubungkan video teman…' : 'Menunggu teman gabung',
+)
 
 let copyNoticeTimer: number | null = null
 
@@ -126,6 +135,10 @@ watch(videoRef, () => {
   void attachPreviewStream()
 })
 
+watch([remoteVideoRef, remoteStream], () => {
+  void attachRemoteStream()
+})
+
 async function attachPreviewStream() {
   if (!videoRef.value || !stream) return
   if (videoRef.value.srcObject !== stream) videoRef.value.srcObject = stream
@@ -136,12 +149,48 @@ async function attachPreviewStream() {
   }
 }
 
+function refreshRemoteVideoReady() {
+  const el = remoteVideoRef.value
+  remoteVideoReady.value = Boolean(el?.srcObject && el.videoWidth >= 48 && el.videoHeight >= 48)
+}
+
+async function attachRemoteStream() {
+  const el = remoteVideoRef.value
+  if (!el) return
+
+  const next = remoteStream.value
+  if (!next) {
+    el.srcObject = null
+    remoteVideoReady.value = false
+    return
+  }
+
+  if (el.srcObject !== next) el.srcObject = next
+  try {
+    await el.play()
+  } catch {
+    // Autoplay can be blocked until the user interacts with the page.
+  }
+  refreshRemoteVideoReady()
+}
+
+function bindRoomMedia(transport: BoothTransport) {
+  unsubRemoteStream?.()
+  roomTransport = transport
+  unsubRemoteStream =
+    transport.media?.subscribeRemoteStream((next) => {
+      remoteStream.value = next
+    }) ?? null
+  if (stream) transport.media?.attachLocalStream(stream)
+}
+
 async function startCamera() {
   cameraError.value = ''
   cameraLive.value = false
   try {
     stream = await initCamera()
     cameraLive.value = true
+    roomTransport?.media?.attachLocalStream(stream)
     await nextTick()
     await attachPreviewStream()
   } catch {
@@ -177,9 +226,7 @@ async function captureCurrentMoment(momentIndex: number) {
   if (!peerSession || !videoRef.value) return
 
   try {
-    const still = await captureFrame(videoRef.value, {
-      mirrored: shouldMirrorCamera(cameraStore.activeFacingMode),
-    })
+    const still = await captureFrame(videoRef.value, { mirrored: false })
     await peerSession.submitStill(momentIndex, still)
     const shot = await peerSession.waitForComposed(momentIndex, 30_000)
     const next = [...composedShots.value]
@@ -247,6 +294,11 @@ function disposeSession() {
     clearInterval(presenceTimer)
     presenceTimer = null
   }
+  unsubRemoteStream?.()
+  unsubRemoteStream = null
+  roomTransport = null
+  remoteStream.value = null
+  remoteVideoReady.value = false
   peerSession?.dispose()
   peerSession = null
   captureLoop = null
@@ -372,6 +424,7 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
 
   try {
     const transport = await createBoothRoomTransport(normalized, nextRole)
+    bindRoomMedia(transport)
     peerSession = createBoothPeerSession({
       peerId,
       role: nextRole,
@@ -468,7 +521,7 @@ onUnmounted(() => {
         </button>
         <div class="min-w-0">
           <h1 :class="ui.title">{{ joinError ? 'Booth tidak bisa dibuka' : 'Ruang booth' }}</h1>
-          <p :class="ui.subtitle">Booth Bareng · dua perangkat, tanpa audio.</p>
+          <p :class="ui.subtitle">Booth Bareng · video berdua, tanpa audio dan tanpa mirror.</p>
         </div>
       </div>
       <span v-if="!joinError" :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
@@ -494,63 +547,125 @@ onUnmounted(() => {
           class="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
         >
           <section class="min-w-0 space-y-4">
-            <div class="border-stc-border relative overflow-hidden rounded-lg border bg-black">
-              <div class="relative mx-auto aspect-[4/3] w-full max-w-xl lg:max-w-none">
-                <video
-                  ref="videoRef"
-                  class="absolute inset-0 h-full w-full object-cover"
-                  autoplay
-                  muted
-                  playsinline
+            <div
+              class="border-stc-border relative overflow-hidden rounded-lg border bg-black"
+              data-testid="booth-stage"
+            >
+              <div class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white">
+                <span
+                  :class="[
+                    'inline-flex size-2 shrink-0 rounded-full',
+                    friendJoined ? 'bg-stc-success' : 'bg-stc-pink',
+                  ]"
                 />
-                <div
-                  v-if="!cameraReady"
-                  class="bg-stc-text absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
-                >
-                  <span
-                    class="flex size-12 items-center justify-center rounded-xl bg-white/10 text-white"
-                  >
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 8h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"
-                      />
-                      <path d="m16 12 6-3v10l-6-3" />
-                    </svg>
-                  </span>
-                  <p class="text-sm font-semibold text-white">Preview kamera opsional</p>
-                  <p class="max-w-sm text-xs leading-normal text-white/80">
-                    {{
-                      cameraError ||
-                      'Izinkan kamera untuk melihat dirimu. Kode booth tetap bisa dibagikan.'
-                    }}
-                  </p>
-                </div>
-                <div
-                  class="absolute top-3 left-3 inline-flex max-w-[calc(100%-1.5rem)] items-center gap-2 truncate rounded-full bg-black/50 px-3 py-1.5 text-xs font-semibold text-white"
-                >
-                  <span
-                    :class="[
-                      'inline-flex size-2 rounded-full',
-                      friendJoined ? 'bg-stc-success' : 'bg-stc-pink',
-                    ]"
-                  />
-                  {{ statusMessage }}
-                </div>
-                <p
-                  v-if="countdownValue != null"
-                  class="absolute inset-0 flex items-center justify-center text-6xl font-semibold text-white"
-                  aria-live="assertive"
-                >
-                  {{ countdownValue }}
-                </p>
+                <span class="min-w-0 truncate">{{ statusMessage }}</span>
               </div>
+
+              <div class="grid grid-cols-1 gap-1 p-1 sm:grid-cols-2">
+                <article
+                  class="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-zinc-950"
+                  :class="role === 'host' ? 'order-1' : 'order-2'"
+                  data-testid="booth-local-tile"
+                >
+                  <video
+                    ref="videoRef"
+                    class="absolute inset-0 h-full w-full object-cover"
+                    data-testid="booth-local-video"
+                    autoplay
+                    muted
+                    playsinline
+                  />
+                  <div
+                    v-if="!cameraReady"
+                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950 px-3 text-center"
+                  >
+                    <p class="text-xs font-semibold text-white">Kameramu</p>
+                    <p class="max-w-[16rem] text-[11px] leading-normal text-white/70">
+                      {{ cameraError || 'Izinkan kamera. Kode booth tetap bisa dibagikan.' }}
+                    </p>
+                  </div>
+                  <div
+                    class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="truncate text-xs font-semibold text-white">{{ localTileLabel }}</p>
+                      <span
+                        v-if="cameraReady"
+                        class="inline-flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase"
+                      >
+                        <span class="bg-stc-success inline-flex size-1.5 rounded-full" />
+                        Live
+                      </span>
+                    </div>
+                  </div>
+                </article>
+
+                <article
+                  class="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-zinc-950"
+                  :class="role === 'host' ? 'order-2' : 'order-1'"
+                  data-testid="booth-remote-tile"
+                >
+                  <video
+                    ref="remoteVideoRef"
+                    class="absolute inset-0 h-full w-full object-cover"
+                    data-testid="booth-remote-video"
+                    autoplay
+                    muted
+                    playsinline
+                    @loadedmetadata="refreshRemoteVideoReady"
+                    @resize="refreshRemoteVideoReady"
+                    @playing="refreshRemoteVideoReady"
+                  />
+                  <div
+                    v-if="!remoteVideoReady"
+                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950 px-3 text-center"
+                  >
+                    <span
+                      class="flex size-10 items-center justify-center rounded-xl bg-white/10 text-white"
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                      >
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                    </span>
+                    <p class="text-xs font-semibold text-white">{{ remoteWaitingCopy }}</p>
+                    <p class="max-w-[16rem] text-[11px] leading-normal text-white/70">
+                      Seperti video call, tanpa suara.
+                    </p>
+                  </div>
+                  <div
+                    class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="truncate text-xs font-semibold text-white">{{ remoteTileLabel }}</p>
+                      <span
+                        v-if="remoteVideoReady"
+                        class="inline-flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase"
+                      >
+                        <span class="bg-stc-success inline-flex size-1.5 rounded-full" />
+                        Live
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              </div>
+
+              <p
+                v-if="countdownValue != null"
+                class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/35 text-6xl font-semibold text-white"
+                aria-live="assertive"
+              >
+                {{ countdownValue }}
+              </p>
             </div>
 
             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">

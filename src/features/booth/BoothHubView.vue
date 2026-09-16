@@ -78,7 +78,9 @@ function joinRoom() {
         </button>
         <div class="min-w-0">
           <h1 :class="ui.title">Booth Bareng</h1>
-          <p :class="ui.subtitle">Foto berdua lewat kode, tanpa akun dan tanpa audio.</p>
+          <p :class="ui.subtitle">
+            Foto berdua lewat kode. Lihat teman secara live, tanpa akun dan tanpa audio.
+          </p>
         </div>
       </div>
       <span :class="ui.badge">Opsional</span>
@@ -138,9 +140,10 @@ function joinRoom() {
         <div class="flex gap-3 py-3">
           <span class="text-stc-text-faint w-4 text-[13px]">2</span>
           <div>
-            <p class="text-stc-text text-[13px] font-medium">Tunggu berdua</p>
+            <p class="text-stc-text text-[13px] font-medium">Lihat teman di layar</p>
             <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-              Kalau 2 orang sudah masuk, host mulai pose.
+              Layar jadi dua kotak seperti video call. Host kiri, tamu kanan, kamera tidak
+              di-mirror. Kalau sudah berdua, host mulai pose.
             </p>
           </div>
         </div>

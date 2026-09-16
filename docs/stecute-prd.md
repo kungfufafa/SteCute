@@ -206,12 +206,12 @@ Kebutuhan utama:
 
 ### 8.4 Mode opsional: Booth Bareng
 
-Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang memakai render strip PNG yang sama dengan alur lokal.
+Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Kedua peserta melihat kamera sendiri dan kamera teman secara live dalam dua kotak seperti video call (`host | tamu`), tanpa mirror. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang memakai render strip PNG yang sama dengan alur lokal.
 
 Batasan yang dikunci:
 
 - Tepat 2 peserta. Late join setelah capture, 3+ orang, dan waiting room admit tidak termasuk mode ini.
-- Tidak ada mic, chat, screen share, atau permukaan panggilan ala Meet selain identitas join.
+- Tidak ada mic, chat, atau screen share. Preview kehadiran memakai dua kotak video live (host kiri, tamu kanan) tanpa audio; stream video tidak disimpan.
 - Signaling boleh online; still tidak disimpan di server dan ruang bersifat ephemeral. Dua perangkat tidak wajib satu jaringan.
 - `Mulai Foto` dan `Upload Lokal` tetap jalan tanpa booth, tanpa signaling, dan tanpa jaringan setelah cache awal.
 
@@ -246,7 +246,7 @@ Batasan yang dikunci:
 1. Pengguna menekan `Booth Bareng` dari landing, terpisah dari `Mulai Foto` dan `Upload Lokal`.
 2. Host membuat booth dan mendapat satu kode unik plus URL undangan yang memuat kode yang sama.
 3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan.
-4. Kedua peserta melihat preview kamera sebagai kehadiran; tidak ada audio.
+4. Kedua peserta melihat preview kamera diri sendiri dan teman secara live, disusun seperti video call (host kiri, tamu kanan, tanpa mirror); tidak ada audio.
 5. Host memulai countdown bersama. Tiap momen mengambil still dari kedua perangkat dan menyusun pair-row.
 6. Strip PNG dirender lewat pipeline lokal yang sama; masing-masing mengunduh hasil di perangkatnya. Ruang booth berakhir bersama sesi.
 
@@ -393,6 +393,7 @@ Acceptance criteria:
 - Tamu yang membuka URL undangan atau mengetik kode yang sama (hyphen opsional, case-insensitive) masuk ke booth yang sama.
 - Kode kosong, tidak dikenal, atau tidak valid ditolak dengan pesan yang jelas.
 - Countdown bersama menghasilkan satu still per peserta per momen; still disusun pair-row `host | tamu` lalu dirender PNG lewat pipeline strip yang ada.
+- Kedua peserta melihat stream kamera teman secara live di kotak terpisah. Preview dan still Booth Bareng tidak di-mirror agar arah gerakan sama dengan hasil foto.
 - Mode ini membutuhkan koneksi untuk signaling; alur kamera dan upload lokal v1 tidak boleh bergantung padanya.
 - Dua perangkat tidak wajib satu LAN atau hotspot; 4G vs Wi-Fi kantor harus tetap bisa join.
 
@@ -400,7 +401,7 @@ Acceptance criteria:
 
 - Landing tetap menampilkan `Mulai Foto` dan `Upload Lokal`, plus entri Booth Bareng.
 - Join lewat URL dan join lewat kode resolve ke booth id yang sama.
-- Tidak ada login, audio, atau penyimpanan still di server.
+- Tidak ada login, audio, atau penyimpanan still/video di server.
 - Copy produk tidak menyuruh pengguna memakai jaringan yang sama atau hotspot.
 
 ---

@@ -38,7 +38,9 @@ export {
 export {
   boothChannelName,
   createBroadcastBoothTransport,
+  createFanoutBoothTransport,
   createInProcessTransportPair,
+  type BoothMediaSession,
   type BoothTransport,
   type BoothWireMessage,
 } from './transport'

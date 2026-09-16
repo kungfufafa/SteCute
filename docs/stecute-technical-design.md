@@ -320,7 +320,7 @@ Tanggung jawab:
 - menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
 - tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
 
-Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. Video hanya preview kehadiran; artefak capture adalah still. Alur kamera dan upload lokal tidak memuat modul ini.
+Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. WebRTC media (video only) menampilkan preview kehadiran kedua peserta dalam dua kotak `host | tamu`; data channel tetap untuk still. Preview dan still booth tidak di-mirror. Artefak capture adalah still, bukan rekaman panggilan. Alur kamera dan upload lokal tidak memuat modul ini.
 
 ---
 
@@ -815,7 +815,8 @@ Gunakan constraints adaptif, contoh:
 - Jika resolusi ideal tidak tersedia, fallback ke kemampuan device.
 - Jika kamera tidak ada, tampilkan unsupported state dan tawarkan upload lokal.
 - Setelah izin diberikan, daftar `videoinput` dinormalisasi menjadi pilihan kamera yang jelas seperti `Depan`, `Belakang`, `Belakang 0.5x`, atau `Belakang Tele` bila label browser menyediakan sinyal lensa.
-- Preview dan capture hanya di-mirror untuk kamera depan. Kamera belakang, termasuk ultrawide/0.5x dan tele, tidak boleh di-mirror.
+- Preview dan capture hanya di-mirror untuk kamera depan pada alur `Mulai Foto`. Kamera belakang, termasuk ultrawide/0.5x dan tele, tidak boleh di-mirror.
+- Booth Bareng tidak memakai mirror pada preview lokal, stream teman, maupun still yang dikirim, agar dua kotak video dan pair-row hasil foto memakai arah yang sama.
 
 ### 12.3 Upload constraints
 
@@ -830,7 +831,7 @@ Gunakan constraints adaptif, contoh:
 
 1. Preview stream ke elemen video.
 2. Saat capture, crop frame tengah ke rasio foto landscape `4:3`.
-3. Draw frame hasil crop ke canvas sementara, dengan mirror horizontal hanya jika kamera aktif adalah kamera depan.
+3. Draw frame hasil crop ke canvas sementara, dengan mirror horizontal hanya jika kamera aktif adalah kamera depan pada alur `Mulai Foto`. Booth Bareng men-draw still tanpa mirror.
 4. Ekspor frame sebagai Blob.
 5. Simpan ke IndexedDB.
 6. Lanjut shot berikutnya sesuai slot layout.

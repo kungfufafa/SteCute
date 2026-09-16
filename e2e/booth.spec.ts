@@ -37,6 +37,13 @@ test.describe('Booth Bareng join paths', () => {
     const invite = page.getByLabel('Link undangan')
     await expect(invite).toHaveValue(new RegExp(`/j/${roomCode}$`))
     await expect(page).toHaveURL(new RegExp(`/j/${roomCode}$`))
+    await expect(page.getByTestId('booth-stage')).toBeVisible()
+    await expect(page.getByTestId('booth-local-tile')).toBeVisible()
+    await expect(page.getByTestId('booth-remote-tile')).toBeVisible()
+    await expect(page.getByTestId('booth-local-video')).not.toHaveClass(/scale-x-\[-1\]/)
+    await expect(page.getByText('Kamu · Host')).toBeVisible()
+    await expect(page.getByText('Teman · Tamu')).toBeVisible()
+    await expect(page.getByTestId('booth-remote-tile')).toContainText('Menunggu teman gabung')
   })
 
   test('guest can join by typing the host code', async ({ context, page }) => {

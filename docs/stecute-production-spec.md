@@ -85,7 +85,7 @@ Tidak masuk v1:
 - kiosk native wrapper
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 - `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
-- audio, chat, atau permukaan panggilan untuk Booth Bareng; mode ini 2 orang, still only
+- audio, chat, atau screen share untuk Booth Bareng; mode ini 2 orang, still sebagai artefak, dengan preview video live kedua peserta
 - TURN berbayar sebagai syarat rilis v1; STUN/TURN publik gratis dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar Booth Bareng bisa join lintas jaringan (termasuk 4G vs Wi-Fi kantor) tanpa menyimpan foto
 
 Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
@@ -137,7 +137,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 1. User menekan `Booth Bareng` dari landing. CTA `Mulai Foto` dan `Upload Lokal` tetap ada dan tidak membutuhkan langkah ini.
 2. Host membuat booth tanpa login, lalu melihat kode unik dan URL undangan yang memakai kode yang sama.
 3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
-4. Setelah 2 peserta hadir, host memulai countdown bersama. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
+4. Kedua peserta melihat kamera sendiri dan kamera teman secara live (host kiri, tamu kanan, tanpa mirror). Setelah 2 peserta hadir, host memulai countdown bersama. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
 5. Still disusun side-by-side `host | tamu` per momen, lalu dirender jadi PNG strip lewat pipeline lokal yang sama.
 6. Masing-masing peserta mengunduh hasil di perangkatnya. Ruang booth bersifat ephemeral dan tidak menahan still di server setelah sesi.
 
@@ -575,4 +575,5 @@ Produk dianggap `production-ready` jika:
 
 ## 16. Changelog keputusan
 
+- 2026-09-16: Booth Bareng menampilkan dua kotak video live seperti video call (`host | tamu`), tanpa audio. Preview dan still booth tidak di-mirror. Stream video hanya kehadiran, bukan artefak.
 - 2026-09-04: Booth Bareng dikunci sebagai mode online opsional 2 orang (link undangan + kode unik, tanpa audio, ephemeral, still pair-row ke pipeline strip lokal). Kolaborasi real-time bukan non-goal MVP tanpa kualifikasi, tetapi alur kamera/upload lokal tetap independen dari signaling dan bukan syarat rilis v1.

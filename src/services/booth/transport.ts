@@ -22,10 +22,16 @@ export type BoothWireMessage =
       bytes: ArrayBuffer
     }
 
+export type BoothMediaSession = {
+  attachLocalStream(stream: MediaStream | null): void
+  subscribeRemoteStream(handler: (stream: MediaStream | null) => void): () => void
+}
+
 export type BoothTransport = {
   send(message: BoothWireMessage): void
   subscribe(handler: (message: BoothWireMessage) => void): () => void
   dispose?: () => void
+  media?: BoothMediaSession
 }
 
 export function createInProcessTransportPair(): {
@@ -90,10 +96,36 @@ export function createFanoutBoothTransport(): BoothTransport & {
   const transports: BoothTransport[] = []
   const handlers = new Set<(message: BoothWireMessage) => void>()
   const handlerUnsubscribers = new Map<(message: BoothWireMessage) => void, Array<() => void>>()
+  const remoteHandlers = new Set<(stream: MediaStream | null) => void>()
+  const mediaUnsubscribers: Array<() => void> = []
+  let localStream: MediaStream | null = null
+  let remoteStream: MediaStream | null = null
+
+  function emitRemote(stream: MediaStream | null) {
+    remoteStream = stream
+    for (const handler of remoteHandlers) handler(stream)
+  }
+
+  const media: BoothMediaSession = {
+    attachLocalStream(stream) {
+      localStream = stream
+      for (const transport of transports) transport.media?.attachLocalStream(stream)
+    },
+    subscribeRemoteStream(handler) {
+      remoteHandlers.add(handler)
+      if (remoteStream) handler(remoteStream)
+      return () => remoteHandlers.delete(handler)
+    },
+  }
 
   return {
+    media,
     add(transport) {
       transports.push(transport)
+      if (localStream) transport.media?.attachLocalStream(localStream)
+      if (transport.media) {
+        mediaUnsubscribers.push(transport.media.subscribeRemoteStream(emitRemote))
+      }
       for (const handler of handlers) {
         const unsubscribers = handlerUnsubscribers.get(handler) ?? []
         unsubscribers.push(transport.subscribe(handler))
@@ -116,6 +148,11 @@ export function createFanoutBoothTransport(): BoothTransport & {
     dispose() {
       handlers.clear()
       handlerUnsubscribers.clear()
+      remoteHandlers.clear()
+      for (const unsubscribe of mediaUnsubscribers) unsubscribe()
+      mediaUnsubscribers.length = 0
+      localStream = null
+      remoteStream = null
       for (const transport of transports) transport.dispose?.()
       transports.length = 0
     },
