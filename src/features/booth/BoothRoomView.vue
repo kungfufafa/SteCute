@@ -474,7 +474,7 @@ onUnmounted(() => {
       <span v-if="!joinError" :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
     </div>
 
-    <main :class="[ui.content, 'flex-col gap-8 pb-16']">
+    <main :class="[ui.content, 'gap-6']">
       <section v-if="joinError" :class="[ui.emptyPanel, 'max-w-lg']">
         <p class="text-stc-text text-lg font-semibold" role="alert">{{ errorCopy(joinError) }}</p>
         <p class="text-stc-text-soft mt-2 text-sm leading-normal">
@@ -491,7 +491,7 @@ onUnmounted(() => {
 
       <template v-else>
         <div
-          class="grid flex-1 grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+          class="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
         >
           <section class="min-w-0 space-y-4">
             <div class="border-stc-border relative overflow-hidden rounded-lg border bg-black">
@@ -580,12 +580,12 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <aside class="lg:sticky lg:top-8" aria-label="Kode dan status booth">
-            <div :class="[ui.panel, 'space-y-5 p-5']">
+          <aside class="lg:sticky lg:top-6" aria-label="Kode dan status booth">
+            <div :class="[ui.panel, 'space-y-4 p-4']">
               <div>
                 <p :class="ui.sectionLabel">Kode booth</p>
                 <p
-                  class="text-stc-text mt-3 text-3xl font-semibold tracking-[0.18em]"
+                  class="text-stc-text mt-2 text-3xl font-semibold tracking-[0.18em]"
                   data-testid="booth-code"
                   aria-label="Kode booth aktif"
                 >
@@ -666,7 +666,7 @@ onUnmounted(() => {
           </aside>
         </div>
 
-        <section v-if="renderUrl" :class="[ui.panel, 'p-5']">
+        <section v-if="renderUrl" :class="[ui.panel, 'p-4']">
           <p :class="ui.sectionLabel">Hasil</p>
           <p class="text-stc-text-soft mt-2 text-sm leading-normal">
             {{

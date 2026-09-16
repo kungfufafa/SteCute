@@ -155,7 +155,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div :class="ui.content">
-      <div :class="[ui.pageContentWide, 'gap-6 py-5']">
+      <div :class="[ui.pageContentWide, ui.stack]">
         <div
           v-if="storageState?.shouldWarn || localDataMessage"
           :class="storageState?.shouldWarn ? ui.alertWarning : ui.alert"
@@ -173,7 +173,7 @@ onBeforeUnmount(() => {
           </template>
         </div>
 
-        <div v-if="galleryStore.recentRenders.length === 0" :class="ui.emptyPanel">
+        <div v-if="galleryStore.recentRenders.length === 0" :class="[ui.emptyPanel, 'max-w-none']">
           <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil</h4>
           <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
             Strip yang sudah dirender akan muncul di sini dan tetap tersedia saat offline.
@@ -202,7 +202,7 @@ onBeforeUnmount(() => {
               />
             </button>
             <div
-              class="border-stc-border flex items-center justify-between gap-2 border-t px-3 py-2"
+              class="border-stc-border flex items-center justify-between gap-2 border-t px-3 py-2.5"
             >
               <div class="min-w-0">
                 <div class="text-stc-text truncate text-[13px] font-medium">

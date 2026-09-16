@@ -944,7 +944,7 @@ function goToUploadFallback() {
 
     <FlowProgress current="capture" source="camera" />
 
-    <div :class="[ui.content, 'flex min-h-0 flex-col !pb-0']">
+    <div :class="[ui.content, 'min-h-0 !pb-4']">
       <div
         :class="[
           ui.pageContentWide,
@@ -952,11 +952,11 @@ function goToUploadFallback() {
         ]"
       >
         <div
-          class="border-stc-border order-2 w-full rounded-lg border bg-white px-3 py-3 sm:px-3 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
+          class="border-stc-border order-2 w-full rounded-lg border bg-white p-3 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
-          <p :class="[ui.sectionLabel, 'mb-2 px-1']">Efek Kamera</p>
+          <p :class="[ui.sectionLabel, 'mb-2']">Efek Kamera</p>
           <div
-            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
+            class="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0"
           >
             <button
               v-for="filter in inlineFilterOptions"
@@ -1084,7 +1084,8 @@ function goToUploadFallback() {
             </div>
           </div>
 
-          <div class="flex items-center justify-center gap-8">
+          <div class="flex flex-col items-center gap-3">
+            <div class="flex items-center justify-center gap-6">
             <button
               :class="[ui.iconButton, 'rounded-full']"
               aria-label="Kembali ke setup sesi"
@@ -1141,7 +1142,7 @@ function goToUploadFallback() {
 
           <div
             v-if="cameraDevices.length > 1"
-            class="text-stc-text-soft -mt-1 max-w-full text-center text-xs font-semibold"
+            class="text-stc-text-soft max-w-full text-center text-xs font-medium"
           >
             <span class="truncate">
               {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
@@ -1172,14 +1173,15 @@ function goToUploadFallback() {
           <div v-if="cameraError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
             {{ cameraError }}
           </div>
+          </div>
         </div>
 
         <div
-          class="border-stc-border order-3 w-full rounded-lg border bg-white px-3 py-3 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
+          class="border-stc-border order-3 w-full rounded-lg border bg-white p-3 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
         >
-          <p :class="[ui.sectionLabel, 'mb-2 px-1']">Overlay Kamera</p>
+          <p :class="[ui.sectionLabel, 'mb-2']">Overlay Kamera</p>
           <div
-            class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:mx-0 lg:grid lg:grid-cols-1 lg:overflow-visible lg:px-0 lg:pb-0"
+            class="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0"
           >
             <button
               v-for="effect in inlineCameraEffectOptions"
@@ -1270,7 +1272,7 @@ function goToUploadFallback() {
           </button>
         </div>
 
-        <div class="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 sm:p-5">
+        <div class="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4">
           <div v-if="activeOptionPicker === 'filter'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <button
               v-for="filter in filterOptions"
@@ -1369,7 +1371,7 @@ function goToUploadFallback() {
           </button>
         </div>
 
-        <div class="max-h-[calc(100dvh-9rem)] space-y-2 overflow-y-auto p-4 sm:p-5">
+        <div class="max-h-[calc(100dvh-9rem)] space-y-2 overflow-y-auto p-4">
           <button
             v-for="device in cameraDevices"
             :key="device.deviceId"
@@ -1408,22 +1410,28 @@ function goToUploadFallback() {
 
   <div v-else-if="cameraStore.permissionState === 'denied'" :class="ui.page">
     <div :class="ui.header">
-      <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </svg>
-      </button>
+      <div :class="ui.headerGroup">
+        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <div class="min-w-0">
+          <h3 :class="ui.title">Ambil Foto</h3>
+          <p :class="ui.subtitle">Izinkan kamera untuk lanjut.</p>
+        </div>
+      </div>
     </div>
     <FlowProgress current="capture" source="camera" />
 
@@ -1446,22 +1454,28 @@ function goToUploadFallback() {
 
   <div v-else-if="cameraStore.permissionState === 'unavailable'" :class="ui.page">
     <div :class="ui.header">
-      <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          aria-hidden="true"
-        >
-          <line x1="19" y1="12" x2="5" y2="12" />
-          <polyline points="12 19 5 12 12 5" />
-        </svg>
-      </button>
+      <div :class="ui.headerGroup">
+        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <div class="min-w-0">
+          <h3 :class="ui.title">Ambil Foto</h3>
+          <p :class="ui.subtitle">Kamera belum bisa dibuka.</p>
+        </div>
+      </div>
     </div>
     <FlowProgress current="capture" source="camera" />
 
@@ -1480,6 +1494,12 @@ function goToUploadFallback() {
   </div>
 
   <div v-else :class="ui.page">
+    <div :class="ui.header">
+      <div class="min-w-0">
+        <h3 :class="ui.title">Ambil Foto</h3>
+        <p :class="ui.subtitle">Memuat preview perangkat.</p>
+      </div>
+    </div>
     <FlowProgress current="capture" source="camera" />
 
     <div class="m-auto flex w-full max-w-sm flex-col px-4 py-10">

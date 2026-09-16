@@ -92,6 +92,7 @@ const replacementCropAspectRatio = computed(
 const replacementLabel = computed(() =>
   replacementUpload.value ? `Foto ${replacementUpload.value.index + 1}` : 'Foto pengganti',
 )
+const hasReviewShots = computed(() => loadedShots.value.length > 0)
 const replacementCropStyle = computed(() => {
   const item = replacementUpload.value
   if (!item) return {}
@@ -395,7 +396,7 @@ function proceedToRender() {
 <template>
   <div :class="ui.page">
     <div :class="ui.header">
-      <div class="min-w-0 flex-1 space-y-1">
+      <div class="min-w-0 flex-1">
         <h3 :class="ui.title">Preview</h3>
         <p :class="ui.subtitle">
           Ketuk slot foto jika ingin mengulang tangkapan sebelum hasil akhir.
@@ -408,8 +409,14 @@ function proceedToRender() {
 
     <FlowProgress current="review" :source="sessionStore.captureSource" />
 
-    <div :class="[ui.content, 'flex flex-col']">
-      <div :class="[ui.pageContent, 'items-center gap-8 text-center']">
+    <div :class="ui.content">
+      <div
+        :class="[
+          ui.pageContent,
+          'items-center gap-6 text-center',
+          isLoadingReview || !hasReviewShots ? 'justify-center' : '',
+        ]"
+      >
         <div v-if="isLoadingReview" :class="ui.emptyPanel">
           <div
             class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
@@ -418,6 +425,14 @@ function proceedToRender() {
           <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
             Mengambil ulang foto sesi dari penyimpanan lokal.
           </p>
+        </div>
+
+        <div v-else-if="!hasReviewShots" :class="ui.emptyPanel">
+          <h4 class="text-stc-text text-[15px] font-medium">Sesi Tidak Ditemukan</h4>
+          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
+            {{ reviewError ?? 'Mulai sesi baru untuk membuat strip.' }}
+          </p>
+          <button :class="[ui.primaryButton, 'mt-4']" @click="router.push('/')">Mulai Foto</button>
         </div>
 
         <StripCanvasPreview
@@ -497,15 +512,13 @@ function proceedToRender() {
           </div>
         </div>
 
-        <div v-if="reviewError" :class="[ui.alertError, 'w-full max-w-xl']">
+        <div v-if="hasReviewShots && reviewError" :class="[ui.alertError, 'w-full max-w-xl']">
           {{ reviewError }}
         </div>
 
         <div
-          :class="[
-            ui.bottomActions,
-            'mt-auto max-w-xl flex-col-reverse justify-center sm:flex-row',
-          ]"
+          v-if="hasReviewShots"
+          :class="[ui.bottomActions, 'max-w-xl flex-col-reverse justify-center sm:flex-row']"
         >
           <button :class="[ui.secondaryButton, 'w-full sm:flex-1']" @click="retakeAll">
             Ulang Semua

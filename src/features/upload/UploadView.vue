@@ -467,7 +467,7 @@ onBeforeUnmount(() => resetUploadItems())
         ]"
       >
         <section class="min-w-0 space-y-6">
-          <div class="max-w-2xl space-y-2">
+          <div :class="[ui.sectionIntro, 'max-w-2xl']">
             <p :class="ui.sectionLabel">Upload Lokal</p>
             <h2 :class="ui.sectionTitle">Masukkan foto sesuai slot.</h2>
             <p :class="ui.sectionCopy">
@@ -490,8 +490,8 @@ onBeforeUnmount(() => resetUploadItems())
             </p>
           </button>
 
-          <div v-else class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_220px]">
-            <div :class="[ui.panel, 'p-4 sm:p-5']">
+          <div v-else class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px]">
+            <div :class="[ui.panel, 'p-4']">
               <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <p :class="ui.sectionLabel">Foto Ini</p>
@@ -526,7 +526,7 @@ onBeforeUnmount(() => resetUploadItems())
 
               <div class="mt-5 grid gap-3 sm:grid-cols-2">
                 <button
-                  :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                  :class="[ui.secondaryButton, 'w-full']"
                   :disabled="isBusy"
                   aria-label="Kembalikan posisi foto ini"
                   @click="resetActiveAdjustment"
@@ -548,7 +548,7 @@ onBeforeUnmount(() => resetUploadItems())
                 </button>
 
                 <button
-                  :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                  :class="[ui.secondaryButton, 'w-full']"
                   :disabled="isBusy"
                   @click="replaceActiveFile"
                 >
@@ -602,11 +602,11 @@ onBeforeUnmount(() => resetUploadItems())
                 </button>
               </div>
 
-              <div :class="[ui.panelSoft, 'p-3']">
+              <div :class="[ui.panelSoft, 'p-4']">
                 <p :class="ui.sectionLabel">Semua Foto</p>
-                <div class="mt-3 grid gap-3">
+                <div class="mt-3 grid gap-2">
                   <button
-                    :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                    :class="[ui.secondaryButton, 'w-full']"
                     :disabled="isBusy"
                     @click="applyAutoCropToAll"
                   >
@@ -629,7 +629,7 @@ onBeforeUnmount(() => resetUploadItems())
                   </button>
 
                   <button
-                    :class="[ui.secondaryButton, 'gap-2 px-4 text-sm']"
+                    :class="[ui.secondaryButton, 'w-full']"
                     :disabled="isBusy"
                     @click="handleFileSelect"
                   >
@@ -677,7 +677,7 @@ onBeforeUnmount(() => resetUploadItems())
           </div>
         </section>
 
-        <aside class="lg:sticky lg:top-4" aria-label="Ringkasan format upload">
+        <aside class="lg:sticky lg:top-6" aria-label="Ringkasan format upload">
           <div :class="[ui.panel, 'p-4']">
             <div class="mb-3 flex items-start justify-between gap-3">
               <div>

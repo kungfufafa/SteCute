@@ -294,8 +294,8 @@ onBeforeUnmount(() => {
 
     <FlowProgress current="output" :source="sessionStore.captureSource" />
 
-    <div :class="[ui.content, 'flex flex-col']">
-      <div v-if="isLoadingOutput" :class="[ui.pageContent, 'items-center gap-8']">
+    <div :class="ui.content">
+      <div v-if="isLoadingOutput" :class="[ui.pageContent, 'items-center justify-center']">
         <div :class="ui.emptyPanel">
           <div
             class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
@@ -307,7 +307,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-else-if="outputError" :class="[ui.pageContent, 'items-center gap-8']">
+      <div v-else-if="outputError" :class="[ui.pageContent, 'items-center justify-center']">
         <div :class="ui.emptyPanel">
           <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil Aktif</h4>
           <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-else :class="[ui.pageContent, 'items-center gap-8']">
+      <div v-else :class="[ui.pageContent, 'items-center gap-6']">
         <div
           class="grid w-full max-w-4xl grid-cols-1 items-start justify-items-center gap-6 md:grid-cols-2"
           :class="{ 'md:grid-cols-1': !hasLiveCamOutput }"
@@ -359,7 +359,7 @@ onBeforeUnmount(() => {
           {{ outputActionError ?? outputActionNotice }}
         </div>
 
-        <div :class="[ui.bottomActions, 'mt-auto max-w-xl !flex-col justify-center sm:!flex-col']">
+        <div :class="[ui.bottomActions, 'max-w-xl !flex-col justify-center sm:!flex-col']">
           <div class="flex w-full flex-col-reverse gap-3 sm:flex-row">
             <button :class="[ui.secondaryButton, 'w-full sm:flex-1']" @click="handleNewSession">
               Foto Baru
@@ -507,7 +507,7 @@ onBeforeUnmount(() => {
 .rendered-strip {
   width: min(100%, 20rem);
   max-width: 20rem;
-  max-height: calc(100dvh - 19rem);
+  max-height: calc(100dvh - 18rem);
   object-fit: contain;
 }
 
@@ -515,7 +515,7 @@ onBeforeUnmount(() => {
   .rendered-strip {
     width: auto;
     max-width: 22rem;
-    max-height: calc(100dvh - 16rem);
+    max-height: calc(100dvh - 15rem);
   }
 }
 </style>

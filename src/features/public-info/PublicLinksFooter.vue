@@ -22,7 +22,7 @@ import { publicNavItems } from '@/features/public-info/content'
       </RouterLink>
 
       <nav
-        class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]"
+        class="grid grid-cols-2 gap-x-4 gap-y-2 text-[13px] sm:flex sm:flex-wrap sm:items-center sm:gap-x-5"
         aria-label="Halaman publik Stecute"
       >
         <RouterLink

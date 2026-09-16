@@ -98,7 +98,7 @@ onMounted(async () => {
     <div class="m-auto flex w-full max-w-sm flex-col px-4 py-10 sm:px-5">
       <div :class="[ui.panel, 'w-full px-5 py-8 text-center']">
         <div
-          class="border-stc-border border-t-stc-pink mx-auto mb-4 size-6 animate-spin rounded-full border-2"
+          class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
         ></div>
         <h3 class="text-stc-text text-[15px] font-medium">Memproses Strip...</h3>
         <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">

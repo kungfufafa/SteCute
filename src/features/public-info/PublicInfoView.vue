@@ -38,13 +38,13 @@ function startWithCamera() {
         </RouterLink>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2">
         <button :class="ui.primaryButton" @click="startWithCamera">Mulai Foto</button>
       </div>
     </header>
 
     <main :class="ui.content">
-      <div :class="[ui.pageContentWide, 'gap-6 pb-10 sm:pb-12']">
+      <div :class="[ui.pageContentWide, ui.stack]">
         <nav
           :class="[ui.segmented, 'max-w-full self-start overflow-x-auto']"
           aria-label="Halaman transparansi Stecute"
@@ -64,7 +64,7 @@ function startWithCamera() {
           </RouterLink>
         </nav>
 
-        <section class="grid gap-3 py-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+        <section>
           <div class="max-w-3xl">
             <p :class="ui.sectionLabel">{{ page.eyebrow }}</p>
             <h1
@@ -75,9 +75,8 @@ function startWithCamera() {
             <p class="text-stc-text-soft mt-3 max-w-[42em] text-[13px] leading-normal sm:text-sm">
               {{ page.summary }}
             </p>
+            <p class="text-stc-text-faint mt-3 text-[13px]">{{ page.updatedLabel }}</p>
           </div>
-
-          <p class="text-stc-text-faint text-[13px] lg:pb-1">{{ page.updatedLabel }}</p>
         </section>
 
         <article>
@@ -85,7 +84,7 @@ function startWithCamera() {
             <section
               v-if="section.type === 'faq'"
               :id="section.id"
-              class="border-stc-border/80 scroll-mt-6 border-t py-6 sm:py-7"
+              class="border-stc-border/80 scroll-mt-6 border-t py-6"
             >
               <div class="mb-3 max-w-3xl">
                 <h2 class="text-stc-text text-lg leading-tight font-semibold">
@@ -126,7 +125,7 @@ function startWithCamera() {
             <section
               v-else
               :id="section.id"
-              class="border-stc-border grid scroll-mt-6 gap-3 border-t py-6 sm:py-7 lg:grid-cols-[minmax(12rem,0.32fr)_minmax(0,0.68fr)] lg:gap-10"
+              class="border-stc-border grid scroll-mt-6 gap-3 border-t py-6 lg:grid-cols-[minmax(12rem,0.32fr)_minmax(0,0.68fr)] lg:gap-10"
             >
               <h2 class="text-stc-text text-lg leading-tight font-semibold">
                 {{ section.title }}

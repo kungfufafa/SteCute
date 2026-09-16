@@ -33,7 +33,7 @@ const currentIndex = computed(() =>
 
 <template>
   <nav
-    class="border-stc-border flex w-full items-center border-b px-4 py-2 sm:px-5"
+    class="border-stc-border flex w-full items-center border-b px-4 py-2.5 sm:px-5"
     aria-label="Progress sesi Stecute"
   >
     <ol class="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">

@@ -105,7 +105,7 @@ async function installApp() {
           decoding="async"
         />
       </div>
-      <div class="flex items-center gap-1.5">
+      <div class="flex items-center gap-2">
         <div class="hidden md:block">
           <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
         </div>
@@ -135,7 +135,7 @@ async function installApp() {
     </nav>
 
     <main
-      class="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 items-start gap-10 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)] lg:items-center lg:gap-12 lg:py-14"
+      class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)] lg:items-center lg:gap-10"
     >
       <section class="flex min-w-0 flex-col">
         <p :class="ui.sectionLabel">Photo booth lokal</p>
@@ -164,7 +164,7 @@ async function installApp() {
           {{ installFeedback }}
         </p>
 
-        <p class="text-stc-text-faint mt-6 text-[13px]">
+        <p class="text-stc-text-faint mt-4 text-[13px]">
           Tanpa Login · Privasi Terjaga · Hasil Lokal
         </p>
       </section>

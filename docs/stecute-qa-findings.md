@@ -293,3 +293,18 @@ Device fisik Safari/Chrome dan NAT simetris tetap perlu QA lapangan; tidak ada s
 - `npm run build` passed; PWA audit passed (frame overlay tidak ikut precache)
 - Playwright Chromium: `app`, `booth`, `camera-config-visual`, `process-qa` passed
 
+---
+
+## Spacing audit 2026-09-16
+
+Audit visual desktop 1280 dan mobile 390 di semua route utama. Temuan dan perbaikan:
+
+| Severity | Temuan | Perbaikan | Status |
+|---|---|---|---|
+| P2 | `ui.content` tidak punya padding atas, jadi config/upload/review/output/booth/privacy menempel ke header atau progress. | Content memakai `pt-5 pb-8 sm:pt-6` di seluruh halaman flow. | Fixed |
+| P2 | `mt-auto` di aksi bawah mendorong tombol ke dasar viewport dan meninggalkan rongga besar di review/output. | `mt-auto` dihapus dari token aksi; stack konten memakai `gap-6`. | Fixed |
+| P2 | Landing desktop memusatkan hero di sisa viewport (`align-content: stretch` + `items-center`), sehingga jarak atas-bawah tidak merata. | Grid landing memakai `content-start` dan padding halaman yang sama. | Fixed |
+| P3 | Kartu blanko config membungkus angka slot (2/3/4 terpisah dari 6). | Isi kartu jadi kolom: preview+teks di atas, angka slot full-width di bawah. | Fixed |
+| P3 | Empty review menampilkan strip placeholder + error + CTA yang tidak relevan. | Empty state terpusat dengan CTA `Mulai Foto`. | Fixed |
+| P3 | Padding panel, section intro, footer, dan kluster kontrol kamera tidak satu skala. | Token `stack`/`sectionIntro`, panel `p-4`, footer `gap-x-5 gap-y-2`, kontrol kamera tanpa margin negatif. | Fixed |
+

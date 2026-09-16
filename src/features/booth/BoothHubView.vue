@@ -84,7 +84,7 @@ function joinRoom() {
       <span :class="ui.badge">Opsional</span>
     </div>
 
-    <main :class="[ui.content, 'flex-col gap-6 py-6 pb-16']">
+    <main :class="[ui.content, 'gap-6']">
       <section class="grid gap-3 lg:grid-cols-2 lg:items-stretch">
         <article :class="[ui.panel, 'flex flex-col p-4']">
           <h2 class="text-stc-text text-[15px] font-medium">Buat booth</h2>

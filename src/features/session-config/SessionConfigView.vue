@@ -322,13 +322,15 @@ async function handleUploadTemplate() {
           'grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start',
         ]"
       >
-        <section class="min-w-0 space-y-8 pb-24 lg:pb-8">
+        <section class="min-w-0 space-y-8 pb-28 lg:pb-8">
           <div>
-            <p :class="ui.sectionLabel">Blanko Strip</p>
-            <h2 class="text-stc-text mt-1 text-lg font-semibold sm:text-xl">Pilih paket strip.</h2>
-            <p class="text-stc-text-soft mt-1 max-w-[42em] text-[13px] leading-normal">
-              Pilih blanko, jumlah foto, lalu timer. Preview mengikuti pilihanmu.
-            </p>
+            <div :class="ui.sectionIntro">
+              <p :class="ui.sectionLabel">Blanko Strip</p>
+              <h2 :class="ui.sectionTitle">Pilih paket strip.</h2>
+              <p :class="ui.sectionCopy">
+                Pilih blanko, jumlah foto, lalu timer. Preview mengikuti pilihanmu.
+              </p>
+            </div>
 
             <div class="mt-4 grid grid-cols-1 gap-2 min-[500px]:grid-cols-2 xl:grid-cols-3">
               <div
@@ -338,53 +340,55 @@ async function handleUploadTemplate() {
                 tabindex="0"
                 :aria-label="`${blankoPackage.title}, ${packageSlotLabel(blankoPackage)}`"
                 :class="[
-                  'focus-visible:ring-stc-pink/40 flex min-h-36 cursor-pointer items-stretch gap-3 rounded-lg border p-3 text-left outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stc-pink/40 flex min-h-36 cursor-pointer flex-col gap-3 rounded-lg border p-3 text-left outline-none focus-visible:ring-2',
                   isPackageSelected(blankoPackage) ? ui.selectedCard : ui.card,
                 ]"
                 @click="selectBlankoPackage(blankoPackage)"
                 @keydown.enter.prevent="selectBlankoPackage(blankoPackage)"
                 @keydown.space.prevent="selectBlankoPackage(blankoPackage)"
               >
-                <div class="flex w-14 shrink-0 items-center justify-center sm:w-16">
-                  <StripCanvasPreview
-                    :layout="packagePreviewLayout(blankoPackage)"
-                    :template-config="blankoPackage.template"
-                    class="pointer-events-none"
-                  />
-                </div>
-                <div class="flex min-w-0 flex-1 flex-col justify-between gap-3">
-                  <div>
-                    <p class="text-stc-text text-[13px] font-medium">
-                      {{ blankoPackage.title }}
-                    </p>
+                <div class="flex min-w-0 items-start gap-3">
+                  <div class="flex w-14 shrink-0 items-center justify-center sm:w-16">
+                    <StripCanvasPreview
+                      :layout="packagePreviewLayout(blankoPackage)"
+                      :template-config="blankoPackage.template"
+                      class="pointer-events-none"
+                    />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-1.5">
+                      <p class="text-stc-text text-[13px] font-medium">
+                        {{ blankoPackage.title }}
+                      </p>
+                      <span :class="ui.badge">
+                        {{ optionKindLabel(blankoPackage.kind) }}
+                      </span>
+                    </div>
                     <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
                       {{ blankoPackage.subtitle }}
                     </p>
                   </div>
-                  <div class="flex flex-wrap items-center gap-1.5">
-                    <template v-if="blankoPackage.layouts.length > 1">
-                      <button
-                        v-for="layout in blankoPackage.layouts"
-                        :key="layout.id"
-                        :aria-label="`${blankoPackage.title} ${layout.slotCount} foto`"
-                        class="focus-visible:ring-stc-pink/40 inline-flex size-7 items-center justify-center rounded-md text-[13px] font-medium outline-none focus-visible:ring-2"
-                        :class="
-                          isPackageLayoutSelected(blankoPackage, layout)
-                            ? 'bg-stc-text text-white'
-                            : 'text-stc-text hover:bg-stc-bg-3 bg-white'
-                        "
-                        @click.stop="selectBlankoPackageLayout(blankoPackage, layout)"
-                      >
-                        {{ layout.slotCount }}
-                      </button>
-                    </template>
-                    <span v-else :class="ui.badge">
-                      {{ packageSlotLabel(blankoPackage) }}
-                    </span>
-                    <span :class="ui.badge">
-                      {{ optionKindLabel(blankoPackage.kind) }}
-                    </span>
-                  </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <template v-if="blankoPackage.layouts.length > 1">
+                    <button
+                      v-for="layout in blankoPackage.layouts"
+                      :key="layout.id"
+                      :aria-label="`${blankoPackage.title} ${layout.slotCount} foto`"
+                      class="focus-visible:ring-stc-pink/40 inline-flex size-7 items-center justify-center rounded-md text-[13px] font-medium outline-none focus-visible:ring-2"
+                      :class="
+                        isPackageLayoutSelected(blankoPackage, layout)
+                          ? 'bg-stc-text text-white'
+                          : 'text-stc-text hover:bg-stc-bg-3 bg-white'
+                      "
+                      @click.stop="selectBlankoPackageLayout(blankoPackage, layout)"
+                    >
+                      {{ layout.slotCount }}
+                    </button>
+                  </template>
+                  <span v-else :class="ui.badge">
+                    {{ packageSlotLabel(blankoPackage) }}
+                  </span>
                 </div>
               </div>
             </div>
@@ -394,7 +398,7 @@ async function handleUploadTemplate() {
             </div>
 
             <div
-              class="border-stc-border mt-4 flex flex-col gap-2 border-t py-3 sm:flex-row sm:items-center sm:justify-between"
+              class="border-stc-border mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
             >
               <div class="min-w-0">
                 <p class="text-stc-text text-[13px] font-medium">Pakai blanko sendiri</p>
@@ -415,7 +419,7 @@ async function handleUploadTemplate() {
           <div v-if="selectedSource === 'camera'">
             <h2 class="text-stc-text text-[15px] font-medium">Timer & Mode</h2>
 
-            <div class="border-stc-border divide-stc-border mt-2 divide-y border-y">
+            <div class="border-stc-border divide-stc-border mt-3 divide-y border-y">
               <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p class="text-stc-text text-[13px] font-medium">Waktu Timer</p>
@@ -463,7 +467,7 @@ async function handleUploadTemplate() {
           </div>
         </section>
 
-        <aside class="hidden lg:sticky lg:top-4 lg:block" aria-label="Preview layout terpilih">
+        <aside class="hidden lg:sticky lg:top-6 lg:block" aria-label="Preview layout terpilih">
           <div :class="[ui.panel, 'p-4']">
             <div class="mb-3 flex items-start justify-between gap-3">
               <div>
@@ -504,7 +508,7 @@ async function handleUploadTemplate() {
     </div>
 
     <div
-      class="border-stc-border stc-safe-bottom fixed right-0 bottom-0 left-0 z-30 border-t bg-white px-4 py-2.5 lg:hidden"
+      class="border-stc-border stc-safe-bottom fixed right-0 bottom-0 left-0 z-30 border-t bg-white px-4 py-3 lg:hidden"
     >
       <div class="mx-auto flex max-w-lg items-center gap-3">
         <div class="min-w-0 flex-1">
