@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   createBooth,
@@ -7,12 +7,16 @@ import {
   joinBoothByCode,
   normalizeBoothCode,
 } from '@/services/booth'
+import { initCamera, stopCamera } from '@/services/camera'
 import { ui } from '@/ui/styles'
 
 const router = useRouter()
 const joinCode = ref('')
 const joinError = ref('')
 const createError = ref('')
+const cameraLive = ref(false)
+const videoRef = ref<HTMLVideoElement | null>(null)
+let stream: MediaStream | null = null
 
 const ROLE_KEY = 'stecute.booth.role'
 const PEER_KEY = 'stecute.booth.peer'
@@ -55,11 +59,49 @@ function joinRoom() {
   sessionStorage.removeItem(`${PEER_KEY}.${normalizeBoothCode(result.identity.code)}`)
   router.push({ name: 'booth-join', params: { code: result.identity.code } })
 }
+
+async function attachPreview() {
+  if (!videoRef.value || !stream) return
+  if (videoRef.value.srcObject !== stream) videoRef.value.srcObject = stream
+  try {
+    await videoRef.value.play()
+  } catch {
+    // Autoplay can wait for a tap on Buat Booth / Gabung.
+  }
+}
+
+async function startPreview() {
+  try {
+    stream = await initCamera()
+    cameraLive.value = true
+    await nextTick()
+    await attachPreview()
+  } catch {
+    cameraLive.value = false
+  }
+}
+
+watch(videoRef, () => {
+  void attachPreview()
+})
+
+onMounted(() => {
+  void startPreview()
+})
+
+onUnmounted(() => {
+  if (stream) {
+    stopCamera(stream)
+    stream = null
+  }
+  cameraLive.value = false
+  if (videoRef.value) videoRef.value.srcObject = null
+})
 </script>
 
 <template>
   <div :class="ui.page">
-    <div :class="ui.header">
+    <nav :class="ui.headerWide">
       <div :class="ui.headerGroup">
         <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="router.push('/')">
           <svg
@@ -76,42 +118,46 @@ function joinRoom() {
             <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <div class="min-w-0">
-          <h1 :class="ui.title">Booth Bareng</h1>
-          <p :class="ui.subtitle">
-            Foto berdua lewat kode. Lihat teman secara live, tanpa akun dan tanpa audio.
-          </p>
-        </div>
+        <img
+          class="block h-auto w-[108px]"
+          src="/icons.svg"
+          alt="Stecute"
+          width="442"
+          height="123"
+          decoding="async"
+        />
       </div>
-      <span :class="ui.badge">Opsional</span>
-    </div>
+    </nav>
 
-    <main :class="[ui.content, 'gap-6']">
-      <section class="grid gap-3 lg:grid-cols-2 lg:items-stretch">
-        <article :class="[ui.panel, 'flex flex-col p-4']">
-          <h2 class="text-stc-text text-[15px] font-medium">Buat booth</h2>
-          <p class="text-stc-text-soft mt-1 flex-1 text-[13px] leading-normal">
-            Kamu jadi host. Dapat kode dan link, lalu mulai pose setelah teman masuk.
-          </p>
-          <button :class="[ui.primaryButton, 'mt-4 self-start']" @click="createRoom">
-            Buat Booth
-          </button>
-          <p v-if="createError" class="text-stc-error-strong mt-2 text-[13px]">
-            {{ createError }}
-          </p>
-        </article>
+    <main
+      class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)] lg:items-center lg:gap-12"
+    >
+      <section class="flex min-w-0 flex-col">
+        <p :class="ui.sectionLabel">Photo booth berdua</p>
+        <h1
+          class="text-stc-text mt-2 max-w-[12ch] text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
+        >
+          Booth Bareng
+        </h1>
+        <p class="text-stc-text-soft mt-3 max-w-[36em] text-[13px] leading-normal sm:text-sm">
+          Bagikan kode, lihat teman live, lalu simpan strip di perangkat. Tanpa akun dan tanpa
+          audio.
+        </p>
 
-        <article :class="[ui.panel, 'flex flex-col p-4']">
-          <h2 class="text-stc-text text-[15px] font-medium">Gabung dengan kode</h2>
-          <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
-            Masukkan 6 karakter dari host, atau buka link undangan di HP lain.
-          </p>
-          <form class="mt-4 flex flex-1 flex-col gap-2" @submit.prevent="joinRoom">
-            <label class="sr-only" for="booth-join-code">Kode booth</label>
+        <div class="mt-6 flex flex-wrap items-center gap-2">
+          <button :class="ui.primaryButton" @click="createRoom">Buat Booth</button>
+        </div>
+        <p v-if="createError" class="text-stc-error-strong mt-2 text-[13px]">{{ createError }}</p>
+
+        <form class="mt-8 max-w-sm" @submit.prevent="joinRoom">
+          <label class="text-stc-text text-[13px] font-medium" for="booth-join-code">
+            Kode booth
+          </label>
+          <div class="mt-2 flex gap-2">
             <input
               id="booth-join-code"
               v-model="joinCode"
-              :class="[ui.input, 'h-10 text-center text-base tracking-[0.18em] uppercase']"
+              :class="[ui.input, 'h-10 flex-1 text-center tracking-[0.18em] uppercase']"
               name="booth-code"
               aria-label="Kode booth"
               autocomplete="off"
@@ -120,48 +166,44 @@ function joinRoom() {
               maxlength="7"
             />
             <button :class="ui.secondaryButton" type="submit">Gabung</button>
-          </form>
+          </div>
           <p v-if="joinError" class="text-stc-error-strong mt-2 text-[13px]" role="alert">
             {{ joinError }}
           </p>
-        </article>
+        </form>
+
+        <p class="text-stc-text-faint mt-8 max-w-[40em] text-[13px] leading-normal">
+          Review, lalu unduh PNG. Bisa review per-shot. Perangkat bisa beda jaringan. Mulai Foto dan
+          Upload Lokal tetap jalan tanpa mode ini.
+        </p>
       </section>
 
-      <section class="border-stc-border divide-stc-border divide-y border-y">
-        <div class="flex gap-3 py-3">
-          <span class="text-stc-text-faint w-4 text-[13px]">1</span>
-          <div>
-            <p class="text-stc-text text-[13px] font-medium">Buat atau gabung</p>
-            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-              Host bagikan kode. Tamu masuk dari HP atau laptop lain.
-            </p>
-          </div>
-        </div>
-        <div class="flex gap-3 py-3">
-          <span class="text-stc-text-faint w-4 text-[13px]">2</span>
-          <div>
-            <p class="text-stc-text text-[13px] font-medium">Lihat teman di layar</p>
-            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-              Layar jadi dua kotak seperti video call. Host kiri, tamu kanan, kamera tidak
-              di-mirror. Kalau sudah berdua, host mulai pose.
-            </p>
-          </div>
-        </div>
-        <div class="flex gap-3 py-3">
-          <span class="text-stc-text-faint w-4 text-[13px]">3</span>
-          <div>
-            <p class="text-stc-text text-[13px] font-medium">Strip jadi satu</p>
-            <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-              Tiap pose menggabungkan foto host dan tamu ke satu baris.
-            </p>
-          </div>
+      <section
+        class="border-stc-border mx-auto w-full max-w-md overflow-hidden rounded-lg border bg-black"
+        aria-label="Preview kamera Booth Bareng"
+      >
+        <div class="grid aspect-[4/3] grid-cols-2">
+          <article class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+            <video
+              ref="videoRef"
+              class="absolute inset-0 h-full w-full object-cover"
+              autoplay
+              muted
+              playsinline
+            />
+            <div
+              v-if="!cameraLive"
+              class="absolute inset-0 flex items-center justify-center bg-zinc-950 px-3 text-center"
+            >
+              <p class="text-[11px] leading-normal text-white/70">Izinkan kamera untuk preview live.</p>
+            </div>
+            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Kamu</p>
+          </article>
+          <article class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Teman</p>
+          </article>
         </div>
       </section>
-
-      <p class="text-stc-text-faint max-w-[42em] text-[13px] leading-normal">
-        Foto tidak disimpan di server. Perangkat bisa beda jaringan, termasuk 4G dan Wi-Fi kantor.
-        Alur Mulai Foto dan Upload Lokal tetap jalan tanpa mode ini.
-      </p>
     </main>
   </div>
 </template>

@@ -1,4 +1,5 @@
 import type { DecorationConfig, LayoutConfig, Shot, SlotConfig, TemplateConfig } from '@/db/schema'
+import { getObjectCoverCrop } from '@/services/camera/cover-crop'
 import {
   drawCameraEffect,
   drawFaceTrackingEffect,
@@ -169,6 +170,132 @@ export function startLiveCamRecording(
       return stoppedResult
     },
   }
+}
+
+export function startPairLiveCamRecording(options: {
+  localVideo: HTMLVideoElement
+  remoteVideo: HTMLVideoElement | null
+  width: number
+  height: number
+  localOnLeft: boolean
+}): LiveCamRecording | null {
+  if (!isLiveStripRenderingSupported()) return null
+  if (options.localVideo.videoWidth < 2) return null
+
+  const mimeType = getSupportedMimeType(LIVE_CAM_RECORD_MIME_TYPES)
+  if (!mimeType) return null
+
+  const width = Math.max(2, Math.floor(options.width))
+  const height = Math.max(1, Math.floor(options.height))
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const canvasWithStream = canvas as HTMLCanvasElement & {
+    captureStream?: (frameRate?: number) => MediaStream
+  }
+  const stream = canvasWithStream.captureStream?.(LIVE_STRIP_FPS)
+  if (!stream) return null
+
+  const chunks: Blob[] = []
+  const startedAt = performance.now()
+  let stopped = false
+  let frameId = 0
+
+  const leftVideo = options.localOnLeft ? options.localVideo : options.remoteVideo
+  const rightVideo = options.localOnLeft ? options.remoteVideo : options.localVideo
+  const halfWidth = Math.floor(width / 2)
+
+  function drawPairFrame() {
+    ctx.fillStyle = '#0a0a0a'
+    ctx.fillRect(0, 0, width, height)
+    drawVideoCoverToRect(ctx, leftVideo, 0, 0, halfWidth, height)
+    drawVideoCoverToRect(ctx, rightVideo, halfWidth, 0, width - halfWidth, height)
+  }
+
+  function loop() {
+    if (stopped) return
+    drawPairFrame()
+    frameId = window.requestAnimationFrame(loop)
+  }
+
+  drawPairFrame()
+  loop()
+
+  const recorder = new MediaRecorder(stream, {
+    mimeType,
+    videoBitsPerSecond: 2_500_000,
+  })
+
+  const stoppedResult = new Promise<LiveCamClip | null>((resolve) => {
+    recorder.addEventListener('dataavailable', (event) => {
+      if (event.data.size > 0) chunks.push(event.data)
+    })
+
+    recorder.addEventListener('stop', () => {
+      window.cancelAnimationFrame(frameId)
+      for (const track of stream.getTracks()) track.stop()
+      const durationMs = Math.max(0, Math.round(performance.now() - startedAt))
+      if (chunks.length === 0) {
+        resolve(null)
+        return
+      }
+
+      resolve({
+        blob: new Blob(chunks, { type: mimeType }),
+        mimeType,
+        durationMs,
+        width,
+        height,
+        mirrored: false,
+      })
+    })
+
+    recorder.addEventListener('error', () => {
+      window.cancelAnimationFrame(frameId)
+      resolve(null)
+    })
+  })
+
+  recorder.start(250)
+
+  return {
+    stop: async (delayMs = 0) => {
+      if (stopped) return stoppedResult
+      stopped = true
+
+      if (delayMs > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs))
+      }
+
+      if (recorder.state !== 'inactive') {
+        recorder.requestData()
+        recorder.stop()
+      }
+
+      return stoppedResult
+    },
+  }
+}
+
+function drawVideoCoverToRect(
+  ctx: CanvasRenderingContext2D,
+  video: HTMLVideoElement | null,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
+    ctx.fillStyle = '#111'
+    ctx.fillRect(x, y, width, height)
+    return
+  }
+
+  const crop = getObjectCoverCrop(video.videoWidth, video.videoHeight, width, height)
+  ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, x, y, width, height)
 }
 
 export async function renderLiveStrip(

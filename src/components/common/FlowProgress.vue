@@ -8,35 +8,67 @@ const props = withDefaults(
   defineProps<{
     current: FlowStep
     source?: CaptureSource | null
+    compact?: boolean
+    inline?: boolean
   }>(),
   {
     source: null,
+    compact: false,
+    inline: false,
   },
 )
 
-const steps = computed(() => [
-  { id: 'landing' as const, label: 'Mulai' },
-  { id: 'config' as const, label: 'Format' },
-  { id: 'capture' as const, label: props.source === 'upload' ? 'Upload' : 'Foto' },
-  { id: 'review' as const, label: 'Review' },
-  { id: 'render' as const, label: 'Render' },
-  { id: 'output' as const, label: 'Hasil' },
-])
+const steps = computed(() => {
+  const captureLabel = props.source === 'upload' ? 'Upload' : 'Foto'
+  if (props.compact) {
+    return [
+      { id: 'config' as const, label: 'Format' },
+      { id: 'capture' as const, label: captureLabel },
+      { id: 'review' as const, label: 'Review' },
+      { id: 'output' as const, label: 'Hasil' },
+    ]
+  }
+
+  return [
+    { id: 'landing' as const, label: 'Mulai' },
+    { id: 'config' as const, label: 'Format' },
+    { id: 'capture' as const, label: captureLabel },
+    { id: 'review' as const, label: 'Review' },
+    { id: 'render' as const, label: 'Render' },
+    { id: 'output' as const, label: 'Hasil' },
+  ]
+})
+
+const resolvedCurrent = computed(() => {
+  if (props.current === 'landing') return 'config'
+  if (props.current === 'render') return 'output'
+  return props.current
+})
 
 const currentIndex = computed(() =>
   Math.max(
     0,
-    steps.value.findIndex((step) => step.id === props.current),
+    steps.value.findIndex((step) => step.id === resolvedCurrent.value),
   ),
 )
 </script>
 
 <template>
   <nav
-    class="border-stc-border flex w-full items-center border-b px-4 py-2.5 sm:px-5"
+    :class="
+      inline
+        ? 'flex min-w-0 items-center'
+        : 'border-stc-border flex w-full items-center border-b px-4 py-2.5 sm:px-5'
+    "
     aria-label="Progress sesi Stecute"
   >
-    <ol class="flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]">
+    <ol
+      :class="
+        inline
+          ? 'flex min-w-0 flex-nowrap items-center gap-1 text-[12px]'
+          : 'flex w-full flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px]'
+      "
+    >
       <li v-for="(step, index) in steps" :key="step.id" class="flex min-w-0 items-center gap-1.5">
         <span
           class="whitespace-nowrap"

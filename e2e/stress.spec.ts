@@ -18,7 +18,7 @@ test.describe('Stecute UI stress', () => {
       const code = (await page.getByTestId('booth-code').innerText()).trim()
       expect(code).toMatch(/^[A-Z2-9]{3}-[A-Z2-9]{3}$/)
       codes.push(code)
-      await expect(page.getByLabel('Link undangan')).toHaveValue(new RegExp(`/j/${code}$`))
+      await expect(page.getByTestId('booth-invite-url')).toHaveValue(new RegExp(`/j/${code}$`))
     }
 
     expect(new Set(codes).size).toBe(codes.length)
@@ -45,7 +45,7 @@ test.describe('Stecute UI stress', () => {
     await page.goto('/booth')
     await page.getByRole('button', { name: 'Buat Booth' }).click()
     const code = (await page.getByTestId('booth-code').innerText()).trim()
-    const inviteUrl = await page.getByLabel('Link undangan').inputValue()
+    const inviteUrl = await page.getByTestId('booth-invite-url').inputValue()
 
     const guests = await Promise.all(Array.from({ length: 6 }, () => context.newPage()))
     await Promise.all(guests.map((guest) => guest.goto(inviteUrl)))

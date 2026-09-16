@@ -1,17 +1,12 @@
 import type { DataConnection, MediaConnection, Peer } from 'peerjs'
 import { boothPeerRtcConfig, getBoothIceServers } from './ice'
+import { pickLiveVideoTrack } from './preview'
 import type { BoothTransport, BoothWireMessage } from './transport'
 
 const PEER_OPEN_TIMEOUT_MS = 10_000
 const GUEST_CONNECT_TIMEOUT_MS = 20_000
 const GUEST_RETRY_DELAY_MS = 1_200
 const HOST_ID_RETRY_DELAY_MS = 1_000
-const HOST_ANSWER_WAIT_MS = 2_000
-const PREVIEW_CONSTRAINTS: MediaTrackConstraints = {
-  width: { ideal: 640, max: 960 },
-  height: { ideal: 480, max: 720 },
-  frameRate: { ideal: 20, max: 24 },
-}
 
 export function boothHostPeerId(normalizedCode: string): string {
   return `stc-${normalizedCode.toLowerCase()}`
@@ -34,7 +29,6 @@ export async function createWebRtcBoothTransport(
   let mediaCall: MediaConnection | null = null
   let pendingIncoming: MediaConnection | null = null
   let answerTimer: ReturnType<typeof setTimeout> | null = null
-  let answerAfter = 0
   const hostId = boothHostPeerId(normalizedCode)
   const iceServers = await getBoothIceServers(signal)
   const rtcConfig = boothPeerRtcConfig(iceServers)
@@ -150,18 +144,28 @@ export async function createWebRtcBoothTransport(
     return new MediaStream(stream.getVideoTracks())
   }
 
+  function isLocalCameraTrack(track: MediaStreamTrack) {
+    return Boolean(localStream?.getTracks().some((item) => item.id === track.id))
+  }
+
   function stopOutboundTracks(except?: MediaStreamTrack | null) {
     if (!outboundStream) return
     for (const track of outboundStream.getTracks()) {
-      if (track !== except) track.stop()
+      if (track === except || isLocalCameraTrack(track)) continue
+      track.stop()
     }
     if (!except) outboundStream = null
   }
 
   function prepareOutbound(source: MediaStream | null) {
-    const nextTrack = clonePreviewTrack(source) ?? createPlaceholderVideoTrack()
+    const nextTrack = clonePreviewTrack(source)
+    if (!nextTrack) {
+      stopOutboundTracks()
+      outboundStream = null
+      return null
+    }
     stopOutboundTracks(nextTrack)
-    outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+    outboundStream = new MediaStream([nextTrack])
     return outboundStream
   }
 
@@ -184,32 +188,28 @@ export async function createWebRtcBoothTransport(
       incoming.close()
       return
     }
-    answerAfter = 0
     pendingIncoming = incoming
     maybeAnswerIncoming()
   }
 
   function maybeAnswerIncoming() {
     if (disposed || !pendingIncoming) return
-    const canAnswer = Boolean(localStream) || (answerAfter > 0 && Date.now() >= answerAfter)
-    if (!canAnswer) {
-      if (!answerAfter) {
-        answerAfter = Date.now() + HOST_ANSWER_WAIT_MS
+    const outbound = outboundStream ?? prepareOutbound(localStream)
+    if (!outbound) {
+      if (!answerTimer) {
         answerTimer = setTimeout(() => {
           answerTimer = null
           maybeAnswerIncoming()
-        }, HOST_ANSWER_WAIT_MS)
+        }, 250)
       }
       return
     }
 
     clearAnswerTimer()
-    answerAfter = 0
     const incoming = pendingIncoming
     pendingIncoming = null
-    const outbound = outboundStream ?? prepareOutbound(localStream)
     bindMediaCall(incoming)
-    incoming.answer(outbound ?? undefined)
+    incoming.answer(outbound)
   }
 
   function bindMediaCall(connection: MediaConnection) {
@@ -251,7 +251,9 @@ export async function createWebRtcBoothTransport(
   }
 
   async function updateOutbound(source: MediaStream | null) {
-    const nextTrack = clonePreviewTrack(source) ?? createPlaceholderVideoTrack()
+    const nextTrack = clonePreviewTrack(source)
+    if (!nextTrack) return
+
     const sender = mediaCall?.peerConnection
       ?.getSenders()
       .find((item) => item.track?.kind === 'video' || item.track == null)
@@ -260,7 +262,7 @@ export async function createWebRtcBoothTransport(
       try {
         await sender.replaceTrack(nextTrack)
         stopOutboundTracks(nextTrack)
-        outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+        outboundStream = new MediaStream([nextTrack])
         return
       } catch {
         // Fall through and renegotiate from the guest side.
@@ -268,7 +270,7 @@ export async function createWebRtcBoothTransport(
     }
 
     stopOutboundTracks(nextTrack)
-    outboundStream = nextTrack ? new MediaStream([nextTrack]) : null
+    outboundStream = new MediaStream([nextTrack])
     if (pendingIncoming) {
       maybeAnswerIncoming()
       return
@@ -335,29 +337,13 @@ export async function createWebRtcBoothTransport(
 }
 
 function clonePreviewTrack(source: MediaStream | null): MediaStreamTrack | null {
-  const track = source?.getVideoTracks().find((item) => item.readyState === 'live')
+  const track = pickLiveVideoTrack(source)
   if (!track) return null
 
-  const clone = track.clone()
-  void clone.applyConstraints(PREVIEW_CONSTRAINTS).catch(() => undefined)
-  return clone
-}
-
-function createPlaceholderVideoTrack(): MediaStreamTrack | null {
-  if (typeof document === 'undefined') return null
-
   try {
-    const canvas = document.createElement('canvas')
-    canvas.width = 16
-    canvas.height = 16
-    const context = canvas.getContext('2d')
-    if (context) {
-      context.fillStyle = '#0a0a0a'
-      context.fillRect(0, 0, 16, 16)
-    }
-    return canvas.captureStream(1).getVideoTracks()[0] ?? null
+    return track.clone()
   } catch {
-    return null
+    return track
   }
 }
 
@@ -533,6 +519,8 @@ function encodeFramedStill(message: Extract<BoothWireMessage, { type: 'still' }>
       mimeType: message.mimeType,
       width: message.width,
       height: message.height,
+      faceBounds: message.faceBounds,
+      cameraEffectFrameMs: message.cameraEffectFrameMs,
     }),
   )
   const payload = new Uint8Array(message.bytes)
@@ -568,6 +556,8 @@ function decodeFramedStill(bytes: Uint8Array): BoothWireMessage | null {
       width: header.width,
       height: header.height,
       bytes: copy.buffer,
+      faceBounds: header.faceBounds?.map((face) => ({ ...face })),
+      cameraEffectFrameMs: header.cameraEffectFrameMs,
     }
   } catch {
     return null

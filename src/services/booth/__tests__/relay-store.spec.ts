@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { appendBoothRelayMessage, handleBoothRelay, listBoothRelayMessages } from '../../../../server/booth-relay.mjs'
+import {
+  appendBoothRelayMessage,
+  handleBoothRelay,
+  listBoothRelayMessages,
+} from '../../../../server/booth-relay.mjs'
 
 describe('booth HTTPS mailbox', () => {
   it('stores and lists sealed payloads by booth code', () => {

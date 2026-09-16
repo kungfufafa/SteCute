@@ -64,6 +64,7 @@ class SoftwareContext {
   private stack: Array<{
     fillStyle: string
     globalAlpha: number
+    filter: string
     clipRect: { x: number; y: number; width: number; height: number } | null
   }> = []
 
@@ -75,6 +76,7 @@ class SoftwareContext {
     this.stack.push({
       fillStyle: this.fillStyle,
       globalAlpha: this.globalAlpha,
+      filter: this.filter,
       clipRect: this.clipRect ? { ...this.clipRect } : null,
     })
   }
@@ -84,6 +86,7 @@ class SoftwareContext {
     if (!frame) return
     this.fillStyle = frame.fillStyle
     this.globalAlpha = frame.globalAlpha
+    this.filter = frame.filter
     this.clipRect = frame.clipRect
   }
 
@@ -100,6 +103,10 @@ class SoftwareContext {
   }
 
   quadraticCurveTo(_cpx: number, _cpy: number, x: number, y: number) {
+    this.path.push({ x, y })
+  }
+
+  bezierCurveTo(_cp1x: number, _cp1y: number, _cp2x: number, _cp2y: number, x: number, y: number) {
     this.path.push({ x, y })
   }
 
@@ -128,6 +135,16 @@ class SoftwareContext {
   translate() {}
 
   scale() {}
+
+  rotate() {}
+
+  setTransform() {}
+
+  resetTransform() {}
+
+  arc() {}
+
+  ellipse() {}
 
   fillRect(x: number, y: number, width: number, height: number) {
     const color = parseColor(String(this.fillStyle))
@@ -201,9 +218,15 @@ class SoftwareContext {
         )
         const si = (srcPy * bitmap.width + srcPx) * 4
         const di = (destPy * this.canvas.width + destPx) * 4
-        this.canvas.pixels[di] = bitmap.data[si]
-        this.canvas.pixels[di + 1] = bitmap.data[si + 1]
-        this.canvas.pixels[di + 2] = bitmap.data[si + 2]
+        const filtered = applyCssFilter(
+          bitmap.data[si],
+          bitmap.data[si + 1],
+          bitmap.data[si + 2],
+          this.filter,
+        )
+        this.canvas.pixels[di] = filtered[0]
+        this.canvas.pixels[di + 1] = filtered[1]
+        this.canvas.pixels[di + 2] = filtered[2]
         this.canvas.pixels[di + 3] = bitmap.data[si + 3]
       }
     }
@@ -236,6 +259,86 @@ function insideClip(
 
 function mix(current: number, next: number, alpha: number) {
   return Math.round(current * (1 - alpha) + next * alpha)
+}
+
+function clampByte(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+}
+
+function parseFilterAmount(raw: string, fallback = 1) {
+  const trimmed = raw.trim()
+  if (!trimmed) return fallback
+  if (trimmed.endsWith('%')) {
+    const parsed = Number.parseFloat(trimmed.slice(0, -1))
+    return Number.isFinite(parsed) ? parsed / 100 : fallback
+  }
+  const parsed = Number.parseFloat(trimmed)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function applyCssFilter(
+  red: number,
+  green: number,
+  blue: number,
+  filter: string,
+): [number, number, number] {
+  if (!filter || filter === 'none') return [red, green, blue]
+
+  const tokens = filter.match(/[a-z-]+\([^)]*\)/gi) ?? []
+  let nextRed = red
+  let nextGreen = green
+  let nextBlue = blue
+
+  for (const token of tokens) {
+    const name = token.slice(0, token.indexOf('(')).toLowerCase()
+    const raw = token.slice(token.indexOf('(') + 1, token.lastIndexOf(')'))
+
+    if (name === 'grayscale') {
+      const amount = Math.max(0, Math.min(1, parseFilterAmount(raw)))
+      const luma = 0.2126 * nextRed + 0.7152 * nextGreen + 0.0722 * nextBlue
+      nextRed += (luma - nextRed) * amount
+      nextGreen += (luma - nextGreen) * amount
+      nextBlue += (luma - nextBlue) * amount
+      continue
+    }
+
+    if (name === 'sepia') {
+      const amount = Math.max(0, Math.min(1, parseFilterAmount(raw)))
+      const sepiaRed = 0.393 * nextRed + 0.769 * nextGreen + 0.189 * nextBlue
+      const sepiaGreen = 0.349 * nextRed + 0.686 * nextGreen + 0.168 * nextBlue
+      const sepiaBlue = 0.272 * nextRed + 0.534 * nextGreen + 0.131 * nextBlue
+      nextRed += (sepiaRed - nextRed) * amount
+      nextGreen += (sepiaGreen - nextGreen) * amount
+      nextBlue += (sepiaBlue - nextBlue) * amount
+      continue
+    }
+
+    if (name === 'saturate') {
+      const amount = Math.max(0, parseFilterAmount(raw))
+      const luma = 0.2126 * nextRed + 0.7152 * nextGreen + 0.0722 * nextBlue
+      nextRed = luma + (nextRed - luma) * amount
+      nextGreen = luma + (nextGreen - luma) * amount
+      nextBlue = luma + (nextBlue - luma) * amount
+      continue
+    }
+
+    if (name === 'brightness') {
+      const amount = Math.max(0, parseFilterAmount(raw))
+      nextRed *= amount
+      nextGreen *= amount
+      nextBlue *= amount
+      continue
+    }
+
+    if (name === 'contrast') {
+      const amount = Math.max(0, parseFilterAmount(raw))
+      nextRed = (nextRed - 128) * amount + 128
+      nextGreen = (nextGreen - 128) * amount + 128
+      nextBlue = (nextBlue - 128) * amount + 128
+    }
+  }
+
+  return [clampByte(nextRed), clampByte(nextGreen), clampByte(nextBlue)]
 }
 
 function parseColor(input: string): [number, number, number, number] {

@@ -122,14 +122,14 @@ export async function saveShot(params: {
   liveClip?: LiveCamClip | null
 }): Promise<string> {
   const existing = await shotRepo.getBySessionAndOrder(params.sessionId, params.order)
-  const liveClip = params.liveClip
+  const liveClip = params.liveClip?.blob
     ? {
         liveClipBlob: params.liveClip.blob,
-        liveClipMimeType: params.liveClip.mimeType,
-        liveClipDurationMs: params.liveClip.durationMs,
-        liveClipWidth: params.liveClip.width,
-        liveClipHeight: params.liveClip.height,
-        liveClipMirrored: params.liveClip.mirrored,
+        liveClipMimeType: String(params.liveClip.mimeType || 'video/webm'),
+        liveClipDurationMs: Number(params.liveClip.durationMs) || 0,
+        liveClipWidth: Number(params.liveClip.width) || 0,
+        liveClipHeight: Number(params.liveClip.height) || 0,
+        liveClipMirrored: Boolean(params.liveClip.mirrored),
       }
     : undefined
 

@@ -1,3 +1,4 @@
+import { cloneFaceBounds, cloneShotRecord } from '../clone'
 import { db, type Shot } from '../schema'
 import { restoreIndexedDbBlob, writeBlobWithFallback } from '../blob'
 
@@ -12,14 +13,15 @@ function restoreShotBlob(shot: Shot): Shot {
 export class ShotRepository {
   async create(shot: Omit<Shot, 'id'>): Promise<string> {
     const id = crypto.randomUUID()
-    await writeBlobWithFallback(shot.blob, async (blob) => {
-      if (!shot.liveClipBlob) {
-        await db.shots.add({ ...shot, blob, id })
+    const record = cloneShotRecord(shot, id)
+    await writeBlobWithFallback(record.blob, async (blob) => {
+      if (!record.liveClipBlob) {
+        await db.shots.add({ ...record, blob })
         return
       }
 
-      await writeBlobWithFallback(shot.liveClipBlob, (liveClipBlob) =>
-        db.shots.add({ ...shot, blob, liveClipBlob, id }),
+      await writeBlobWithFallback(record.liveClipBlob, (liveClipBlob) =>
+        db.shots.add({ ...record, blob, liveClipBlob }),
       )
     })
     return id
@@ -71,7 +73,7 @@ export class ShotRepository {
               blob: storedBlob,
               width,
               height,
-              faceBounds,
+              faceBounds: cloneFaceBounds(faceBounds),
               cameraEffectId,
               cameraEffectFrameMs,
               liveClipBlob: storedLiveClipBlob,
@@ -90,7 +92,7 @@ export class ShotRepository {
           blob: storedBlob,
           width,
           height,
-          faceBounds,
+          faceBounds: cloneFaceBounds(faceBounds),
           cameraEffectId,
           cameraEffectFrameMs,
           liveClipBlob: null,

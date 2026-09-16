@@ -26,6 +26,7 @@ export {
   composePairRow,
   decodeStill,
   DEFAULT_PAIR_SLOT,
+  type BoothFaceBounds,
   type BoothStill,
   type ComposedPairShot,
 } from './compose'
@@ -35,6 +36,19 @@ export {
   type BoothPeerRole,
   type BoothPeerSession,
 } from './session'
+export {
+  BOOTH_COUNTDOWN_SECONDS,
+  DEFAULT_BOOTH_COUNTDOWN_SECONDS,
+  bundledBoothLayouts,
+  bundledBoothTemplates,
+  boothSetupsEqual,
+  createDefaultBoothSetup,
+  normalizeBoothCountdownMs,
+  normalizeBoothSetup,
+  pairSlotForLayout,
+  type BoothSessionSetup,
+} from './setup'
+export { isRemotePreviewReady, pickLiveVideoTrack } from './preview'
 export {
   boothChannelName,
   createBroadcastBoothTransport,

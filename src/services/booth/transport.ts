@@ -6,6 +6,17 @@ export type BoothWireMessage =
   | { type: 'bye'; peerId: string }
   | { type: 'reject'; peerId: string; toPeerId: string; reason: 'full' }
   | {
+      type: 'session-setup'
+      layoutId: string
+      templateId: string
+      slotCount: number
+      countdownMs: number
+      filterId: string
+      cameraEffectId: string
+      nonce?: string
+    }
+  | { type: 'session-reset'; nonce?: string }
+  | {
       type: 'start-moment'
       momentIndex: number
       countdownMs: number
@@ -20,6 +31,8 @@ export type BoothWireMessage =
       width: number
       height: number
       bytes: ArrayBuffer
+      faceBounds?: Array<{ x: number; y: number; width: number; height: number }>
+      cameraEffectFrameMs?: number
     }
 
 export type BoothMediaSession = {
@@ -165,5 +178,6 @@ function cloneMessage(message: BoothWireMessage): BoothWireMessage {
   return {
     ...message,
     bytes: message.bytes.slice(0),
+    faceBounds: message.faceBounds?.map((face) => ({ ...face })),
   }
 }

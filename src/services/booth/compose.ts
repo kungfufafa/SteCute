@@ -1,17 +1,31 @@
+import { getObjectCoverCrop } from '@/services/camera/cover-crop'
+import type { LiveCamClip } from '@/services/live-cam'
 import { decodePng, encodeRgbaPng, isPng, type RgbaImage } from './png'
 
 export const DEFAULT_PAIR_SLOT = { width: 1080, height: 810 } as const
+
+export type BoothFaceBounds = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 export type BoothStill = {
   blob: Blob
   width: number
   height: number
+  faceBounds?: BoothFaceBounds[]
+  cameraEffectFrameMs?: number
 }
 
 export type ComposedPairShot = {
   blob: Blob
   width: number
   height: number
+  faceBounds: BoothFaceBounds[]
+  cameraEffectFrameMs: number
+  liveClip?: LiveCamClip | null
 }
 
 export async function composePairRow(
@@ -37,6 +51,11 @@ export async function composePairRow(
     blob: new Blob([copy], { type: 'image/png' }),
     width,
     height,
+    faceBounds: [
+      ...mapFacesToPairHalf(host.faceBounds, hostImage, width, height, 0, hostWidth),
+      ...mapFacesToPairHalf(guest.faceBounds, guestImage, width, height, hostWidth, guestWidth),
+    ],
+    cameraEffectFrameMs: resolvePairFrameMs(host.cameraEffectFrameMs, guest.cameraEffectFrameMs),
   }
 }
 
@@ -54,6 +73,55 @@ export async function decodeStill(blob: Blob): Promise<RgbaImage> {
   return decodeStillViaBitmap(blob)
 }
 
+function coverCrop(
+  sourceWidth: number,
+  sourceHeight: number,
+  destWidth: number,
+  destHeight: number,
+) {
+  return getObjectCoverCrop(sourceWidth, sourceHeight, destWidth, destHeight)
+}
+
+function isRenderableFace(face: BoothFaceBounds) {
+  return (
+    Number.isFinite(face.x) &&
+    Number.isFinite(face.y) &&
+    Number.isFinite(face.width) &&
+    Number.isFinite(face.height) &&
+    face.width > 0 &&
+    face.height > 0
+  )
+}
+
+function mapFacesToPairHalf(
+  faces: BoothFaceBounds[] | undefined,
+  source: Pick<RgbaImage, 'width' | 'height'>,
+  pairWidth: number,
+  pairHeight: number,
+  halfX: number,
+  halfWidth: number,
+): BoothFaceBounds[] {
+  if (!faces?.length || !source.width || !source.height || halfWidth <= 0 || pairHeight <= 0) {
+    return []
+  }
+
+  const crop = coverCrop(source.width, source.height, halfWidth, pairHeight)
+  if (crop.sw <= 0 || crop.sh <= 0) return []
+
+  return faces.filter(isRenderableFace).map((face) => ({
+    x: (halfX + ((face.x * source.width - crop.sx) / crop.sw) * halfWidth) / pairWidth,
+    y: (face.y * source.height - crop.sy) / crop.sh,
+    width: ((face.width * source.width) / crop.sw) * (halfWidth / pairWidth),
+    height: (face.height * source.height) / crop.sh,
+  }))
+}
+
+function resolvePairFrameMs(hostFrameMs?: number, guestFrameMs?: number) {
+  if (typeof hostFrameMs === 'number' && Number.isFinite(hostFrameMs)) return hostFrameMs
+  if (typeof guestFrameMs === 'number' && Number.isFinite(guestFrameMs)) return guestFrameMs
+  return 0
+}
+
 function blitCover(
   source: RgbaImage,
   dest: Uint8ClampedArray,
@@ -63,22 +131,9 @@ function blitCover(
   dw: number,
   dh: number,
 ) {
-  const sourceRatio = source.width / source.height
-  const destRatio = dw / dh
-  let sx = 0
-  let sy = 0
-  let sw = source.width
-  let sh = source.height
-
   if (!source.width || !source.height || dw <= 0 || dh <= 0) return
 
-  if (sourceRatio > destRatio) {
-    sw = source.height * destRatio
-    sx = (source.width - sw) / 2
-  } else {
-    sh = source.width / destRatio
-    sy = (source.height - sh) / 2
-  }
+  const { sx, sy, sw, sh } = coverCrop(source.width, source.height, dw, dh)
 
   for (let y = 0; y < dh; y++) {
     const sourceY = Math.min(source.height - 1, Math.floor(sy + ((y + 0.5) * sh) / dh))

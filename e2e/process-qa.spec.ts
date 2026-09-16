@@ -80,7 +80,7 @@ test.describe('process QA empty and entry states', () => {
     await expect(page.getByRole('alert')).toContainText('tidak valid')
 
     await page.goto('/j/ZZZ-ZZZ')
-    await expect(page.getByRole('heading', { name: 'Ruang booth' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
     await expect(page.getByText(/Menghubungkan ke host|Host belum online/)).toBeVisible()
     await expect(page.getByText('Booth tidak ditemukan')).toHaveCount(0)
   })

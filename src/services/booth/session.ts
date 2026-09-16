@@ -1,4 +1,5 @@
 import { composePairRow, type BoothStill, type ComposedPairShot } from './compose'
+import { normalizeBoothSetup, pairSlotForLayout, type BoothSessionSetup } from './setup'
 import type { BoothPeerRole, BoothTransport, BoothWireMessage } from './transport'
 
 export type { BoothPeerRole, BoothStill, ComposedPairShot }
@@ -16,7 +17,13 @@ export type BoothPeerSession = {
   waitForComposed(momentIndex: number, timeoutMs?: number): Promise<ComposedPairShot>
   waitForCountdown(momentIndex: number): Promise<number>
   waitForStart(): Promise<BoothStartEvent>
+  waitForSetup(): Promise<BoothSessionSetup>
+  waitForReset(): Promise<void>
+  setSetup(setup: BoothSessionSetup): void
+  resetCapture(): void
+  getSetup(): BoothSessionSetup | null
   getComposedShots(): ComposedPairShot[]
+  getComposedByOrder(): Array<{ order: number; shot: ComposedPairShot }>
   getRemotePeerId(): string | null
   getRejectedReason(): 'full' | null
   announce(): void
@@ -28,6 +35,7 @@ export function createBoothPeerSession(options: {
   role: BoothPeerRole
   transport: BoothTransport
   slot?: { width: number; height: number }
+  setup?: BoothSessionSetup
 }): BoothPeerSession {
   const hostStills = new Map<number, BoothStill>()
   const guestStills = new Map<number, BoothStill>()
@@ -51,10 +59,29 @@ export function createBoothPeerSession(options: {
     resolve: (event: BoothStartEvent) => void
     reject: (error: unknown) => void
   }> = []
+  const setupQueue: BoothSessionSetup[] = []
+  const setupWaiters: Array<{
+    resolve: (setup: BoothSessionSetup) => void
+    reject: (error: unknown) => void
+  }> = []
+  let resetQueued = 0
+  const resetWaiters: Array<{
+    resolve: () => void
+    reject: (error: unknown) => void
+  }> = []
   const startedMoments = new Map<number, number>()
+  const startedNonces = new Map<number, string>()
   const composeJobs = new Map<number, Promise<void>>()
+  const composeGeneration = new Map<number, number>()
   const recentMessageAt = new Map<string, number>()
   let startNonce = 0
+  let setupNonce = 0
+  const slotLocked = Boolean(options.slot)
+  let pairSlot = options.slot ? { ...options.slot } : undefined
+  let sessionSetup: BoothSessionSetup | null = options.setup
+    ? normalizeBoothSetup(options.setup)
+    : null
+  if (sessionSetup && !pairSlot) pairSlot = pairSlotForLayout(sessionSetup.layoutId)
   let remotePeerId: string | null = null
   let remoteRole: BoothPeerRole | null = null
   let lastRemoteAt = 0
@@ -108,8 +135,37 @@ export function createBoothPeerSession(options: {
       lastRemoteAt = Date.now()
       if (message.type === 'hello') {
         options.transport.send({ type: 'welcome', peerId: options.peerId, role: options.role })
-        if (isNewRemote) replayStartedMoments()
+        if (isNewRemote) {
+          replaySetup()
+          replayStartedMoments()
+        }
       }
+      return
+    }
+
+    if (message.type === 'session-setup') {
+      const duplicateKey = message.nonce
+        ? `setup:${message.nonce}`
+        : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.filterId}:${message.cameraEffectId}`
+      if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
+      lastRemoteAt = Date.now()
+      applySetup({
+        layoutId: message.layoutId,
+        templateId: message.templateId,
+        slotCount: message.slotCount,
+        countdownMs: message.countdownMs,
+        filterId: message.filterId,
+        cameraEffectId: message.cameraEffectId,
+      })
+      return
+    }
+
+    if (message.type === 'session-reset') {
+      const duplicateKey = message.nonce ? `reset:${message.nonce}` : 'reset'
+      if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
+      lastRemoteAt = Date.now()
+      clearAllMoments()
+      emitReset()
       return
     }
 
@@ -119,7 +175,7 @@ export function createBoothPeerSession(options: {
         : `start:${message.momentIndex}:${message.countdownMs}`
       if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
       lastRemoteAt = Date.now()
-      emitStart(message.momentIndex, message.countdownMs)
+      emitStart(message.momentIndex, message.countdownMs, { nonce: message.nonce })
       return
     }
 
@@ -136,6 +192,8 @@ export function createBoothPeerSession(options: {
         blob: new Blob([message.bytes], { type: message.mimeType || 'image/png' }),
         width: message.width,
         height: message.height,
+        faceBounds: message.faceBounds?.map((face) => ({ ...face })),
+        cameraEffectFrameMs: message.cameraEffectFrameMs,
       }
       storeStill(stillRole, message.momentIndex, still)
       await maybeCompose(message.momentIndex)
@@ -163,14 +221,64 @@ export function createBoothPeerSession(options: {
         type: 'start-moment',
         momentIndex,
         countdownMs,
-        nonce: nextStartNonce(),
+        nonce: startedNonces.get(momentIndex) ?? nextStartNonce(),
       })
     }
+  }
+
+  function replaySetup() {
+    if (!sessionSetup || options.role !== 'host') return
+    options.transport.send({
+      type: 'session-setup',
+      ...sessionSetup,
+      nonce: nextSetupNonce(),
+    })
   }
 
   function nextStartNonce() {
     startNonce += 1
     return `${options.peerId}:${startNonce}`
+  }
+
+  function nextSetupNonce() {
+    setupNonce += 1
+    return `${options.peerId}:setup:${setupNonce}`
+  }
+
+  function applySetup(input: BoothSessionSetup) {
+    sessionSetup = normalizeBoothSetup(input)
+    if (!slotLocked) pairSlot = pairSlotForLayout(sessionSetup.layoutId)
+    const event = { ...sessionSetup }
+    const waiter = setupWaiters.shift()
+    if (waiter) waiter.resolve(event)
+    else setupQueue.push(event)
+  }
+
+  function clearMoment(momentIndex: number) {
+    hostStills.delete(momentIndex)
+    guestStills.delete(momentIndex)
+    composed.delete(momentIndex)
+    composeJobs.delete(momentIndex)
+    composeGeneration.set(momentIndex, (composeGeneration.get(momentIndex) ?? 0) + 1)
+  }
+
+  function clearAllMoments() {
+    hostStills.clear()
+    guestStills.clear()
+    composed.clear()
+    composeJobs.clear()
+    startedMoments.clear()
+    startedNonces.clear()
+    startQueue.length = 0
+    for (const momentIndex of composeGeneration.keys()) {
+      composeGeneration.set(momentIndex, (composeGeneration.get(momentIndex) ?? 0) + 1)
+    }
+  }
+
+  function emitReset() {
+    const waiter = resetWaiters.shift()
+    if (waiter) waiter.resolve()
+    else resetQueued += 1
   }
 
   function isDuplicate(key: string, windowMs: number) {
@@ -186,15 +294,26 @@ export function createBoothPeerSession(options: {
     return false
   }
 
-  function emitStart(momentIndex: number, countdownMs: number) {
+  function emitStart(
+    momentIndex: number,
+    countdownMs: number,
+    start?: { nonce?: string },
+  ) {
+    clearMoment(momentIndex)
     startedMoments.set(momentIndex, countdownMs)
+    if (start?.nonce) startedNonces.set(momentIndex, start.nonce)
     const waiters = countdownWaiters.get(momentIndex) ?? []
     countdownWaiters.delete(momentIndex)
     for (const waiter of waiters) waiter.resolve(countdownMs)
 
     const event = { momentIndex, countdownMs }
     const startWaiter = startWaiters.shift()
-    if (startWaiter) startWaiter.resolve(event)
+    if (startWaiter) {
+      startWaiter.resolve(event)
+      return
+    }
+    const queuedIndex = startQueue.findIndex((queued) => queued.momentIndex === momentIndex)
+    if (queuedIndex >= 0) startQueue[queuedIndex] = event
     else startQueue.push(event)
   }
 
@@ -215,7 +334,7 @@ export function createBoothPeerSession(options: {
     const inFlight = composeJobs.get(momentIndex)
     if (inFlight) {
       await inFlight
-      return
+      if (composed.has(momentIndex) || disposed) return
     }
 
     if (disposed || composed.has(momentIndex)) return
@@ -224,12 +343,16 @@ export function createBoothPeerSession(options: {
     const guestStill = guestStills.get(momentIndex)
     if (!hostStill || !guestStill) return
 
+    const generation = composeGeneration.get(momentIndex) ?? 0
+    const slot = pairSlot ?? options.slot
     const job = (async () => {
       try {
-        const shot = await composePairRow(hostStill, guestStill, options.slot)
+        const shot = await composePairRow(hostStill, guestStill, slot)
         if (disposed) return
+        if ((composeGeneration.get(momentIndex) ?? 0) !== generation) return
         resolveComposed(momentIndex, shot)
       } catch (error) {
+        if ((composeGeneration.get(momentIndex) ?? 0) !== generation) return
         rejectComposed(momentIndex, error)
         throw error
       }
@@ -239,7 +362,7 @@ export function createBoothPeerSession(options: {
     try {
       await job
     } finally {
-      composeJobs.delete(momentIndex)
+      if (composeJobs.get(momentIndex) === job) composeJobs.delete(momentIndex)
     }
   }
 
@@ -255,8 +378,37 @@ export function createBoothPeerSession(options: {
       }
 
       const nonce = nextStartNonce()
+      isDuplicate(`start:${nonce}`, 10_000)
       options.transport.send({ type: 'start-moment', momentIndex, countdownMs, nonce })
-      emitStart(momentIndex, countdownMs)
+      emitStart(momentIndex, countdownMs, { nonce })
+    },
+    setSetup(setup) {
+      if (disposed) {
+        throw new Error('Booth session disposed')
+      }
+      if (options.role !== 'host') {
+        throw new Error('Only the booth host can choose the shared strip setup.')
+      }
+      applySetup(setup)
+      options.transport.send({
+        type: 'session-setup',
+        ...normalizeBoothSetup(setup),
+        nonce: nextSetupNonce(),
+      })
+    },
+    resetCapture() {
+      if (disposed) {
+        throw new Error('Booth session disposed')
+      }
+      if (options.role !== 'host') {
+        throw new Error('Only the booth host can reset the shared capture.')
+      }
+      clearAllMoments()
+      emitReset()
+      options.transport.send({
+        type: 'session-reset',
+        nonce: `${options.peerId}:reset:${nextStartNonce()}`,
+      })
     },
     async submitStill(momentIndex, still) {
       if (disposed) {
@@ -273,6 +425,8 @@ export function createBoothPeerSession(options: {
         width: still.width,
         height: still.height,
         bytes,
+        faceBounds: still.faceBounds?.map((face) => ({ ...face })),
+        cameraEffectFrameMs: still.cameraEffectFrameMs,
       })
       await maybeCompose(momentIndex)
     },
@@ -325,10 +479,38 @@ export function createBoothPeerSession(options: {
         startWaiters.push({ resolve, reject })
       })
     },
+    waitForSetup() {
+      if (disposed) return Promise.reject(new Error('Booth session disposed'))
+      const queued = setupQueue.shift()
+      if (queued) return Promise.resolve(queued)
+
+      return new Promise((resolve, reject) => {
+        setupWaiters.push({ resolve, reject })
+      })
+    },
+    waitForReset() {
+      if (disposed) return Promise.reject(new Error('Booth session disposed'))
+      if (resetQueued > 0) {
+        resetQueued -= 1
+        return Promise.resolve()
+      }
+
+      return new Promise((resolve, reject) => {
+        resetWaiters.push({ resolve, reject })
+      })
+    },
+    getSetup() {
+      return sessionSetup ? { ...sessionSetup } : null
+    },
     getComposedShots() {
       return [...composed.entries()]
         .sort((left, right) => left[0] - right[0])
         .map(([, shot]) => shot)
+    },
+    getComposedByOrder() {
+      return [...composed.entries()]
+        .sort((left, right) => left[0] - right[0])
+        .map(([order, shot]) => ({ order, shot }))
     },
     getRemotePeerId() {
       if (remotePeerId && lastRemoteAt > 0 && Date.now() - lastRemoteAt > REMOTE_TIMEOUT_MS) {
@@ -354,16 +536,24 @@ export function createBoothPeerSession(options: {
       const pending = [...composedWaiters.entries()]
       const pendingCountdowns = [...countdownWaiters.values()].flat()
       const pendingStarts = [...startWaiters]
+      const pendingSetups = [...setupWaiters]
+      const pendingResets = [...resetWaiters]
       composedWaiters.clear()
       countdownWaiters.clear()
       startWaiters.length = 0
       startQueue.length = 0
+      setupWaiters.length = 0
+      setupQueue.length = 0
+      resetWaiters.length = 0
+      resetQueued = 0
       const disposedError = new Error('Booth session disposed')
       for (const [, waiters] of pending) {
         for (const waiter of waiters) waiter.reject(disposedError)
       }
       for (const waiter of pendingCountdowns) waiter.reject(disposedError)
       for (const waiter of pendingStarts) waiter.reject(disposedError)
+      for (const waiter of pendingSetups) waiter.reject(disposedError)
+      for (const waiter of pendingResets) waiter.reject(disposedError)
     },
   }
 

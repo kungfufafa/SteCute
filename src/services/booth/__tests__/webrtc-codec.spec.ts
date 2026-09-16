@@ -14,6 +14,8 @@ describe('booth WebRTC still codec', () => {
       width: 8,
       height: 6,
       bytes,
+      faceBounds: [{ x: 0.2, y: 0.1, width: 0.3, height: 0.4 }],
+      cameraEffectFrameMs: 90,
     }
 
     const encoded = encodeBoothWirePayload(message)
@@ -28,8 +30,12 @@ describe('booth WebRTC still codec', () => {
       mimeType: 'image/jpeg',
       width: 8,
       height: 6,
+      faceBounds: [{ x: 0.2, y: 0.1, width: 0.3, height: 0.4 }],
+      cameraEffectFrameMs: 90,
     })
-    expect(decoded?.type === 'still' && [...new Uint8Array(decoded.bytes)]).toEqual([10, 20, 30, 40])
+    expect(decoded?.type === 'still' && [...new Uint8Array(decoded.bytes)]).toEqual([
+      10, 20, 30, 40,
+    ])
   })
 
   it('accepts a JSON-shaped numeric byte object from a serialized still', () => {

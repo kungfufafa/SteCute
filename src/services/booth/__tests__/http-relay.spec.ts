@@ -47,7 +47,10 @@ describe('booth HTTPS relay transport', () => {
   })
 
   it('skips the mailbox when the origin has no relay endpoint', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('missing', { status: 404 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('missing', { status: 404 })),
+    )
     await expect(createHttpBoothTransport('ABC234')).resolves.toBeNull()
   })
 })

@@ -8,6 +8,7 @@ import {
   createBoothPeerSession,
   createInProcessTransportPair,
   type BoothStill,
+  type BoothWireMessage,
 } from '@/services/booth'
 import { decodePng, encodeSolidPng, type RgbaImage } from '../png'
 import { installSoftwareCanvas } from './software-canvas'
@@ -232,7 +233,14 @@ describe('booth two-peer capture protocol', () => {
   })
 
   it('ignores duplicate start-moment deliveries from two transports', async () => {
-    const handlers = new Set<(message: { type: string; nonce?: string; momentIndex?: number; countdownMs?: number }) => void>()
+    const handlers = new Set<
+      (message: {
+        type: string
+        nonce?: string
+        momentIndex?: number
+        countdownMs?: number
+      }) => void
+    >()
     const transport = {
       send() {},
       subscribe(
@@ -274,6 +282,80 @@ describe('booth two-peer capture protocol', () => {
     ])
     expect(raced).toBe('timeout')
 
+    guest.dispose()
+    await expect(second).rejects.toThrow('Booth session disposed')
+  })
+
+  it('does not restart a pose when the host transport echoes the same start-moment', async () => {
+    const handlers = new Set<(message: BoothWireMessage) => void>()
+    const transport = {
+      send(message: BoothWireMessage) {
+        for (const handler of handlers) handler({ ...message })
+      },
+      subscribe(handler: (message: BoothWireMessage) => void) {
+        handlers.add(handler)
+        return () => handlers.delete(handler)
+      },
+    }
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport,
+    })
+
+    const first = host.waitForStart()
+    host.startMoment(0, 3000)
+    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+
+    const second = host.waitForStart()
+    const raced = await Promise.race([
+      second.then(() => 'start'),
+      new Promise((resolve) => globalThis.setTimeout(() => resolve('timeout'), 40)),
+    ])
+    expect(raced).toBe('timeout')
+
+    host.dispose()
+    await expect(second).rejects.toThrow('Booth session disposed')
+  })
+
+  it('does not enqueue a second countdown after a pose is already composed', async () => {
+    const hostStill = stillFromColor([220, 24, 32, 255])
+    const guestStill = stillFromColor([32, 64, 220, 255])
+    const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: hostTransport,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: guestTransport,
+      slot: PAIR_SLOT,
+    })
+
+    const first = guest.waitForStart()
+    host.startMoment(0, 3000)
+    await first
+    await Promise.all([host.submitStill(0, hostStill), guest.submitStill(0, guestStill)])
+    await guest.waitForComposed(0)
+
+    const second = guest.waitForStart()
+    guestTransport.send({
+      type: 'start-moment',
+      momentIndex: 0,
+      countdownMs: 3000,
+      nonce: 'host-peer:1',
+    })
+    const raced = await Promise.race([
+      second.then(() => 'start'),
+      new Promise((resolve) => globalThis.setTimeout(() => resolve('timeout'), 40)),
+    ])
+    expect(raced).toBe('timeout')
+    expect(guest.getComposedByOrder()).toHaveLength(1)
+
+    host.dispose()
     guest.dispose()
     await expect(second).rejects.toThrow('Booth session disposed')
   })

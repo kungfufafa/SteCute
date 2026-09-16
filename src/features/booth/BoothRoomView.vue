@@ -1,40 +1,74 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { strip2Config } from '@/layouts/strip-2/config'
-import { classicTemplate } from '@/templates/classic/config'
-import { captureFrame, initCamera, stopCamera } from '@/services/camera'
+import type { Shot } from '@/db/schema'
+import { getLayoutById } from '@/layouts'
+import { getTemplateById } from '@/templates'
+import { captureCoverFrame, initCamera, stopCamera } from '@/services/camera'
+import {
+  isLiveStripRenderingSupported,
+  startPairLiveCamRecording,
+  type LiveCamClip,
+  type LiveCamRecording,
+} from '@/services/live-cam'
+import { getCameraEffectById, isFaceTrackingEffect } from '@/services/camera-effects'
+import type { FaceBounds } from '@/services/face-tracking'
+import { getPhotoFilterCss } from '@/services/filter'
+import {
+  detectOutputCapabilities,
+  downloadBlob,
+  generateFilename,
+  getExtensionForMimeType,
+  printBlob,
+  saveBlob,
+  shareBlob,
+} from '@/services/output'
 import {
   createDefaultDecorationConfig,
   createSession,
   getRenderById,
+  isSessionComplete,
   renderAndStoreSession,
   saveShot,
 } from '@/services/session'
 import {
+  boothSetupsEqual,
   buildInviteUrl,
   createBoothPeerSession,
   createBoothRoomTransport,
+  createDefaultBoothSetup,
   createPeerId,
   joinBoothByCode,
+  isRemotePreviewReady,
   joinBoothByInvite,
   normalizeBoothCode,
+  normalizeBoothSetup,
+  pairSlotForLayout,
   type BoothIdentity,
   type BoothJoinError,
   type BoothPeerRole,
   type BoothPeerSession,
+  type BoothSessionSetup,
   type BoothTransport,
   type ComposedPairShot,
 } from '@/services/booth'
 import { ui } from '@/ui/styles'
+import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
+import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
+import FlowProgress from '@/components/common/FlowProgress.vue'
+import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import BoothDecorationPicker from './BoothDecorationPicker.vue'
+import BoothStripSetup from './BoothStripSetup.vue'
 
-const MOMENT_COUNT = 2
+type BoothStage = 'live' | 'review' | 'output'
+
 const ROLE_KEY = 'stecute.booth.role'
 const PEER_KEY = 'stecute.booth.peer'
 const CONNECTION_WAIT_MS = 20_000
 
 const route = useRoute()
 const router = useRouter()
+const capabilities = detectOutputCapabilities()
 
 const identity = ref<BoothIdentity | null>(null)
 const joinError = ref<BoothJoinError | 'full' | null>(null)
@@ -45,7 +79,7 @@ const cameraError = ref('')
 const statusMessage = ref('Menunggu teman gabung.')
 const countdownValue = ref<number | null>(null)
 const currentMoment = ref(0)
-const composedShots = ref<ComposedPairShot[]>([])
+const composedShots = ref<Array<ComposedPairShot | undefined>>([])
 const renderUrl = ref('')
 const rendering = ref(false)
 const savedToGallery = ref(false)
@@ -56,37 +90,153 @@ const videoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteStream = ref<MediaStream | null>(null)
 const remoteVideoReady = ref(false)
+const boothSetup = ref<BoothSessionSetup>(createDefaultBoothSetup())
+const stage = ref<BoothStage>('live')
+const outputBusy = ref(false)
+const outputNotice = ref('')
+const outputError = ref('')
+const showMoreActions = ref(false)
+const latestOverlayFaces = ref<FaceBounds[]>([])
+const latestOverlayFrameMs = ref(0)
+const liveCamAvailable = ref(false)
+const liveCamRecordingActive = ref(false)
+const livePreviewUrl = ref('')
+const renderError = ref('')
 
 let stream: MediaStream | null = null
 let peerSession: BoothPeerSession | null = null
+let activeLiveCamRecording: LiveCamRecording | null = null
 let roomTransport: BoothTransport | null = null
 let unsubRemoteStream: (() => void) | null = null
 let countdownTimer: ReturnType<typeof setInterval> | null = null
 let presenceTimer: ReturnType<typeof setInterval> | null = null
 let captureLoop: Promise<void> | null = null
+let setupLoop: Promise<void> | null = null
+let resetLoop: Promise<void> | null = null
 let countdownResolve: (() => void) | null = null
 let waitStartedAt = Date.now()
+let copyNoticeTimer: number | null = null
+let remoteReadyTimer: ReturnType<typeof setInterval> | null = null
+let outputBlob: Blob | null = null
 
 const formattedCode = computed(() => identity.value?.code ?? '')
+const slotCount = computed(() => boothSetup.value.slotCount)
+const capturedCount = computed(() => composedShots.value.filter(Boolean).length)
+const shotsComplete = computed(() =>
+  isSessionComplete(
+    composedShots.value.flatMap((shot, order) => (shot ? [{ order }] : [])),
+    slotCount.value,
+  ),
+)
+const friendJoined = computed(() => participantCount.value >= 2)
+const cameraReady = computed(() => cameraLive.value && !cameraError.value)
+const canChangeSetup = computed(
+  () =>
+    role.value === 'host' &&
+    stage.value === 'live' &&
+    capturedCount.value === 0 &&
+    countdownValue.value == null &&
+    !rendering.value,
+)
 const canStart = computed(
   () =>
     role.value === 'host' &&
-    participantCount.value >= 2 &&
+    friendJoined.value &&
     countdownValue.value == null &&
-    composedShots.value.filter(Boolean).length < MOMENT_COUNT &&
-    !rendering.value,
+    !shotsComplete.value &&
+    !rendering.value &&
+    stage.value === 'live',
 )
-const waitingLabel = computed(() => `${Math.min(participantCount.value, 2)}/2`)
-const capturedCount = computed(() => composedShots.value.filter(Boolean).length)
-const friendJoined = computed(() => participantCount.value >= 2)
-const cameraReady = computed(() => cameraLive.value && !cameraError.value)
 const localTileLabel = computed(() => (role.value === 'host' ? 'Kamu · Host' : 'Kamu · Tamu'))
 const remoteTileLabel = computed(() => (role.value === 'host' ? 'Teman · Tamu' : 'Teman · Host'))
-const remoteWaitingCopy = computed(() =>
-  friendJoined.value ? 'Menghubungkan video teman…' : 'Menunggu teman gabung',
-)
 
-let copyNoticeTimer: number | null = null
+const activeLayout = computed(() => getLayoutById(boothSetup.value.layoutId))
+const activeTemplate = computed(() => getTemplateById(boothSetup.value.templateId))
+const selectedCameraEffect = computed(() => getCameraEffectById(boothSetup.value.cameraEffectId))
+const isCurrentEffectFaceTracking = computed(() =>
+  isFaceTrackingEffect(boothSetup.value.cameraEffectId),
+)
+const videoFilterStyle = computed(() => ({ filter: getPhotoFilterCss(boothSetup.value.filterId) }))
+const progressCurrent = computed(() => {
+  if (stage.value === 'output') return 'output' as const
+  if (stage.value === 'review') return 'review' as const
+  if (friendJoined.value || capturedCount.value > 0 || countdownValue.value != null) {
+    return 'capture' as const
+  }
+  return 'config' as const
+})
+const reviewShots = computed<Shot[]>(() =>
+  composedShots.value.flatMap((shot, order) =>
+    shot
+      ? [
+          {
+            id: `booth-shot-${order}`,
+            sessionId: 'booth-live',
+            order,
+            sourceType: 'camera' as const,
+            blob: shot.blob,
+            width: shot.width,
+            height: shot.height,
+            cameraEffectId: boothSetup.value.cameraEffectId,
+            cameraEffectFrameMs: shot.cameraEffectFrameMs,
+            faceBounds: shot.faceBounds.map((face) => ({ ...face })),
+            createdAt: Date.now(),
+          },
+        ]
+      : [],
+  ),
+)
+const reviewShotUrls = ref<string[]>([])
+const pageTitle = computed(() => {
+  if (joinError.value) return 'Booth Bareng'
+  if (stage.value === 'output') return 'Hasil'
+  if (stage.value === 'review') return 'Preview'
+  return 'Booth Bareng'
+})
+const setupSummary = computed(
+  () =>
+    `${activeTemplate.value?.name ?? 'Classic'} · ${slotCount.value} foto · ${Math.round(boothSetup.value.countdownMs / 1000)} detik`,
+)
+const showFullSetup = computed(
+  () => role.value === 'host' && stage.value === 'live' && capturedCount.value === 0,
+)
+const pageSubtitle = computed(() => {
+  if (joinError.value) return 'Booth tidak bisa dibuka. Coba kode atau tautan baru.'
+  if (stage.value === 'output') return 'Strip siap diunduh.'
+  if (stage.value === 'review') return 'Ketuk foto untuk mengulang, lalu buat hasil akhir.'
+  if (!friendJoined.value) {
+    return role.value === 'host'
+      ? 'Bagikan kode, lalu tunggu teman masuk.'
+      : 'Menghubungkan ke host…'
+  }
+  return role.value === 'host'
+    ? 'Teman sudah masuk. Mulai pose kapan siap.'
+    : 'Menunggu host memulai pose.'
+})
+
+function revokeReviewShotUrls() {
+  reviewShotUrls.value.forEach((url) => {
+    if (url) URL.revokeObjectURL(url)
+  })
+  reviewShotUrls.value = []
+}
+
+function syncReviewShotUrls() {
+  revokeReviewShotUrls()
+  reviewShotUrls.value = Array.from({ length: slotCount.value }, (_, index) => {
+    const shot = composedShots.value[index]
+    return shot ? URL.createObjectURL(shot.blob) : ''
+  })
+}
+
+watch([composedShots, slotCount], () => {
+  if (stage.value === 'review') syncReviewShotUrls()
+})
+
+watch(stage, (next) => {
+  if (next === 'review') syncReviewShotUrls()
+  if (next !== 'review') revokeReviewShotUrls()
+})
 
 async function copyValue(value: string, label: string) {
   try {
@@ -131,12 +281,54 @@ function errorCopy(reason: BoothJoinError | 'full') {
   return 'Booth tidak ditemukan atau host belum online.'
 }
 
+function firstMissingMoment() {
+  for (let index = 0; index < slotCount.value; index++) {
+    if (!composedShots.value[index]) return index
+  }
+  return slotCount.value
+}
+
+function publishSetup(next: BoothSessionSetup) {
+  const normalized = normalizeBoothSetup(next)
+  if (boothSetupsEqual(boothSetup.value, normalized) && peerSession?.getSetup()) {
+    boothSetup.value = normalized
+    return
+  }
+  boothSetup.value = normalized
+  if (role.value === 'host') peerSession?.setSetup(normalized)
+}
+
+function handleSetupChange(next: BoothSessionSetup) {
+  if (!canChangeSetup.value) return
+  publishSetup(next)
+}
+
+function handleFilterChange(filterId: string) {
+  if (!canChangeSetup.value) return
+  publishSetup({ ...boothSetup.value, filterId })
+}
+
+function handleEffectChange(cameraEffectId: string) {
+  if (!canChangeSetup.value) return
+  latestOverlayFaces.value = []
+  latestOverlayFrameMs.value = 0
+  publishSetup({ ...boothSetup.value, cameraEffectId })
+}
+
 watch(videoRef, () => {
   void attachPreviewStream()
 })
 
 watch([remoteVideoRef, remoteStream], () => {
+  startRemoteReadyPoll()
   void attachRemoteStream()
+})
+
+watch(friendJoined, (joined) => {
+  if (!joined) return
+  void attachPreviewStream()
+  void attachRemoteStream()
+  startRemoteReadyPoll()
 })
 
 async function attachPreviewStream() {
@@ -149,9 +341,25 @@ async function attachPreviewStream() {
   }
 }
 
+function stopRemoteReadyPoll() {
+  if (!remoteReadyTimer) return
+  clearInterval(remoteReadyTimer)
+  remoteReadyTimer = null
+}
+
 function refreshRemoteVideoReady() {
   const el = remoteVideoRef.value
-  remoteVideoReady.value = Boolean(el?.srcObject && el.videoWidth >= 48 && el.videoHeight >= 48)
+  remoteVideoReady.value = el ? isRemotePreviewReady(el) : false
+  if (remoteVideoReady.value) stopRemoteReadyPoll()
+}
+
+function startRemoteReadyPoll() {
+  stopRemoteReadyPoll()
+  refreshRemoteVideoReady()
+  if (remoteVideoReady.value || !remoteStream.value) return
+  remoteReadyTimer = setInterval(() => {
+    void attachRemoteStream()
+  }, 250)
 }
 
 async function attachRemoteStream() {
@@ -160,6 +368,7 @@ async function attachRemoteStream() {
 
   const next = remoteStream.value
   if (!next) {
+    stopRemoteReadyPoll()
     el.srcObject = null
     remoteVideoReady.value = false
     return
@@ -190,6 +399,7 @@ async function startCamera() {
   try {
     stream = await initCamera()
     cameraLive.value = true
+    liveCamAvailable.value = isLiveStripRenderingSupported()
     roomTransport?.media?.attachLocalStream(stream)
     await nextTick()
     await attachPreviewStream()
@@ -222,20 +432,86 @@ function stopCountdown() {
   countdownValue.value = null
 }
 
+function updateOverlayFaces(faces: FaceBounds[]) {
+  latestOverlayFaces.value = faces.map((face) => ({ ...face }))
+}
+
+function updateOverlayFrame(frameMs: number) {
+  latestOverlayFrameMs.value = frameMs
+}
+
+function startBoothLiveCamClip() {
+  if (activeLiveCamRecording || !videoRef.value) return
+  if (!isLiveStripRenderingSupported()) {
+    liveCamAvailable.value = false
+    return
+  }
+
+  const pairSlot = pairSlotForLayout(boothSetup.value.layoutId)
+  try {
+    activeLiveCamRecording = startPairLiveCamRecording({
+      localVideo: videoRef.value,
+      remoteVideo: remoteVideoRef.value,
+      width: pairSlot.width,
+      height: pairSlot.height,
+      localOnLeft: role.value === 'host',
+    })
+    liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
+    liveCamAvailable.value = liveCamRecordingActive.value || liveCamAvailable.value
+  } catch {
+    activeLiveCamRecording = null
+    liveCamRecordingActive.value = false
+  }
+}
+
+async function stopBoothLiveCamClip(delayMs = 0): Promise<LiveCamClip | null> {
+  const recording = activeLiveCamRecording
+  activeLiveCamRecording = null
+  liveCamRecordingActive.value = false
+  if (!recording) return null
+  try {
+    return await recording.stop(delayMs)
+  } catch {
+    return null
+  }
+}
+
 async function captureCurrentMoment(momentIndex: number) {
   if (!peerSession || !videoRef.value) return
 
   try {
-    const still = await captureFrame(videoRef.value, { mirrored: false })
-    await peerSession.submitStill(momentIndex, still)
+    const liveClipPromise = stopBoothLiveCamClip(450)
+    const pairSlot = pairSlotForLayout(boothSetup.value.layoutId)
+    const still = await captureCoverFrame(
+      videoRef.value,
+      {
+        width: Math.floor(pairSlot.width / 2),
+        height: pairSlot.height,
+      },
+      { mirrored: false },
+    )
+    await peerSession.submitStill(momentIndex, {
+      ...still,
+      faceBounds: latestOverlayFaces.value.map((face) => ({ ...face })),
+      cameraEffectFrameMs: latestOverlayFrameMs.value,
+    })
     const shot = await peerSession.waitForComposed(momentIndex, 30_000)
-    const next = [...composedShots.value]
-    next[momentIndex] = shot
+    const liveClip = await liveClipPromise
+    const next = composedShots.value.slice()
+    while (next.length < slotCount.value) next.push(undefined)
+    next[momentIndex] = liveClip ? { ...shot, liveClip } : shot
     composedShots.value = next
-    currentMoment.value = Math.min(MOMENT_COUNT, momentIndex + 1)
-    if (next.filter(Boolean).length >= MOMENT_COUNT) {
-      statusMessage.value = 'Strip siap dirender.'
+    currentMoment.value = Math.min(slotCount.value, firstMissingMoment())
+    if (
+      isSessionComplete(
+        next.flatMap((item, order) => (item ? [{ order }] : [])),
+        slotCount.value,
+      )
+    ) {
+      stage.value = 'review'
+      statusMessage.value = 'Strip siap ditinjau.'
     } else {
+      stage.value = 'live'
       statusMessage.value = `Pose ${momentIndex + 1} tersimpan. Siap pose berikutnya.`
     }
   } catch {
@@ -243,12 +519,49 @@ async function captureCurrentMoment(momentIndex: number) {
   }
 }
 
+function clearComposedMoment(momentIndex: number) {
+  if (!composedShots.value[momentIndex]) return
+  const next = composedShots.value.slice()
+  next[momentIndex] = undefined
+  composedShots.value = next
+}
+
+function applyCaptureReset() {
+  composedShots.value = []
+  currentMoment.value = 0
+  stage.value = 'live'
+  statusMessage.value = friendJoined.value
+    ? role.value === 'host'
+      ? 'Teman sudah masuk. Mulai pose kapan siap.'
+      : 'Menunggu host memulai pose.'
+    : role.value === 'host'
+      ? 'Menunggu teman gabung.'
+      : 'Menghubungkan ke host…'
+}
+
+function syncComposedFromProtocol() {
+  if (!peerSession) return
+  const byOrder = peerSession.getComposedByOrder()
+  const next: Array<ComposedPairShot | undefined> = Array.from({ length: slotCount.value })
+  for (const { order, shot } of byOrder) {
+    if (order >= 0 && order < next.length) {
+      const existing = composedShots.value[order]
+      next[order] = existing?.liveClip ? { ...shot, liveClip: existing.liveClip } : shot
+    }
+  }
+  composedShots.value = next
+}
+
 function runCountdown(momentIndex: number, countdownMs: number): Promise<void> {
   stopCountdown()
   finishCountdownWaiter()
+  stage.value = 'live'
+  clearComposedMoment(momentIndex)
   const totalSeconds = Math.max(1, Math.round(countdownMs / 1000))
   countdownValue.value = totalSeconds
-  statusMessage.value = `Pose ${momentIndex + 1} dari ${MOMENT_COUNT}`
+  currentMoment.value = momentIndex
+  statusMessage.value = `Pose ${momentIndex + 1} dari ${slotCount.value}`
+  if (totalSeconds <= 3) startBoothLiveCamClip()
 
   return new Promise((resolve) => {
     countdownResolve = resolve
@@ -263,6 +576,7 @@ function runCountdown(momentIndex: number, countdownMs: number): Promise<void> {
         return
       }
       countdownValue.value -= 1
+      if (countdownValue.value === 3) startBoothLiveCamClip()
     }, 1000)
   })
 }
@@ -273,6 +587,11 @@ function listenForRemoteCountdown(session: BoothPeerSession) {
     try {
       while (session === peerSession) {
         const start = await session.waitForStart()
+        if (session !== peerSession) break
+        const alreadyCaptured = session
+          .getComposedByOrder()
+          .some((entry) => entry.order === start.momentIndex)
+        if (alreadyCaptured) continue
         await runCountdown(start.momentIndex, start.countdownMs)
       }
     } catch {
@@ -281,15 +600,66 @@ function listenForRemoteCountdown(session: BoothPeerSession) {
   })()
 }
 
+function listenForRemoteSetup(session: BoothPeerSession) {
+  if (setupLoop) return
+  setupLoop = (async () => {
+    try {
+      while (session === peerSession) {
+        const next = await session.waitForSetup()
+        boothSetup.value = normalizeBoothSetup(next)
+      }
+    } catch {
+      // Session disposed.
+    }
+  })()
+}
+
+function listenForRemoteReset(session: BoothPeerSession) {
+  if (resetLoop) return
+  resetLoop = (async () => {
+    try {
+      while (session === peerSession) {
+        await session.waitForReset()
+        applyCaptureReset()
+      }
+    } catch {
+      // Session disposed.
+    }
+  })()
+}
+
 function startPose() {
   if (!peerSession || !canStart.value) return
-  const momentIndex = composedShots.value.filter(Boolean).length
-  peerSession.startMoment(momentIndex, 3000)
+  void attachPreviewStream()
+  void attachRemoteStream()
+  const momentIndex = firstMissingMoment()
+  peerSession.startMoment(momentIndex, boothSetup.value.countdownMs)
+}
+
+function retakeShot(index: number) {
+  if (role.value !== 'host' || !peerSession || rendering.value) return
+  stage.value = 'live'
+  currentMoment.value = index
+  const next = composedShots.value.slice()
+  next[index] = undefined
+  composedShots.value = next
+  peerSession.startMoment(index, boothSetup.value.countdownMs)
+}
+
+function retakeAll() {
+  if (role.value !== 'host' || !peerSession || rendering.value) return
+  if (!window.confirm('Apakah Anda yakin ingin mengulang semua foto? Sesi ini akan dihapus.')) {
+    return
+  }
+  peerSession.resetCapture()
+  applyCaptureReset()
 }
 
 function disposeSession() {
   stopCountdown()
   finishCountdownWaiter()
+  void stopBoothLiveCamClip()
+  stopRemoteReadyPoll()
   if (presenceTimer) {
     clearInterval(presenceTimer)
     presenceTimer = null
@@ -302,19 +672,28 @@ function disposeSession() {
   peerSession?.dispose()
   peerSession = null
   captureLoop = null
+  setupLoop = null
+  resetLoop = null
 }
 
 async function renderBoothStrip() {
-  if (composedShots.value.filter(Boolean).length < MOMENT_COUNT) return
+  if (!shotsComplete.value || !activeLayout.value || !activeTemplate.value) {
+    renderError.value = 'Foto booth belum lengkap. Ambil semua pose dulu.'
+    return
+  }
   rendering.value = true
+  renderError.value = ''
   savedToGallery.value = false
   statusMessage.value = 'Merender photo strip…'
   try {
-    const decoration = createDefaultDecorationConfig(classicTemplate)
+    const decoration = createDefaultDecorationConfig(activeTemplate.value, {
+      filterId: boothSetup.value.filterId,
+      cameraEffectId: boothSetup.value.cameraEffectId,
+    })
     const sessionId = await createSession({
-      layoutId: strip2Config.id,
-      templateId: classicTemplate.id,
-      slotCount: strip2Config.slotCount,
+      layoutId: activeLayout.value.id,
+      templateId: activeTemplate.value.id,
+      slotCount: slotCount.value,
       captureSource: 'camera',
       decoration,
     })
@@ -328,13 +707,31 @@ async function renderBoothStrip() {
         blob: shot.blob,
         width: shot.width,
         height: shot.height,
+        cameraEffectId: boothSetup.value.cameraEffectId,
+        cameraEffectFrameMs: shot.cameraEffectFrameMs,
+        liveClip: shot.liveClip
+          ? {
+              blob: shot.liveClip.blob,
+              mimeType: shot.liveClip.mimeType,
+              durationMs: shot.liveClip.durationMs,
+              width: shot.liveClip.width,
+              height: shot.liveClip.height,
+              mirrored: shot.liveClip.mirrored,
+            }
+          : null,
+        faceBounds: shot.faceBounds.map((face) => ({
+          x: face.x,
+          y: face.y,
+          width: face.width,
+          height: face.height,
+        })),
       })
     }
 
     const renderId = await renderAndStoreSession({
       sessionId,
-      layout: strip2Config,
-      template: classicTemplate,
+      layout: activeLayout.value,
+      template: activeTemplate.value,
       decoration,
       format: 'image/png',
     })
@@ -343,13 +740,97 @@ async function renderBoothStrip() {
     if (!blob) throw new Error('Booth render missing')
 
     if (renderUrl.value) URL.revokeObjectURL(renderUrl.value)
+    if (livePreviewUrl.value) URL.revokeObjectURL(livePreviewUrl.value)
     renderUrl.value = URL.createObjectURL(blob)
+    livePreviewUrl.value = stored.liveBlob ? URL.createObjectURL(stored.liveBlob) : ''
+    outputBlob = blob
     savedToGallery.value = true
+    stage.value = 'output'
     statusMessage.value = 'Photo strip siap diunduh dan tersimpan di galeri.'
-  } catch {
+  } catch (error) {
+    console.error('Booth final render failed:', error)
+    renderError.value =
+      error instanceof Error ? error.message : 'Render gagal. Coba buat hasil akhir lagi.'
     statusMessage.value = 'Render gagal. Coba lagi.'
   } finally {
     rendering.value = false
+  }
+}
+
+async function handleDownload() {
+  if (!outputBlob) return
+  outputBusy.value = true
+  outputError.value = ''
+  outputNotice.value = ''
+  try {
+    await downloadBlob(
+      outputBlob,
+      generateFilename(
+        boothSetup.value.layoutId,
+        boothSetup.value.templateId,
+        getExtensionForMimeType(outputBlob.type),
+      ),
+    )
+    outputNotice.value = 'Unduhan dimulai.'
+  } catch {
+    outputError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
+  } finally {
+    outputBusy.value = false
+  }
+}
+
+async function handleShare() {
+  if (!outputBlob) return
+  outputBusy.value = true
+  outputError.value = ''
+  outputNotice.value = ''
+  try {
+    const shared = await shareBlob(
+      outputBlob,
+      generateFilename(boothSetup.value.layoutId, boothSetup.value.templateId, 'png'),
+    )
+    if (shared === 'unsupported') {
+      outputError.value =
+        'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
+    } else if (shared === 'shared') {
+      outputNotice.value = 'Lembar bagikan dibuka.'
+    }
+  } catch {
+    outputError.value = 'Gagal membuka share sheet. Gunakan download sebagai fallback.'
+  } finally {
+    outputBusy.value = false
+  }
+}
+
+async function handleSave() {
+  if (!outputBlob) return
+  outputBusy.value = true
+  outputError.value = ''
+  outputNotice.value = ''
+  try {
+    const saved = await saveBlob(
+      outputBlob,
+      generateFilename(boothSetup.value.layoutId, boothSetup.value.templateId, 'png'),
+    )
+    outputNotice.value = saved
+      ? 'Hasil berhasil disimpan.'
+      : 'Simpan ke perangkat tidak tersedia atau dibatalkan. Unduh tetap bisa dipakai.'
+    if (!saved) outputError.value = outputNotice.value
+    if (!saved) outputNotice.value = ''
+  } catch {
+    outputError.value = 'Gagal menyimpan hasil. Gunakan download sebagai fallback.'
+  } finally {
+    outputBusy.value = false
+  }
+}
+
+function handlePrint() {
+  if (!outputBlob) return
+  outputError.value = ''
+  outputNotice.value = ''
+  const opened = printBlob(outputBlob)
+  if (!opened) {
+    outputError.value = 'Popup print diblokir browser. Izinkan popup atau gunakan download.'
   }
 }
 
@@ -369,16 +850,22 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
     participantCount.value = 1
   }
 
-  if (rendering.value || renderUrl.value) return
+  if (rendering.value || stage.value === 'output') return
   if (countdownValue.value != null) return
 
-  const capturedCount = composedShots.value.filter(Boolean).length
-  if (capturedCount >= MOMENT_COUNT) {
-    statusMessage.value = 'Strip siap dirender.'
+  const protocolShots = peerSession.getComposedByOrder()
+  if (protocolShots.length !== capturedCount.value) {
+    syncComposedFromProtocol()
+  }
+
+  if (shotsComplete.value) {
+    stage.value = 'review'
+    statusMessage.value = 'Strip siap ditinjau.'
     return
   }
-  if (capturedCount > 0 && participantCount.value >= 2) {
-    statusMessage.value = `Pose ${capturedCount} tersimpan. Siap pose berikutnya.`
+
+  if (capturedCount.value > 0 && participantCount.value >= 2) {
+    statusMessage.value = `Pose ${capturedCount.value} tersimpan. Siap pose berikutnya.`
     return
   }
 
@@ -429,8 +916,12 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
       peerId,
       role: nextRole,
       transport,
+      setup: boothSetup.value,
     })
     listenForRemoteCountdown(peerSession)
+    listenForRemoteSetup(peerSession)
+    listenForRemoteReset(peerSession)
+    if (nextRole === 'host') peerSession.setSetup(boothSetup.value)
   } catch {
     joinError.value = nextRole === 'guest' ? 'unknown' : joinError.value
     statusMessage.value = 'Signaling booth gagal. Coba buat booth baru.'
@@ -471,6 +962,7 @@ function enterRoom() {
   inviteUrl.value = buildInviteUrl(window.location.origin, result.identity)
   participantCount.value = 1
   currentMoment.value = 0
+  stage.value = 'live'
   statusMessage.value = role.value === 'host' ? 'Menunggu teman gabung.' : 'Menghubungkan ke host…'
   connectSession(result.identity, role.value)
 }
@@ -484,6 +976,7 @@ watch(
   () => route.params.code,
   () => {
     composedShots.value = []
+    stage.value = 'live'
     enterRoom()
   },
 )
@@ -493,6 +986,8 @@ onUnmounted(() => {
   stopPreview()
   if (copyNoticeTimer) window.clearTimeout(copyNoticeTimer)
   if (renderUrl.value) URL.revokeObjectURL(renderUrl.value)
+  if (livePreviewUrl.value) URL.revokeObjectURL(livePreviewUrl.value)
+  revokeReviewShotUrls()
 })
 </script>
 
@@ -520,11 +1015,27 @@ onUnmounted(() => {
           </svg>
         </button>
         <div class="min-w-0">
-          <h1 :class="ui.title">{{ joinError ? 'Booth tidak bisa dibuka' : 'Ruang booth' }}</h1>
-          <p :class="ui.subtitle">Booth Bareng · video berdua, tanpa audio dan tanpa mirror.</p>
+          <h1 :class="ui.title">{{ pageTitle }}</h1>
+          <FlowProgress
+            v-if="!joinError"
+            :current="progressCurrent"
+            source="camera"
+            compact
+            inline
+          />
+          <p v-else :class="ui.subtitle">{{ pageSubtitle }}</p>
         </div>
       </div>
-      <span v-if="!joinError" :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
+      <div v-if="!joinError" class="flex items-center gap-2">
+        <p
+          class="text-stc-text text-sm font-semibold tracking-[0.14em]"
+          data-testid="booth-code"
+          aria-label="Kode booth aktif"
+        >
+          {{ formattedCode }}
+        </p>
+        <span :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
+      </div>
     </div>
 
     <main :class="[ui.content, 'gap-6']">
@@ -544,26 +1055,46 @@ onUnmounted(() => {
 
       <template v-else>
         <div
-          class="grid flex-1 grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start"
+          v-show="stage === 'live'"
+          :class="[
+            ui.pageContentWide,
+            'min-h-0 gap-4 lg:grid lg:grid-cols-[minmax(11.5rem,12.5rem)_minmax(0,1fr)_minmax(11.5rem,12.5rem)] lg:items-start lg:gap-5',
+          ]"
         >
-          <section class="min-w-0 space-y-4">
+          <div
+            v-if="stage === 'live'"
+            class="border-stc-border order-2 w-full rounded-lg border bg-white p-3 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto"
+          >
+            <BoothDecorationPicker
+              v-if="stage === 'live'"
+              kind="filter"
+              stacked
+              :filter-id="boothSetup.filterId"
+              :camera-effect-id="boothSetup.cameraEffectId"
+              :disabled="!canChangeSetup"
+              @select-filter="handleFilterChange"
+              @select-effect="handleEffectChange"
+            />
+          </div>
+
+          <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
             <div
-              class="border-stc-border relative overflow-hidden rounded-lg border bg-black"
+              class="booth-preview border-stc-border relative mx-auto w-full overflow-hidden rounded-lg border bg-black"
               data-testid="booth-stage"
             >
-              <div class="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-white">
+              <div
+                v-if="liveCamAvailable"
+                class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
+              >
                 <span
-                  :class="[
-                    'inline-flex size-2 shrink-0 rounded-full',
-                    friendJoined ? 'bg-stc-success' : 'bg-stc-pink',
-                  ]"
+                  class="bg-stc-pink inline-flex size-2 rounded-full"
+                  :class="{ 'animate-pulse': liveCamRecordingActive }"
                 />
-                <span class="min-w-0 truncate">{{ statusMessage }}</span>
+                {{ liveCamRecordingActive ? 'Live Cam merekam' : 'Live Cam siap' }}
               </div>
-
-              <div class="grid grid-cols-1 gap-1 p-1 sm:grid-cols-2">
+              <div class="grid h-full grid-cols-2">
                 <article
-                  class="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-zinc-950"
+                  class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
                   :class="role === 'host' ? 'order-1' : 'order-2'"
                   data-testid="booth-local-tile"
                 >
@@ -574,6 +1105,23 @@ onUnmounted(() => {
                     autoplay
                     muted
                     playsinline
+                    :style="videoFilterStyle"
+                  />
+                  <CameraEffectCanvas
+                    v-if="selectedCameraEffect.id !== 'none' && !isCurrentEffectFaceTracking"
+                    :effect-id="boothSetup.cameraEffectId"
+                    animated
+                    class="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+                    @frame="updateOverlayFrame"
+                  />
+                  <FaceTrackingOverlay
+                    v-if="isCurrentEffectFaceTracking"
+                    :video-el="videoRef"
+                    :effect-id="boothSetup.cameraEffectId"
+                    :mirrored="false"
+                    class="pointer-events-none absolute inset-0 z-[5] h-full w-full"
+                    @update:faces="updateOverlayFaces"
+                    @update:frame-ms="updateOverlayFrame"
                   />
                   <div
                     v-if="!cameraReady"
@@ -581,27 +1129,18 @@ onUnmounted(() => {
                   >
                     <p class="text-xs font-semibold text-white">Kameramu</p>
                     <p class="max-w-[16rem] text-[11px] leading-normal text-white/70">
-                      {{ cameraError || 'Izinkan kamera. Kode booth tetap bisa dibagikan.' }}
+                      {{ cameraError || 'Izinkan kamera.' }}
                     </p>
                   </div>
-                  <div
-                    class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2"
+                  <p
+                    class="absolute bottom-2 left-2 truncate text-xs font-semibold text-white drop-shadow"
                   >
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="truncate text-xs font-semibold text-white">{{ localTileLabel }}</p>
-                      <span
-                        v-if="cameraReady"
-                        class="inline-flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase"
-                      >
-                        <span class="bg-stc-success inline-flex size-1.5 rounded-full" />
-                        Live
-                      </span>
-                    </div>
-                  </div>
+                    {{ localTileLabel }}
+                  </p>
                 </article>
 
                 <article
-                  class="relative aspect-[4/3] min-w-0 overflow-hidden rounded-md bg-zinc-950"
+                  class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
                   :class="role === 'host' ? 'order-2' : 'order-1'"
                   data-testid="booth-remote-tile"
                 >
@@ -612,204 +1151,254 @@ onUnmounted(() => {
                     autoplay
                     muted
                     playsinline
+                    :style="videoFilterStyle"
                     @loadedmetadata="refreshRemoteVideoReady"
                     @resize="refreshRemoteVideoReady"
                     @playing="refreshRemoteVideoReady"
                   />
-                  <div
-                    v-if="!remoteVideoReady"
-                    class="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-zinc-950 px-3 text-center"
+                  <p
+                    class="absolute bottom-2 left-2 z-20 truncate text-xs font-semibold text-white drop-shadow"
                   >
-                    <span
-                      class="flex size-10 items-center justify-center rounded-xl bg-white/10 text-white"
-                    >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                      >
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                    </span>
-                    <p class="text-xs font-semibold text-white">{{ remoteWaitingCopy }}</p>
-                    <p class="max-w-[16rem] text-[11px] leading-normal text-white/70">
-                      Seperti video call, tanpa suara.
-                    </p>
-                  </div>
-                  <div
-                    class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2.5 pt-8 pb-2"
-                  >
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="truncate text-xs font-semibold text-white">{{ remoteTileLabel }}</p>
-                      <span
-                        v-if="remoteVideoReady"
-                        class="inline-flex items-center gap-1 rounded-full bg-black/45 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white uppercase"
-                      >
-                        <span class="bg-stc-success inline-flex size-1.5 rounded-full" />
-                        Live
-                      </span>
-                    </div>
-                  </div>
+                    {{ remoteTileLabel }}
+                  </p>
                 </article>
               </div>
 
-              <p
+              <div
                 v-if="countdownValue != null"
-                class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/35 text-6xl font-semibold text-white"
+                class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/50"
                 aria-live="assertive"
               >
-                {{ countdownValue }}
-              </p>
+                <div class="text-center text-white">
+                  <p class="text-6xl font-semibold tabular-nums">{{ countdownValue }}</p>
+                  <p class="mt-2 text-sm font-medium text-white/80">
+                    Pose {{ currentMoment + 1 }} / {{ slotCount }}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div class="flex flex-col items-center gap-2">
               <button
                 v-if="role === 'host'"
-                :class="[ui.primaryButton, 'sm:!w-auto sm:min-w-48']"
+                class="inline-flex h-12 min-w-44 items-center justify-center rounded-full px-6 text-sm font-semibold transition-colors disabled:opacity-50"
+                :class="
+                  canStart
+                    ? 'bg-stc-pink hover:bg-stc-pink-strong text-white'
+                    : 'bg-stc-bg-2 text-stc-text'
+                "
                 :disabled="!canStart"
                 @click="startPose"
               >
-                Mulai pose
+                {{ friendJoined ? 'Mulai pose' : 'Menunggu teman' }}
               </button>
+              <p class="text-stc-text-faint text-xs">
+                {{ capturedCount }}/{{ slotCount }} pose · {{ setupSummary }}
+              </p>
               <button
-                v-if="connectionHelp && capturedCount < MOMENT_COUNT"
-                :class="[ui.secondaryButton, 'sm:!w-auto sm:min-w-48']"
+                v-if="connectionHelp && !shotsComplete"
+                :class="ui.secondaryButton"
                 @click="retryConnection"
               >
                 Coba Hubungkan Lagi
               </button>
-              <button
-                v-if="capturedCount >= MOMENT_COUNT"
-                :class="[ui.successButton, 'sm:!w-auto sm:min-w-48']"
-                :disabled="rendering"
-                @click="renderBoothStrip"
-              >
-                {{ rendering ? 'Merender...' : 'Render strip' }}
+            </div>
+
+            <div
+              v-if="showFullSetup"
+              class="border-stc-border w-full rounded-lg border bg-white p-3"
+            >
+              <BoothStripSetup
+                :setup="boothSetup"
+                :disabled="!canChangeSetup"
+                @change="handleSetupChange"
+              />
+            </div>
+
+            <div class="flex w-full items-center justify-center gap-2">
+              <input
+                id="booth-invite-url"
+                :value="inviteUrl"
+                class="hidden"
+                tabindex="-1"
+                data-testid="booth-invite-url"
+                aria-hidden="true"
+                readonly
+              />
+              <button type="button" :class="ui.ghostButton" @click="copyValue(inviteUrl, 'Link')">
+                Salin tautan
               </button>
+              <p v-if="copyNotice" class="text-stc-text-soft text-xs">{{ copyNotice }}</p>
             </div>
-          </section>
+          </div>
 
-          <aside class="lg:sticky lg:top-6" aria-label="Kode dan status booth">
-            <div :class="[ui.panel, 'space-y-4 p-4']">
-              <div>
-                <p :class="ui.sectionLabel">Kode booth</p>
-                <p
-                  class="text-stc-text mt-2 text-3xl font-semibold tracking-[0.18em]"
-                  data-testid="booth-code"
-                  aria-label="Kode booth aktif"
-                >
-                  {{ formattedCode }}
-                </p>
-                <button
-                  type="button"
-                  :class="[ui.secondaryButton, 'mt-3']"
-                  @click="copyValue(formattedCode, 'Kode')"
-                >
-                  Salin kode
-                </button>
-              </div>
-
-              <div class="grid grid-cols-2 gap-2">
-                <div :class="ui.softTile">
-                  <p :class="ui.sectionLabel">Kamu</p>
-                  <p class="text-stc-text mt-1 text-sm font-semibold">
-                    {{ role === 'host' ? 'Host' : 'Tamu' }}
-                  </p>
-                </div>
-                <div :class="ui.softTile">
-                  <p :class="ui.sectionLabel">Teman</p>
-                  <p class="text-stc-text mt-1 text-sm font-semibold">
-                    {{ friendJoined ? 'Sudah masuk' : 'Menunggu' }}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p :class="ui.sectionLabel">Pose</p>
-                <div class="mt-3 flex gap-2">
-                  <span
-                    v-for="index in MOMENT_COUNT"
-                    :key="index"
-                    class="inline-flex size-8 items-center justify-center rounded-md text-[13px] font-medium"
-                    :class="
-                      composedShots[index - 1]
-                        ? 'bg-stc-pink text-white'
-                        : currentMoment === index - 1 && countdownValue != null
-                          ? 'bg-stc-pink-soft text-stc-pink-strong'
-                          : 'bg-stc-bg-2 text-stc-text'
-                    "
-                  >
-                    {{ index }}
-                  </span>
-                </div>
-                <p class="text-stc-text-soft mt-2 text-xs">
-                  {{ waitingLabel }} orang · {{ capturedCount }}/{{ MOMENT_COUNT }} pose
-                </p>
-              </div>
-
-              <div>
-                <label
-                  class="text-stc-text-faint block text-xs font-semibold tracking-wide uppercase"
-                  for="booth-invite-url"
-                >
-                  Link undangan
-                </label>
-                <input
-                  id="booth-invite-url"
-                  :value="inviteUrl"
-                  :class="[ui.input, 'mt-2']"
-                  data-testid="booth-invite-url"
-                  aria-label="Link undangan"
-                  readonly
-                />
-                <button
-                  type="button"
-                  :class="[ui.secondaryButton, 'mt-2']"
-                  @click="copyValue(inviteUrl, 'Link')"
-                >
-                  Salin tautan
-                </button>
-                <p v-if="copyNotice" class="text-stc-text-soft mt-2 text-xs">{{ copyNotice }}</p>
-              </div>
-            </div>
-          </aside>
+          <div
+            v-if="stage === 'live'"
+            class="border-stc-border order-3 w-full rounded-lg border bg-white p-3 lg:max-h-[calc(100dvh-11rem)] lg:overflow-y-auto"
+          >
+            <BoothDecorationPicker
+              v-if="stage === 'live'"
+              kind="overlay"
+              stacked
+              :filter-id="boothSetup.filterId"
+              :camera-effect-id="boothSetup.cameraEffectId"
+              :disabled="!canChangeSetup"
+              @select-filter="handleFilterChange"
+              @select-effect="handleEffectChange"
+            />
+          </div>
         </div>
 
-        <section v-if="renderUrl" :class="[ui.panel, 'p-4']">
-          <p :class="ui.sectionLabel">Hasil</p>
-          <p class="text-stc-text-soft mt-2 text-sm leading-normal">
+        <div
+          v-if="stage === 'review'"
+          :class="[ui.pageContent, 'items-center gap-6 text-center']"
+        >
+          <StripCanvasPreview
+            :layout="activeLayout"
+            :template-config="activeTemplate"
+            :shots="reviewShots"
+            :shot-urls="reviewShotUrls"
+            :filter-id="boothSetup.filterId"
+            :camera-effect-id="boothSetup.cameraEffectId"
+            :interactive="role === 'host'"
+            fit-viewport
+            @retake="retakeShot"
+          />
+          <p v-if="role !== 'host'" class="text-stc-text-soft max-w-md text-[13px] leading-normal">
+            Host bisa mengulang per foto atau seluruh sesi sebelum hasil akhir.
+          </p>
+          <p v-if="renderError" :class="[ui.alertError, 'w-full max-w-xl']">{{ renderError }}</p>
+          <div :class="[ui.bottomActions, 'max-w-xl']">
+            <button
+              v-if="role === 'host'"
+              :class="[ui.secondaryButton, 'w-full sm:flex-1']"
+              @click="retakeAll"
+            >
+              Ulang Semua
+            </button>
+            <button
+              :class="[ui.primaryButton, 'w-full sm:flex-[2]']"
+              :disabled="rendering"
+              @click="renderBoothStrip"
+            >
+              {{ rendering ? 'Merender...' : 'Buat Hasil Akhir' }}
+            </button>
+          </div>
+        </div>
+
+        <section
+          v-if="stage === 'output' && renderUrl"
+          :class="[ui.pageContent, 'items-center gap-6']"
+        >
+          <div class="flex w-full flex-col items-center gap-6 md:flex-row md:justify-center">
+            <figure class="flex flex-col items-center gap-2">
+              <figcaption :class="ui.sectionLabel">Foto</figcaption>
+              <img
+                :src="renderUrl"
+                alt="Photo strip Booth Bareng"
+                class="rendered-strip mx-auto block h-auto"
+              />
+            </figure>
+            <figure v-if="livePreviewUrl" class="flex flex-col items-center gap-2">
+              <figcaption :class="ui.sectionLabel">Live Cam</figcaption>
+              <video
+                :src="livePreviewUrl"
+                class="rendered-strip mx-auto block h-auto"
+                autoplay
+                loop
+                muted
+                playsinline
+                controls
+              />
+            </figure>
+          </div>
+          <p class="text-stc-text-soft max-w-xl text-center text-sm leading-normal">
             {{
               savedToGallery
                 ? 'Hasil sudah tersimpan di galeri lokal perangkat ini.'
                 : 'Hasil siap diunduh.'
             }}
           </p>
-          <img :src="renderUrl" alt="Photo strip Booth Bareng" class="mx-auto mt-4 max-h-[32rem]" />
-          <div class="mt-5 flex flex-col gap-3 sm:flex-row">
-            <a
-              class="inline-flex"
-              :class="[ui.primaryButton, 'sm:w-auto']"
-              :href="renderUrl"
-              download="stecute-booth.png"
-            >
-              Unduh PNG
-            </a>
+          <div
+            v-if="outputError || outputNotice"
+            class="w-full max-w-xl"
+            :class="outputError ? ui.alertError : ui.alert"
+          >
+            {{ outputError || outputNotice }}
+          </div>
+          <div :class="[ui.bottomActions, 'max-w-xl !flex-col justify-center sm:!flex-col']">
+            <div class="flex w-full flex-col-reverse gap-3 sm:flex-row">
+              <button
+                :class="[ui.secondaryButton, 'w-full sm:flex-1']"
+                @click="router.push('/booth')"
+              >
+                Foto Baru
+              </button>
+              <button
+                :class="[ui.primaryButton, 'w-full sm:flex-[2]']"
+                :disabled="outputBusy"
+                @click="handleDownload"
+              >
+                Unduh PNG
+              </button>
+            </div>
             <button
-              v-if="savedToGallery"
-              :class="[ui.secondaryButton, 'sm:w-auto']"
-              @click="router.push('/gallery')"
+              :class="ui.ghostButton"
+              :aria-expanded="showMoreActions"
+              aria-controls="booth-output-secondary-actions"
+              @click="showMoreActions = !showMoreActions"
             >
-              Buka Galeri
+              {{ showMoreActions ? 'Tutup opsi tambahan' : 'Lihat opsi tambahan' }}
             </button>
+            <div
+              v-if="showMoreActions"
+              id="booth-output-secondary-actions"
+              class="border-stc-border grid w-full grid-cols-2 gap-2 rounded-lg border p-2 sm:grid-cols-4"
+            >
+              <button
+                v-if="capabilities.canShare"
+                :class="ui.actionTile"
+                :disabled="outputBusy"
+                @click="handleShare"
+              >
+                Bagikan
+              </button>
+              <button
+                v-if="capabilities.canSave"
+                :class="ui.actionTile"
+                :disabled="outputBusy"
+                @click="handleSave"
+              >
+                Simpan
+              </button>
+              <button v-if="capabilities.canPrint" :class="ui.actionTile" @click="handlePrint">
+                Cetak
+              </button>
+              <button :class="ui.actionTile" @click="router.push('/gallery')">Galeri</button>
+            </div>
           </div>
         </section>
       </template>
     </main>
   </div>
 </template>
+
+<style scoped>
+.booth-preview {
+  aspect-ratio: 4 / 3;
+  max-width: min(1040px, calc((100dvh - 18rem) * 4 / 3));
+}
+
+@media (max-width: 767px) {
+  .booth-preview {
+    max-width: 1040px;
+  }
+}
+
+.rendered-strip {
+  width: min(100%, 20rem);
+  max-width: 20rem;
+  max-height: calc(100dvh - 18rem);
+  object-fit: contain;
+}
+</style>

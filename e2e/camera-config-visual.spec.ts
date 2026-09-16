@@ -16,6 +16,11 @@ test.describe('config and camera visual smoke', () => {
     await expect(page.getByRole('heading', { name: 'Pilih paket strip.' })).toBeVisible()
     await expect(page.getByText('Blanko Strip', { exact: true })).toBeVisible()
     await expect(page.getByText('Upload PNG/WebP, jumlah area transparan akan dideteksi otomatis.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
 
     const layoutButton = page.getByRole('button', { name: 'Classic 3 foto' })
     await expect(layoutButton).toBeVisible()

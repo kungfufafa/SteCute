@@ -1,9 +1,14 @@
+import { cloneDecorationConfig } from '../clone'
 import { db, type Session, type DecorationConfig } from '../schema'
 
 export class SessionRepository {
   async create(session: Omit<Session, 'id'>): Promise<string> {
     const id = crypto.randomUUID()
-    await db.sessions.add({ ...session, id })
+    await db.sessions.add({
+      ...session,
+      decorationConfig: cloneDecorationConfig(session.decorationConfig),
+      id,
+    })
     return id
   }
 

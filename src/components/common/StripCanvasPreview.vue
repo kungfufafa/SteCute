@@ -15,6 +15,7 @@ const props = withDefaults(
     shotUrls?: string[]
     interactive?: boolean
     fitViewport?: boolean
+    compact?: boolean
     filterId?: string
     cameraEffectId?: string
   }>(),
@@ -23,6 +24,7 @@ const props = withDefaults(
     shotUrls: () => [],
     interactive: false,
     fitViewport: false,
+    compact: false,
     filterId: 'normal',
     cameraEffectId: 'none',
   },
@@ -317,7 +319,7 @@ function footerLogoStyle() {
     />
 
     <img
-      v-if="templateConfig.footerLogo"
+      v-if="templateConfig.footerLogo && !compact"
       :src="templateConfig.footerLogo"
       alt="Stecute"
       class="absolute block"

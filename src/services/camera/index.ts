@@ -1,4 +1,7 @@
 import { useCameraStore } from '@/app/store/useCameraStore'
+import { getObjectCoverCrop } from './cover-crop'
+
+export { getObjectCoverCrop } from './cover-crop'
 
 export type FacingMode = 'user' | 'environment'
 export type CameraFacingMode = FacingMode | 'unknown'
@@ -343,6 +346,48 @@ export function captureFrame(
             width: crop.sw,
             height: crop.sh,
           })
+        } else {
+          reject(new Error('Failed to capture frame'))
+        }
+      },
+      'image/jpeg',
+      0.92,
+    )
+  })
+}
+
+export function captureCoverFrame(
+  videoEl: HTMLVideoElement,
+  dest: { width: number; height: number },
+  options: CaptureFrameOptions = {},
+): Promise<CapturedFrame> {
+  return new Promise((resolve, reject) => {
+    if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) {
+      reject(new Error('Camera preview is not ready yet'))
+      return
+    }
+
+    const width = Math.max(1, Math.floor(dest.width))
+    const height = Math.max(1, Math.floor(dest.height))
+    const crop = getObjectCoverCrop(videoEl.videoWidth, videoEl.videoHeight, width, height)
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      reject(new Error('Failed to get canvas context'))
+      return
+    }
+    if (options.mirrored) {
+      ctx.translate(width, 0)
+      ctx.scale(-1, 1)
+    }
+
+    ctx.drawImage(videoEl, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve({ blob, width, height })
         } else {
           reject(new Error('Failed to capture frame'))
         }

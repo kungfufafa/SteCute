@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { FaceDetector, FilesetResolver } from '@mediapipe/tasks-vision'
 import {
@@ -34,6 +36,24 @@ describe('face tracking MediaPipe assets', () => {
 
   afterEach(() => {
     destroyFaceDetector()
+  })
+
+  it('keeps the bundled MediaPipe FaceDetector files on disk', () => {
+    const vendorRoot = fileURLToPath(
+      new URL('../../../../public/vendor/mediapipe', import.meta.url),
+    )
+    expect(
+      existsSync(
+        `${vendorRoot}/models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`,
+      ),
+    ).toBe(true)
+    expect(existsSync(`${vendorRoot}/tasks-vision/wasm/vision_wasm_internal.js`)).toBe(true)
+    expect(existsSync(`${vendorRoot}/tasks-vision/wasm/vision_wasm_internal.wasm`)).toBe(true)
+    expect(existsSync(`${vendorRoot}/tasks-vision/wasm/vision_wasm_nosimd_internal.js`)).toBe(true)
+    expect(existsSync(`${vendorRoot}/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm`)).toBe(
+      true,
+    )
+    expect(existsSync(`${vendorRoot}/manifest.json`)).toBe(true)
   })
 
   it('uses bundled local MediaPipe assets instead of remote CDN URLs', () => {
