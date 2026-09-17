@@ -222,7 +222,7 @@ export function createBoothPeerSession(options: {
         templateId: message.templateId,
         slotCount: message.slotCount,
         countdownMs: message.countdownMs,
-        autoCapture: message.autoCapture,
+        autoCapture: Boolean(message.autoCapture),
         filterId: message.filterId,
         cameraEffectId: message.cameraEffectId,
         virtualBackgroundId: message.virtualBackgroundId ?? 'off',

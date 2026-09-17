@@ -24,7 +24,6 @@ import {
   writePendingSessionConfig,
 } from '@/services/session/persist'
 import { getTemplateById } from '@/templates'
-import { getLayoutById } from '@/layouts'
 import { useCameraStore } from '@/app/store/useCameraStore'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
@@ -103,11 +102,6 @@ const activeTemplate = computed(
   () =>
     customTemplateStore.getTemplateById(sessionStore.templateId) ??
     getTemplateById(sessionStore.templateId),
-)
-const activeLayout = computed(
-  () =>
-    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
-    getLayoutById(sessionStore.layoutId),
 )
 const shotProgressLabel = computed(
   () => `Foto ${sessionStore.currentShotIndex + 1} dari ${sessionStore.slotCount}`,
