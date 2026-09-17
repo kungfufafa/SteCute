@@ -71,6 +71,7 @@ const WINDUT_DIZZY_ORBIT_COUNT = 2
 export interface CameraEffectConfig {
   id: string
   label: string
+  shortLabel?: string
   description: string
   previewBackground: string
   thumbnail?: string
@@ -104,6 +105,7 @@ export const CAMERA_EFFECTS: CameraEffectConfig[] = [
   {
     id: 'kicau-mania',
     label: 'Kicau Mania',
+    shortLabel: 'Kicau',
     description: 'Kucing scuba dance yang loncat kecil di area atas foto.',
     previewBackground: 'linear-gradient(135deg, #ecfeff 0%, #22d3ee 46%, #ec4899 100%)',
     thumbnail: THUMBNAIL_URLS['kicau-mania'],

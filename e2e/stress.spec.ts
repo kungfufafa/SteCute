@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { startHostBooth } from './booth-flow'
 
 function cta(page: Page, name: string) {
   return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
@@ -14,7 +15,7 @@ test.describe('Stecute UI stress', () => {
 
     for (let index = 0; index < 12; index++) {
       await page.goto('/booth')
-      await page.getByRole('button', { name: 'Buat Booth' }).click()
+      await startHostBooth(page)
       const code = (await page.getByTestId('booth-code').innerText()).trim()
       expect(code).toMatch(/^[A-Z2-9]{3}-[A-Z2-9]{3}$/)
       codes.push(code)
@@ -43,7 +44,7 @@ test.describe('Stecute UI stress', () => {
     page,
   }) => {
     await page.goto('/booth')
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
     const code = (await page.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await page.getByTestId('booth-invite-url').inputValue()
 

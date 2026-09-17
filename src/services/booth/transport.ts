@@ -11,6 +11,7 @@ export type BoothWireMessage =
       templateId: string
       slotCount: number
       countdownMs: number
+      autoCapture?: boolean
       filterId: string
       cameraEffectId: string
       virtualBackgroundId?: string

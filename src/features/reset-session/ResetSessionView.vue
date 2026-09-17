@@ -2,7 +2,11 @@
 import { useRouter } from 'vue-router'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import { resetSessionData } from '@/services/session'
-import { clearPendingSessionConfig, readStoredSessionId } from '@/services/session/persist'
+import {
+  clearPendingBoothSetup,
+  clearPendingSessionConfig,
+  readStoredSessionId,
+} from '@/services/session/persist'
 import { ui } from '@/ui/styles'
 
 const router = useRouter()
@@ -15,6 +19,7 @@ async function handleReset() {
   }
   sessionStore.reset()
   clearPendingSessionConfig()
+  clearPendingBoothSetup()
   router.push('/')
 }
 

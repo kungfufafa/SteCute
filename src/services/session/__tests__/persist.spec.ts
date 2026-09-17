@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   consumePendingSessionConfig,
   persistActiveSessionId,
+  readPendingBoothSetup,
   readPendingSessionConfig,
+  writePendingBoothSetup,
   writePendingSessionConfig,
 } from '@/services/session/persist'
 
@@ -111,5 +113,56 @@ describe('pending session config', () => {
     persistActiveSessionId(null)
 
     expect(readPendingSessionConfig('upload')?.layoutId).toBe('strip-6-vertical')
+  })
+})
+
+describe('pending booth setup', () => {
+  beforeEach(() => {
+    memory.clear()
+    installSessionStorage()
+  })
+
+  afterEach(() => {
+    memory.clear()
+  })
+
+  it('keeps booth setup separate from camera and upload pending config', () => {
+    writePendingSessionConfig({
+      layoutId: 'strip-2-vertical',
+      templateId: 'classic',
+      slotCount: 2,
+      countdownSeconds: 3,
+      autoCapture: false,
+      source: 'camera',
+    })
+    writePendingBoothSetup({
+      code: 'ABC-DEF',
+      layoutId: 'strip-4-vertical',
+      templateId: 'youth',
+      slotCount: 4,
+      countdownSeconds: 5,
+      autoCapture: true,
+    })
+
+    expect(readPendingSessionConfig('camera')?.layoutId).toBe('strip-2-vertical')
+    expect(readPendingBoothSetup()?.layoutId).toBe('strip-4-vertical')
+    expect(readPendingBoothSetup('ABCDEF')?.autoCapture).toBe(true)
+    expect(readPendingBoothSetup('ZZZ-ZZZ')).toBeNull()
+  })
+
+  it('rereads booth setup without consuming it', () => {
+    writePendingBoothSetup({
+      code: 'VMB-AX5',
+      layoutId: 'strip-6-vertical',
+      templateId: 'mono',
+      slotCount: 6,
+      countdownSeconds: 10,
+      autoCapture: false,
+      filterId: 'warm',
+    })
+
+    expect(readPendingBoothSetup('VMBAX5')?.templateId).toBe('mono')
+    expect(readPendingBoothSetup()?.filterId).toBe('warm')
+    expect(readPendingBoothSetup('vmbax5')?.countdownSeconds).toBe(10)
   })
 })

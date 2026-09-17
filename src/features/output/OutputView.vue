@@ -13,7 +13,6 @@ import {
   shareBlob,
 } from '@/services/output'
 import { ui } from '@/ui/styles'
-import FlowProgress from '@/components/common/FlowProgress.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -179,6 +178,10 @@ async function handlePrint() {
   }
 }
 
+function goBack() {
+  router.push('/gallery')
+}
+
 function handleGallery() {
   router.push('/gallery')
 }
@@ -265,55 +268,40 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="ui.page">
-    <div v-if="isLoadingOutput" :class="ui.header">
-      <div class="min-w-0">
-        <h3 :class="ui.title">Memuat Hasil</h3>
-        <p :class="ui.subtitle">Mengambil photo strip dari penyimpanan lokal.</p>
+    <div :class="ui.header">
+      <div :class="ui.headerGroup">
+        <button :class="ui.iconButton" aria-label="Kembali" @click="goBack">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <h1 :class="ui.title">{{ outputError ? 'Hasil Tidak Ditemukan' : 'Hasil' }}</h1>
       </div>
     </div>
-
-    <div v-else-if="outputError" :class="ui.header">
-      <div class="min-w-0">
-        <h3 :class="ui.title">Hasil Tidak Ditemukan</h3>
-        <p :class="ui.subtitle">{{ outputError }}</p>
-      </div>
-    </div>
-
-    <div v-else :class="ui.header">
-      <div class="min-w-0">
-        <h3 :class="ui.title">Selesai!</h3>
-        <p :class="ui.subtitle">
-          {{
-            hasLiveCamOutput
-              ? 'Photo strip dan Live Cam kamu sudah jadi.'
-              : 'Photo strip kamu sudah jadi dan siap diunduh.'
-          }}
-        </p>
-      </div>
-    </div>
-
-    <FlowProgress current="output" :source="sessionStore.captureSource" />
 
     <div :class="ui.content">
       <div v-if="isLoadingOutput" :class="[ui.pageContent, 'items-center justify-center']">
         <div :class="ui.emptyPanel">
           <div
-            class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
+            class="border-stc-border border-t-stc-pink mx-auto size-6 animate-spin rounded-full border-2"
+            aria-label="Memuat"
           ></div>
-          <h4 class="text-stc-text text-[15px] font-medium">Menyiapkan Preview</h4>
-          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Hasil akan muncul setelah data lokal selesai dibaca.
-          </p>
         </div>
       </div>
 
       <div v-else-if="outputError" :class="[ui.pageContent, 'items-center justify-center']">
         <div :class="ui.emptyPanel">
-          <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil Aktif</h4>
-          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Buka galeri untuk melihat render yang tersimpan, atau mulai sesi baru.
-          </p>
-          <div class="mt-4 flex items-center justify-center gap-2">
+          <div class="flex items-center justify-center gap-2">
             <button :class="ui.secondaryButton" @click="handleGallery">Buka Galeri</button>
             <button :class="ui.primaryButton" @click="handleNewSession">Mulai Foto</button>
           </div>

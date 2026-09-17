@@ -178,6 +178,8 @@ export function startPairLiveCamRecording(options: {
   width: number
   height: number
   localOnLeft: boolean
+  localMirrored?: boolean
+  remoteMirrored?: boolean
 }): LiveCamRecording | null {
   if (!isLiveStripRenderingSupported()) return null
   const localWidth =
@@ -210,12 +212,30 @@ export function startPairLiveCamRecording(options: {
   const leftVideo = options.localOnLeft ? options.localVideo : options.remoteVideo
   const rightVideo = options.localOnLeft ? options.remoteVideo : options.localVideo
   const halfWidth = Math.floor(width / 2)
+  const localMirrored = Boolean(options.localMirrored)
+  const remoteMirrored = Boolean(options.remoteMirrored)
 
   function drawPairFrame() {
     pairCtx.fillStyle = '#0a0a0a'
     pairCtx.fillRect(0, 0, width, height)
-    drawVideoCoverToRect(pairCtx, leftVideo, 0, 0, halfWidth, height)
-    drawVideoCoverToRect(pairCtx, rightVideo, halfWidth, 0, width - halfWidth, height)
+    drawVideoCoverToRect(
+      pairCtx,
+      leftVideo,
+      0,
+      0,
+      halfWidth,
+      height,
+      options.localOnLeft ? localMirrored : remoteMirrored,
+    )
+    drawVideoCoverToRect(
+      pairCtx,
+      rightVideo,
+      halfWidth,
+      0,
+      width - halfWidth,
+      height,
+      options.localOnLeft ? remoteMirrored : localMirrored,
+    )
   }
 
   function loop() {
@@ -290,6 +310,7 @@ function drawVideoCoverToRect(
   y: number,
   width: number,
   height: number,
+  mirrored = false,
 ) {
   if (!video) {
     ctx.fillStyle = '#111'
@@ -309,6 +330,14 @@ function drawVideoCoverToRect(
   }
 
   const crop = getObjectCoverCrop(vWidth, vHeight, width, height)
+  if (mirrored) {
+    ctx.save()
+    ctx.translate(x + width, y)
+    ctx.scale(-1, 1)
+    ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
+    ctx.restore()
+    return
+  }
   ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, x, y, width, height)
 }
 

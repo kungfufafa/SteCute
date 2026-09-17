@@ -1,41 +1,25 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import {
-  createBooth,
-  getBoothRegistry,
-  joinBoothByCode,
-  normalizeBoothCode,
-} from '@/services/booth'
-import { initCamera, stopCamera } from '@/services/camera'
+import { useCameraStore } from '@/app/store/useCameraStore'
+import { getBoothRegistry, joinBoothByCode, normalizeBoothCode } from '@/services/booth'
+import { initCamera, shouldMirrorCamera, stopCamera } from '@/services/camera'
 import { ui } from '@/ui/styles'
 
 const router = useRouter()
+const cameraStore = useCameraStore()
 const joinCode = ref('')
 const joinError = ref('')
-const createError = ref('')
 const cameraLive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let stream: MediaStream | null = null
+const shouldMirrorLocalCamera = computed(() => shouldMirrorCamera(cameraStore.activeFacingMode))
 
 const ROLE_KEY = 'stecute.booth.role'
 const PEER_KEY = 'stecute.booth.peer'
 
-function persistHostRole(code: string) {
-  const normalized = normalizeBoothCode(code)
-  if (!normalized) return
-  sessionStorage.setItem(`${ROLE_KEY}.${normalized}`, 'host')
-}
-
 function createRoom() {
-  createError.value = ''
-  try {
-    const identity = createBooth(getBoothRegistry())
-    persistHostRole(identity.code)
-    router.push({ name: 'booth-join', params: { code: identity.code } })
-  } catch {
-    createError.value = 'Booth gagal dibuat. Coba lagi.'
-  }
+  router.push({ path: '/config', query: { source: 'booth' } })
 }
 
 function joinRoom() {
@@ -140,7 +124,6 @@ onUnmounted(() => {
         <div class="mt-6 flex flex-wrap items-center gap-2">
           <button :class="ui.primaryButton" @click="createRoom">Buat Booth</button>
         </div>
-        <p v-if="createError" class="text-stc-error-strong mt-2 text-[13px]">{{ createError }}</p>
 
         <form class="mt-8 max-w-sm" @submit.prevent="joinRoom">
           <label class="text-stc-text text-[13px] font-medium" for="booth-join-code">
@@ -175,11 +158,16 @@ onUnmounted(() => {
         class="border-stc-border mx-auto w-full max-w-md overflow-hidden rounded-lg border bg-black"
         aria-label="Preview kamera Foto Duet"
       >
-        <div class="grid aspect-[4/3] grid-cols-2">
-          <article class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+        <div class="grid aspect-[4/3] grid-cols-2 grid-rows-1">
+          <article
+            class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+            data-testid="booth-hub-local-tile"
+          >
             <video
               ref="videoRef"
               class="absolute inset-0 h-full w-full object-cover"
+              :class="shouldMirrorLocalCamera ? 'scale-x-[-1]' : ''"
+              data-testid="booth-hub-local-video"
               autoplay
               muted
               playsinline
@@ -192,7 +180,10 @@ onUnmounted(() => {
             </div>
             <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Kamu</p>
           </article>
-          <article class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950">
+          <article
+            class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+            data-testid="booth-hub-remote-tile"
+          >
             <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Teman</p>
           </article>
         </div>

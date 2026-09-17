@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { startHostBooth } from './booth-flow'
 
 test.use({
   baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
@@ -9,6 +10,20 @@ test.use({
 
 function cta(page: Page, name: string) {
   return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
+}
+
+async function expectSideBySideTiles(
+  page: Page,
+  localTestId = 'booth-local-tile',
+  remoteTestId = 'booth-remote-tile',
+) {
+  const local = await page.getByTestId(localTestId).boundingBox()
+  const remote = await page.getByTestId(remoteTestId).boundingBox()
+  expect(local, 'local tile box').toBeTruthy()
+  expect(remote, 'remote tile box').toBeTruthy()
+  if (!local || !remote) return
+  expect(Math.abs(local.y - remote.y)).toBeLessThan(12)
+  expect(Math.abs(local.x - remote.x)).toBeGreaterThan(local.width * 0.4)
 }
 
 test.describe('Booth Bareng join paths', () => {
@@ -62,8 +77,34 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByRole('heading', { name: 'Foto Duet' })).toBeVisible()
     await expect(page.getByText(/hotspot|4G vs Wi-Fi kantor sering gagal/i)).toHaveCount(0)
     await expect(page.getByText(/Perangkat bisa beda jaringan/)).toBeVisible()
+    await expect(page.getByTestId('booth-hub-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+      timeout: 15_000,
+    })
+    await expectSideBySideTiles(page, 'booth-hub-local-tile', 'booth-hub-remote-tile')
 
     await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await expect(page).toHaveURL('/config?source=booth')
+    await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
+    await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Progress sesi Stecute' })).toContainText(
+      'Duet',
+    )
+    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 3 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Upload Frame' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    await page.getByRole('button', { name: 'Classic 4 foto' }).click()
+    await page.getByRole('button', { name: '5s' }).click()
+    await page.getByRole('button', { name: 'Otomatis' }).click()
+    await page.getByRole('button', { name: 'Buka Booth' }).filter({ visible: true }).click()
 
     const code = page.getByTestId('booth-code')
     await expect(code).toBeVisible()
@@ -74,30 +115,29 @@ test.describe('Booth Bareng join paths', () => {
     await expect(invite).toHaveValue(new RegExp(`/j/${roomCode}$`))
     await expect(page).toHaveURL(new RegExp(`/j/${roomCode}$`))
     await expect(page.getByTestId('booth-stage')).toBeVisible()
-    await expect(page.getByTestId('booth-local-tile')).toBeVisible()
-    await expect(page.getByTestId('booth-remote-tile')).toBeVisible()
-    await expect(page.getByTestId('booth-local-video')).not.toHaveClass(/scale-x-\[-1\]/)
-    await expect(page.getByText('Kamu · Host')).toBeVisible()
-    await expect(page.getByText('Teman · Tamu')).toBeVisible()
+    await expect(page.getByTestId('booth-local-tile')).toContainText('Kamu')
+    await expect(page.getByTestId('booth-remote-tile')).toContainText('Teman')
+    await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+      timeout: 15_000,
+    })
+    await expect(page.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/)
+    await expectSideBySideTiles(page)
+    await expect(page.getByText('Host', { exact: true })).toBeVisible()
     await expect(page.getByTestId('booth-remote-tile')).not.toContainText('Menunggu teman gabung')
     await expect(page.getByTestId('booth-remote-tile')).not.toContainText(
       'Menunggu host memulai pose',
     )
-    const progress = page.getByRole('navigation', { name: 'Progress sesi Stecute' })
-    await expect(progress).toContainText('Format')
-    await expect(progress).toContainText('Foto')
-    await expect(progress).toContainText('Review')
-    await expect(progress).toContainText('Hasil')
-    await expect(page.getByText('Efek Kamera')).toBeVisible()
-    await expect(page.getByText('Overlay Kamera')).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Progress sesi Stecute' })).toHaveCount(0)
+    await expect(page.getByText('Efek', { exact: true })).toBeVisible()
+    await expect(page.getByText('Overlay', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Pilih efek Hangat' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Pilih overlay Hati' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 3 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveCount(0)
+    await expect(page.getByText('5s', { exact: true })).toBeVisible()
+    await expect(page.getByText('Otomatis', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ubah setup sesi' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Menunggu teman' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Render strip' })).toHaveCount(0)
 
@@ -110,7 +150,7 @@ test.describe('Booth Bareng join paths', () => {
   test('guest can join by typing the host code', async ({ context, page }) => {
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()
 
@@ -137,14 +177,14 @@ test.describe('Booth Bareng join paths', () => {
 
     await host.goto('/')
     await cta(host, 'Foto Duet').click()
-    await host.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(host)
     const roomCode = (await host.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await host.getByTestId('booth-invite-url').inputValue()
 
     await guest.goto(inviteUrl)
     await expect(guest.getByTestId('booth-code')).toHaveText(roomCode)
-    await expect(host.getByText('Teman sudah masuk')).toBeVisible({ timeout: 15_000 })
-    await expect(guest.getByText('Menunggu host memulai pose.')).toBeVisible({ timeout: 15_000 })
+    await expect(host.getByRole('button', { name: 'Mulai pose' })).toBeVisible({ timeout: 15_000 })
+    await expect(guest.getByText('Menunggu host', { exact: true })).toBeVisible({ timeout: 15_000 })
 
     await hostContext.close()
     await guestContext.close()
@@ -153,7 +193,7 @@ test.describe('Booth Bareng join paths', () => {
   test('invite URL enters the same booth as the host code', async ({ context, page }) => {
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await page.getByTestId('booth-invite-url').inputValue()
@@ -164,5 +204,20 @@ test.describe('Booth Bareng join paths', () => {
     await expect(guest).toHaveURL(new RegExp(`/j/${roomCode}$`))
     await expect(guest.getByTestId('booth-code')).toHaveText(roomCode)
     await expect(guest.getByText('Booth tidak ditemukan')).toHaveCount(0)
+  })
+
+  test('keeps Kamu and Teman side by side on a narrow phone viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/')
+    await cta(page, 'Foto Duet').click()
+    await expectSideBySideTiles(page, 'booth-hub-local-tile', 'booth-hub-remote-tile')
+    await startHostBooth(page)
+
+    await expect(page.getByTestId('booth-stage')).toBeVisible()
+    await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+      timeout: 15_000,
+    })
+    await expect(page.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/)
+    await expectSideBySideTiles(page)
   })
 })

@@ -13,14 +13,10 @@ import {
 } from '@/services/camera-effects'
 
 describe('camera effects', () => {
-  it('exposes local camera overlay presets', () => {
-    expect(CAMERA_EFFECTS.map((effect) => effect.id)).toEqual([
-      'none',
-      'hearts',
-      'bluebirds',
-      'kicau-mania',
-      'windut',
-    ])
+  it('exposes a short chip label for overlay names that would truncate', () => {
+    expect(getCameraEffectById('kicau-mania').label).toBe('Kicau Mania')
+    expect(getCameraEffectById('kicau-mania').shortLabel).toBe('Kicau')
+    expect(getCameraEffectById('hearts').shortLabel).toBeUndefined()
   })
 
   it('falls back to no overlay for unknown ids', () => {

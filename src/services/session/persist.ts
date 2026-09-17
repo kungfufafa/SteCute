@@ -1,5 +1,6 @@
 const ACTIVE_SESSION_KEY = 'stecute.activeSessionId'
 const PENDING_CAMERA_CONFIG_KEY = 'stecute.pendingCameraConfig'
+const PENDING_BOOTH_SETUP_KEY = 'stecute.pendingBoothSetup'
 const RETAKE_INDEX_KEY = 'stecute.retakeIndex'
 const CAMERA_FLOW_KEY = 'stecute.cameraFlow'
 
@@ -21,6 +22,18 @@ export type PendingSessionConfig = PendingCameraConfig & {
 export type StoredCameraFlow = {
   countdownSeconds: number
   autoCapture: boolean
+}
+
+export type PendingBoothSetup = {
+  code: string
+  layoutId: string
+  templateId: string
+  slotCount: number
+  countdownSeconds: number
+  autoCapture: boolean
+  filterId?: string
+  cameraEffectId?: string
+  virtualBackgroundId?: string
 }
 
 function readJson<T>(key: string): T | null {
@@ -161,4 +174,47 @@ export function readCameraFlow(): StoredCameraFlow | null {
     return null
   }
   return flow
+}
+
+function normalizePendingBoothCode(code: string): string {
+  return code.trim().replace(/[-\s]/g, '').toUpperCase()
+}
+
+function parsePendingBoothSetup(config: PendingBoothSetup | null): PendingBoothSetup | null {
+  if (!config || typeof config.code !== 'string' || typeof config.layoutId !== 'string') return null
+
+  const countdownSeconds =
+    config.countdownSeconds === 5 || config.countdownSeconds === 10 ? config.countdownSeconds : 3
+
+  return {
+    code: config.code,
+    layoutId: config.layoutId,
+    templateId: typeof config.templateId === 'string' ? config.templateId : 'classic',
+    slotCount: typeof config.slotCount === 'number' && config.slotCount > 0 ? config.slotCount : 3,
+    countdownSeconds,
+    autoCapture: Boolean(config.autoCapture),
+    filterId: typeof config.filterId === 'string' ? config.filterId : undefined,
+    cameraEffectId: typeof config.cameraEffectId === 'string' ? config.cameraEffectId : undefined,
+    virtualBackgroundId:
+      typeof config.virtualBackgroundId === 'string' ? config.virtualBackgroundId : undefined,
+  }
+}
+
+export function writePendingBoothSetup(config: PendingBoothSetup): void {
+  const parsed = parsePendingBoothSetup(config)
+  if (!parsed) return
+  writeJson(PENDING_BOOTH_SETUP_KEY, parsed)
+}
+
+export function readPendingBoothSetup(code?: string): PendingBoothSetup | null {
+  const parsed = parsePendingBoothSetup(readJson<PendingBoothSetup>(PENDING_BOOTH_SETUP_KEY))
+  if (!parsed) return null
+  if (code && normalizePendingBoothCode(parsed.code) !== normalizePendingBoothCode(code)) {
+    return null
+  }
+  return parsed
+}
+
+export function clearPendingBoothSetup(): void {
+  writeJson(PENDING_BOOTH_SETUP_KEY, null)
 }

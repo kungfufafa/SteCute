@@ -10,7 +10,7 @@ const uploadFixtures = [
 
 async function openUploadFlow(page: Page) {
   await page.goto('/config?source=upload')
-  await expect(page.getByRole('heading', { name: 'Pilih jumlah foto.' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
   await page.getByRole('button', { name: 'Pilih Foto' }).click()
   await expect(page).toHaveURL('/upload')
 }
@@ -104,7 +104,7 @@ test.describe('real browser upload flow', () => {
     await expect(page.getByRole('button', { name: 'JPG' })).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Unduh ke Perangkat' })).toBeVisible()
     await page.getByRole('button', { name: 'Lihat opsi tambahan' }).click()
-    await page.getByRole('button', { name: 'Galeri' }).click()
+    await page.getByRole('button', { name: 'Galeri', exact: true }).click()
 
     await expect(page).toHaveURL('/gallery')
     await expect(page.getByText('1 item')).toBeVisible()

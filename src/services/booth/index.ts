@@ -4,6 +4,7 @@ export {
   BOOTH_CODE_ALPHABET,
   BOOTH_CODE_LENGTH,
   BOOTH_INVITE_PREFIX,
+  BOOTH_ROLE_STORAGE_PREFIX,
   BOOTH_TTL_MS,
   buildInvitePath,
   buildInviteUrl,
@@ -16,6 +17,7 @@ export {
   joinBoothByInvite,
   normalizeBoothCode,
   parseInviteCode,
+  persistBoothHostRole,
   setBoothRegistry,
   type BoothIdentity,
   type BoothJoinError,
@@ -44,8 +46,15 @@ export {
   type BoothLocalBackgroundStatus,
 } from './background-ready'
 export {
+  BOOTH_AUTO_CAPTURE_GAP_MS,
+  nextBoothAutoCaptureAction,
+  type BoothAutoCaptureAction,
+} from './auto-capture'
+export {
   BOOTH_COUNTDOWN_SECONDS,
   DEFAULT_BOOTH_COUNTDOWN_SECONDS,
+  DEFAULT_BOOTH_LAYOUT_ID,
+  DEFAULT_BOOTH_TEMPLATE_ID,
   bundledBoothLayouts,
   bundledBoothTemplates,
   boothSetupsEqual,

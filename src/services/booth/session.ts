@@ -214,7 +214,7 @@ export function createBoothPeerSession(options: {
     if (message.type === 'session-setup') {
       const duplicateKey = message.nonce
         ? `setup:${message.nonce}`
-        : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.filterId}:${message.cameraEffectId}:${message.virtualBackgroundId}:${message.revision}`
+        : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.autoCapture}:${message.filterId}:${message.cameraEffectId}:${message.virtualBackgroundId}:${message.revision}`
       if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
       lastRemoteAt = Date.now()
       applySetup({
@@ -222,6 +222,7 @@ export function createBoothPeerSession(options: {
         templateId: message.templateId,
         slotCount: message.slotCount,
         countdownMs: message.countdownMs,
+        autoCapture: Boolean(message.autoCapture),
         filterId: message.filterId,
         cameraEffectId: message.cameraEffectId,
         virtualBackgroundId: message.virtualBackgroundId ?? 'off',

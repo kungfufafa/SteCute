@@ -241,7 +241,7 @@ Iterasi QA terhadap alur kamera, upload, render, output, gallery, dan Booth Bare
 | P1 | Still kamera diambil ~450ms setelah flash karena menunggu trailer Live Cam, sehingga pose sudah lepas. | Capture frame segera saat flash, lalu hentikan Live Cam; shot memakai still yang sudah diambil. | Fixed |
 | P1 | Reload `/upload` menghilangkan layout/slot/blanko karena pending config di-consume di mount pertama. | Pending config dibaca tanpa dihapus; `persistActiveSessionId(null)` tidak lagi mengosongkan pending. | Fixed |
 | P1 | Back setelah render membuka review/render kosong karena shot sudah dihapus. | Session selesai diarahkan ke `/output?renderId=`; `/render` memakai `replace`. | Fixed |
-| P2 | Query `?role=host` bisa merampas peran host Booth. | Host hanya dari `sessionStorage` yang di-set saat Buat Booth. | Fixed |
+| P2 | Query `?role=host` bisa merampas peran host Booth. | Host hanya dari `sessionStorage` yang di-set saat Buka Booth. | Fixed |
 | P2 | Peer ke-3 tetap mendapat koneksi WebRTC; still bisa memakai role palsu. | Host hanya menjaga 1 koneksi tamu; still memakai role handshake. | Fixed |
 | P2 | Overlay wajah hilang di PNG/Live Cam jika deteksi wajah kosong. | Render slot memakai fallback face bounds. | Fixed |
 | P2 | Retake index stale menempel di sesi baru; switch kamera bisa bocor stream. | `startSession` menghapus retake index; switch/unmount memakai generation token. | Fixed |

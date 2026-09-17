@@ -22,7 +22,7 @@ test.describe('Stecute app smoke', () => {
 
     await expect(page).toHaveURL('/config?source=camera')
     await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
-    await expect(page.getByText('Pilih jumlah foto.')).toBeVisible()
+    await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Buka Kamera' })).toBeVisible()
   })
 

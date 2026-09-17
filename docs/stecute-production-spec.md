@@ -98,7 +98,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 - `Gallery lokal` menyimpan final render PNG, dengan optional Live Cam video berpasangan bila tersedia. Raw shots dan raw clip per-shot disimpan hanya selama sesi aktif dan dibersihkan saat retake, reset, atau retention cleanup.
 - `Kustomisasi manual` selain preset filter, overlay kamera, dan latar virtual kamera ditunda dari rilis v1 agar implementasi fokus pada alur capture, review, render, output, dan reset yang paling nyaman.
 - `Auto-reset event` tidak masuk v1. Reset manual wajib ada.
-- `Booth Bareng` (label antarmuka pengguna: `Foto Duet`) adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional. Host memilih setup strip yang sama dengan `Mulai Foto` (layout `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown default `3` detik, plus `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual`). Latar virtual pilihan host berlaku di kedua peserta (warna studio, blur, atau gambar unggahan host yang dinormalisasi dan disinkronkan ke tamu). Countdown menunggu kesiapan kedua perangkat; jika sinkronisasi latar gagal atau timeout, sistem menyediakan pemulihan Coba lagi atau Gunakan Asli bersama. Jumlah momen capture mengikuti slot layout. Countdown bersama, pair-row `host | tamu`, review per-shot atau seluruh sesi, render PNG lewat pipeline strip yang sama, simpan ke gallery lokal (retensi `10`), lalu `Unduh PNG` plus save/share/print berbasis capability. Still tidak disimpan di server. Signaling/SDP ephemeral, STUN/TURN, dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar dua perangkat di jaringan berbeda tetap bertemu. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai. Mode ini **bukan** gate rilis v1.
+- `Booth Bareng` (label antarmuka pengguna: `Foto Duet`) adalah mode online opsional 2 orang: satu kode unik dan URL undangan yang memuat kode itu, join case-insensitive dengan hyphen opsional. Host mengatur setup strip di Atur Sesi sebelum masuk ruang, sama dengan `Mulai Foto` (layout `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown default `3` detik, toggle Otomatis default mati). Di ruang live, host memilih `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual` seperti layar kamera lokal. Latar virtual pilihan host berlaku di kedua peserta (warna studio, blur, atau gambar unggahan host yang dinormalisasi dan disinkronkan ke tamu). Countdown menunggu kesiapan kedua perangkat; jika sinkronisasi latar gagal atau timeout, sistem menyediakan pemulihan Coba lagi atau Gunakan Asli bersama. Jumlah momen capture mengikuti slot layout. Countdown bersama, pair-row `host | tamu`, review per-shot atau seluruh sesi, render PNG lewat pipeline strip yang sama, simpan ke gallery lokal (retensi `10`), lalu `Unduh PNG` plus save/share/print berbasis capability. Still tidak disimpan di server. Signaling/SDP ephemeral, STUN/TURN, dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar dua perangkat di jaringan berbeda tetap bertemu. Alur lokal tetap berjalan jika mode ini gagal atau tidak dipakai. Mode ini **bukan** gate rilis v1.
 
 ---
 
@@ -136,12 +136,13 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 ### 3.3 Flow Booth Bareng (opsional)
 
 1. User menekan `Booth Bareng` dari landing. CTA `Mulai Foto` dan `Upload Lokal` tetap ada dan tidak membutuhkan langkah ini.
-2. Host membuat booth tanpa login, lalu melihat kode unik dan URL undangan yang memakai kode yang sama.
-3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
-4. Host memilih blanko `2`/`3`/`4`/`6`, `Classic`/`Youth`/`Mono`, timer, efek kamera, overlay, dan latar virtual. Tamu memakai pilihan host (termasuk gambar latar unggahan host yang disinkronkan). Progress mengikuti `Format` / `Foto` / `Review` / `Hasil`.
-5. Kedua peserta melihat kamera sendiri dan kamera teman secara live (host kiri, tamu kanan, tanpa mirror). Filter, overlay, dan latar virtual tampil di preview. Setelah 2 peserta hadir, host memulai countdown bersama. Jumlah pose sama dengan slot layout. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
-6. Still disusun side-by-side `host | tamu` per momen. Setelah lengkap, review dengan retake per-shot atau seluruh sesi, lalu render PNG lewat pipeline lokal yang sama.
-7. Hasil masuk gallery lokal. Masing-masing memakai `Unduh PNG` plus save/share/print bila didukung. Ruang booth bersifat ephemeral dan tidak menahan still di server setelah sesi.
+2. Host menekan `Buat Booth`, lalu mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi tanpa login (tanpa upload frame custom).
+3. Host menekan `Buka Booth` dan masuk ruang live dengan kode unik plus URL undangan yang memakai kode yang sama.
+4. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
+5. Di ruang live, host memilih efek kamera, overlay, dan latar virtual. Tamu memakai pilihan host (termasuk gambar latar unggahan host yang disinkronkan). Progress Atur Sesi mengikuti `Format` / `Duet` / `Review` / `Hasil`.
+6. Kedua peserta melihat kamera sendiri dan kamera teman secara live (host kiri, tamu kanan, tanpa mirror). Filter, overlay, dan latar virtual tampil di preview. Setelah 2 peserta hadir, host memulai countdown bersama. Jika Otomatis nyala, pose pertama tetap diklik host lalu pose berikutnya lanjut sendiri; Batal menghentikan rantai. Jumlah pose sama dengan slot layout. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
+7. Still disusun side-by-side `host | tamu` per momen. Setelah lengkap, review dengan retake per-shot atau seluruh sesi, lalu render PNG lewat pipeline lokal yang sama.
+8. Hasil masuk gallery lokal. Masing-masing memakai `Unduh PNG` plus save/share/print bila didukung. Ruang booth bersifat ephemeral dan tidak menahan still di server setelah sesi.
 
 ### 3.4 Flow error
 
@@ -578,6 +579,8 @@ Produk dianggap `production-ready` jika:
 
 ## 16. Changelog keputusan
 
+- 2026-09-17: Host Foto Duet mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi sebelum masuk `/j/:code`, sama seperti `Mulai Foto`. Efek/overlay/latar tetap di ruang live.
+- 2026-09-17: Foto Duet memakai toggle Otomatis yang sama dengan `Mulai Foto` (default mati). Pose pertama tetap diklik host; pose berikutnya auto countdown dengan jeda 800ms. Batal, putus, error latar, atau review menghentikan rantai.
 - 2026-09-16: Latar virtual kamera (warna studio, blur ruangan, unggah gambar lokal) masuk `Mulai Foto` dan Booth Bareng sebagai pengganti ruangan di belakang orang, terpisah dari kertas/blanko strip.
 - 2026-09-16: Booth Bareng memakai setup/review/output yang sama dengan `Mulai Foto` (layout `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown default `3` detik, efek/overlay kamera, review per-shot, galeri, `Unduh PNG`). Dual tile live `host | tamu` tanpa audio dan tanpa mirror tetap jadi pembeda capture.
 - 2026-09-16: Booth Bareng menampilkan dua kotak video live seperti video call (`host | tamu`), tanpa audio. Preview dan still booth tidak di-mirror. Stream video hanya kehadiran, bukan artefak.

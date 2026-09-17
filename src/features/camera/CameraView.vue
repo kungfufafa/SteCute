@@ -24,7 +24,6 @@ import {
   writePendingSessionConfig,
 } from '@/services/session/persist'
 import { getTemplateById } from '@/templates'
-import { getLayoutById } from '@/layouts'
 import { useCameraStore } from '@/app/store/useCameraStore'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
@@ -38,11 +37,7 @@ import {
   type CameraDeviceOption,
   type CapturedFrame,
 } from '@/services/camera'
-import {
-  CAMERA_EFFECTS,
-  getCameraEffectById,
-  isFaceTrackingEffect,
-} from '@/services/camera-effects'
+import { getCameraEffectById, isFaceTrackingEffect } from '@/services/camera-effects'
 import {
   isLiveCamRecordingSupported,
   startLiveCamRecording,
@@ -51,7 +46,7 @@ import {
 } from '@/services/live-cam'
 import type { FaceBounds } from '@/services/face-tracking'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
-import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
+import { getPhotoFilterById } from '@/services/filter'
 import {
   CameraBackgroundProcessor,
   applyVirtualBackgroundToCanvas,
@@ -65,9 +60,8 @@ import {
 import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
-import FlowProgress from '@/components/common/FlowProgress.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
-import VirtualBackgroundPicker from '@/components/common/VirtualBackgroundPicker.vue'
+import BoothDecorationPicker from '@/features/booth/BoothDecorationPicker.vue'
 
 const router = useRouter()
 const cameraStore = useCameraStore()
@@ -105,11 +99,6 @@ const activeTemplate = computed(
     customTemplateStore.getTemplateById(sessionStore.templateId) ??
     getTemplateById(sessionStore.templateId),
 )
-const activeLayout = computed(
-  () =>
-    customTemplateStore.getLayoutById(sessionStore.layoutId) ??
-    getLayoutById(sessionStore.layoutId),
-)
 const shotProgressLabel = computed(
   () => `Foto ${sessionStore.currentShotIndex + 1} dari ${sessionStore.slotCount}`,
 )
@@ -119,13 +108,8 @@ const cameraRecoverySteps = [
   'Ubah menjadi Izinkan',
   'Muat ulang halaman',
 ]
-const filterOptions = PHOTO_FILTERS
-const cameraEffectOptions = CAMERA_EFFECTS
-const FILTER_INLINE_LIMIT = 4
-const CAMERA_EFFECT_INLINE_LIMIT = 5
 const selectedFilter = computed(() => getPhotoFilterById(sessionStore.filterId))
 const selectedCameraEffect = computed(() => getCameraEffectById(sessionStore.cameraEffectId))
-const activeOptionPicker = ref<'filter' | 'overlay' | null>(null)
 const videoFilterStyle = computed(() => ({ filter: selectedFilter.value.cssFilter }))
 const canChangeFilter = computed(
   () =>
@@ -136,18 +120,6 @@ const canChangeFilter = computed(
 )
 const isCurrentEffectFaceTracking = computed(() =>
   isFaceTrackingEffect(sessionStore.cameraEffectId),
-)
-const inlineFilterOptions = computed(() =>
-  getInlineOptions(filterOptions, FILTER_INLINE_LIMIT, sessionStore.filterId),
-)
-const hiddenFilterOptions = computed(() =>
-  getHiddenOptions(filterOptions, inlineFilterOptions.value),
-)
-const inlineCameraEffectOptions = computed(() =>
-  getInlineOptions(cameraEffectOptions, CAMERA_EFFECT_INLINE_LIMIT, sessionStore.cameraEffectId),
-)
-const hiddenCameraEffectOptions = computed(() =>
-  getHiddenOptions(cameraEffectOptions, inlineCameraEffectOptions.value),
 )
 const activeCamera = computed(
   () =>
@@ -195,40 +167,10 @@ onMounted(() => {
   void setupCamera()
 })
 
-function getInlineOptions<T extends { id: string }>(
-  options: T[],
-  limit: number,
-  selectedId: string,
-): T[] {
-  if (options.length <= limit) return options
-
-  const initialOptions = options.slice(0, limit)
-  if (initialOptions.some((option) => option.id === selectedId)) return initialOptions
-
-  const selectedOption = options.find((option) => option.id === selectedId)
-  if (!selectedOption) return initialOptions
-
-  return [...options.slice(0, limit - 1), selectedOption]
-}
-
-function getHiddenOptions<T extends { id: string }>(options: T[], visibleOptions: T[]): T[] {
-  const visibleIds = new Set(visibleOptions.map((option) => option.id))
-  return options.filter((option) => !visibleIds.has(option.id))
-}
-
-function openOptionPicker(kind: 'filter' | 'overlay') {
-  activeOptionPicker.value = kind
-}
-
-function closeOptionPicker() {
-  activeOptionPicker.value = null
-}
-
 function handleGlobalKeydown(event: Event) {
   if (!('key' in event)) return
 
   if (event.key === 'Escape') {
-    closeOptionPicker()
     closeCameraPicker()
     cancelCountdown()
     return
@@ -237,7 +179,6 @@ function handleGlobalKeydown(event: Event) {
   if (
     event.key === ' ' &&
     cameraStore.permissionState === 'granted' &&
-    !activeOptionPicker.value &&
     !cameraPickerOpen.value
   ) {
     event.preventDefault()
@@ -541,11 +482,6 @@ async function selectFilter(filterId: string) {
   }
 }
 
-async function selectFilterFromPicker(filterId: string) {
-  await selectFilter(filterId)
-  closeOptionPicker()
-}
-
 async function selectCameraEffect(effectId: string) {
   if (!canChangeFilter.value && effectId !== sessionStore.cameraEffectId) return
 
@@ -561,11 +497,6 @@ async function selectCameraEffect(effectId: string) {
     console.error('Failed to save camera overlay:', error)
     cameraError.value = 'Overlay kamera gagal disimpan. Coba pilih overlay lagi.'
   }
-}
-
-async function selectCameraEffectFromPicker(effectId: string) {
-  await selectCameraEffect(effectId)
-  closeOptionPicker()
 }
 
 async function selectVirtualBackground(backgroundId: string) {
@@ -686,23 +617,6 @@ function updateOverlayFrame(frameMs: number) {
 
 function getCaptureCameraEffectId() {
   return sessionStore.cameraEffectId
-}
-
-function filterSwatchStyle(filterId: string) {
-  const filter = getPhotoFilterById(filterId)
-
-  return {
-    background: filter.previewBackground,
-    filter: filter.cssFilter,
-  }
-}
-
-function cameraEffectSwatchStyle(effectId: string) {
-  const effect = getCameraEffectById(effectId)
-
-  return {
-    background: effect.thumbnail ? 'transparent' : effect.previewBackground,
-  }
 }
 
 onUnmounted(() => {
@@ -1063,7 +977,7 @@ function goToUploadFallback() {
 <template>
   <div
     v-if="cameraStore.permissionState === 'granted'"
-    :class="[ui.page, 'lg:h-dvh lg:overflow-hidden']"
+    :class="[ui.page, 'max-md:min-h-dvh md:h-dvh md:overflow-hidden']"
   >
     <div :class="ui.headerWide">
       <div :class="ui.headerGroup">
@@ -1088,18 +1002,12 @@ function goToUploadFallback() {
           </svg>
         </button>
         <div class="min-w-0">
-          <h3 :class="ui.title">Ambil Foto</h3>
-          <p :class="ui.subtitle">
-            {{ shotProgressLabel }} dengan timer {{ sessionStore.countdownSeconds }} detik{{
-              sessionStore.autoCapture ? ' (Otomatis)' : ''
-            }}.
-          </p>
+          <h3 :class="ui.title">{{ shotProgressLabel }}</h3>
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
-        <span :class="ui.badge">
-          {{ activeLayout?.printFormat.paperSize ?? `${sessionStore.slotCount} Foto` }}
-        </span>
+        <span :class="ui.badge">{{ sessionStore.countdownSeconds }}s</span>
+        <span v-if="sessionStore.autoCapture" :class="ui.pinkBadge">Otomatis</span>
         <button
           :class="ui.iconButton"
           aria-label="Ubah setup sesi"
@@ -1125,72 +1033,9 @@ function goToUploadFallback() {
       </div>
     </div>
 
-    <FlowProgress current="capture" source="camera" />
-
-    <div :class="[ui.content, 'min-h-0 !pb-4']">
-      <div
-        :class="[
-          ui.pageContentWide,
-          'min-h-0 gap-4 lg:grid lg:grid-cols-[minmax(11.5rem,12.5rem)_minmax(0,1fr)_minmax(11.5rem,12.5rem)] lg:items-start lg:gap-5 xl:grid-cols-[13rem_minmax(0,1fr)_13rem]',
-        ]"
-      >
-        <div
-          class="border-stc-border order-2 w-full rounded-lg border bg-white p-3 lg:order-1 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
-        >
-          <p :class="[ui.sectionLabel, 'mb-2']">Efek Kamera</p>
-          <div
-            class="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0"
-          >
-            <button
-              v-for="filter in inlineFilterOptions"
-              :key="filter.id"
-              type="button"
-              :aria-label="`Pilih efek ${filter.label}`"
-              :aria-pressed="filter.id === sessionStore.filterId"
-              :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
-              :class="[
-                'focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
-                filter.id === sessionStore.filterId
-                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
-                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
-              ]"
-              @click="selectFilter(filter.id)"
-            >
-              <span
-                class="border-stc-border/50 block size-8 rounded-xl border shadow-inner"
-                :style="filterSwatchStyle(filter.id)"
-              ></span>
-              <span class="max-w-full truncate">{{ filter.label }}</span>
-            </button>
-            <button
-              v-if="hiddenFilterOptions.length > 0"
-              type="button"
-              class="border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border bg-white px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 lg:w-full"
-              aria-label="Buka semua efek kamera"
-              @click="openOptionPicker('filter')"
-            >
-              <span
-                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-xl border text-base font-semibold"
-                aria-hidden="true"
-              >
-                +
-              </span>
-              <span>Lainnya</span>
-            </button>
-          </div>
-          <div class="mt-3">
-            <p :class="[ui.sectionLabel, 'mb-2']">Latar Virtual</p>
-            <VirtualBackgroundPicker
-              :background-id="sessionStore.virtualBackgroundId"
-              :disabled="!canChangeFilter"
-              stacked
-              @select="selectVirtualBackground"
-              @custom-file="handleCustomBackground"
-            />
-          </div>
-        </div>
-
-        <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
+    <div :class="[ui.content, 'flex min-h-0 flex-1 flex-col !py-3']">
+      <div :class="[ui.pageContentWide, 'flex min-h-0 flex-1 flex-col items-center gap-3']">
+        <div class="flex min-h-0 w-full flex-col items-center gap-3">
           <div
             class="camera-preview border-stc-border relative mx-auto aspect-[4/3] w-full max-w-5xl shrink-0 overflow-hidden rounded-lg border bg-black"
           >
@@ -1219,15 +1064,11 @@ function goToUploadFallback() {
             />
 
             <div
-              v-if="liveCamAvailable"
-              class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white shadow-sm backdrop-blur-sm sm:top-4 sm:left-4"
+              v-if="liveCamRecordingActive"
+              class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
             >
-              <span
-                class="bg-stc-pink inline-flex size-2 rounded-full"
-                :class="{ 'animate-pulse': liveCamRecordingActive }"
-                aria-hidden="true"
-              ></span>
-              {{ liveCamRecordingActive ? 'Live Cam merekam' : 'Live Cam siap' }}
+              <span class="bg-stc-pink inline-flex size-2 animate-pulse rounded-full" aria-hidden="true"></span>
+              Rec
             </div>
 
             <CameraEffectCanvas
@@ -1253,32 +1094,13 @@ function goToUploadFallback() {
               class="absolute inset-0 z-20 bg-white/90 transition-opacity duration-100"
             ></div>
 
-            <!-- Viewfinder corners -->
-            <div class="pointer-events-none absolute inset-5 z-10 hidden sm:block">
-              <div
-                class="border-stc-pink/70 absolute top-0 left-0 size-8 rounded-tl-xl border-t-4 border-l-4"
-              ></div>
-              <div
-                class="border-stc-pink/70 absolute top-0 right-0 size-8 rounded-tr-xl border-t-4 border-r-4"
-              ></div>
-              <div
-                class="border-stc-pink/70 absolute bottom-0 left-0 size-8 rounded-bl-xl border-b-4 border-l-4"
-              ></div>
-              <div
-                class="border-stc-pink/70 absolute right-0 bottom-0 size-8 rounded-br-xl border-r-4 border-b-4"
-              ></div>
-            </div>
-
             <div
               v-if="countdownActive"
               class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
+              data-testid="camera-countdown"
             >
-              <div class="text-6xl leading-none font-semibold drop-shadow-2xl sm:text-7xl">
+              <div class="text-6xl leading-none font-semibold tabular-nums drop-shadow-2xl sm:text-7xl">
                 {{ countdownValue }}
-              </div>
-              <div class="mt-4 rounded-full bg-black/35 px-5 py-2 text-sm font-semibold">
-                Foto ke-{{ sessionStore.currentShotIndex + 1 }} dari
-                {{ sessionStore.slotCount }}
               </div>
               <button
                 class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
@@ -1291,26 +1113,6 @@ function goToUploadFallback() {
 
           <div class="flex flex-col items-center gap-3">
             <div class="flex items-center justify-center gap-6">
-              <button
-                :class="[ui.iconButton, 'rounded-full']"
-                aria-label="Kembali ke setup sesi"
-                @click="goBack"
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                  <path d="M3 3v5h5" />
-                </svg>
-              </button>
-
               <button
                 class="camera-shutter group border-stc-border hover:border-stc-text relative inline-flex size-[72px] items-center justify-center rounded-full border-[4px] bg-white disabled:pointer-events-none disabled:opacity-60 sm:size-20"
                 aria-label="Ambil foto"
@@ -1346,33 +1148,25 @@ function goToUploadFallback() {
             </div>
 
             <div
-              v-if="cameraDevices.length > 1"
+              v-if="isSwitchingCamera"
               class="text-stc-text-soft max-w-full text-center text-xs font-medium"
             >
-              <span class="truncate">
-                {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
-              </span>
+              Mengganti kamera...
             </div>
 
-            <div class="flex flex-wrap items-center justify-center gap-2">
-              <div
+            <div class="flex items-center justify-center gap-1.5">
+              <span
                 v-for="index in sessionStore.slotCount"
                 :key="index"
                 :class="[
-                  'flex h-8 w-8 items-center justify-center rounded-md border text-[11px] font-medium',
-                  index - 1 === sessionStore.currentShotIndex
-                    ? 'border-stc-text bg-stc-text text-white'
-                    : sessionStore.shotIds[index - 1]
-                      ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
-                      : 'border-stc-border text-stc-text-faint bg-white',
+                  'size-2 rounded-full',
+                  sessionStore.shotIds[index - 1]
+                    ? 'bg-stc-pink'
+                    : index - 1 === sessionStore.currentShotIndex
+                      ? 'bg-stc-text'
+                      : 'bg-stc-bg-3',
                 ]"
-              >
-                {{
-                  index - 1 === sessionStore.currentShotIndex
-                    ? `${index}/${sessionStore.slotCount}`
-                    : index
-                }}
-              </div>
+              />
             </div>
 
             <div v-if="cameraError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
@@ -1403,159 +1197,18 @@ function goToUploadFallback() {
           </div>
         </div>
 
-        <div
-          class="border-stc-border order-3 w-full rounded-lg border bg-white p-3 lg:max-h-[calc(100dvh-11rem)] lg:min-h-0 lg:self-start lg:overflow-y-auto"
-        >
-          <p :class="[ui.sectionLabel, 'mb-2']">Overlay Kamera</p>
-          <div
-            class="flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0"
-          >
-            <button
-              v-for="effect in inlineCameraEffectOptions"
-              :key="effect.id"
-              type="button"
-              :aria-label="`Pilih overlay ${effect.label}`"
-              :aria-pressed="effect.id === sessionStore.cameraEffectId"
-              :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
-              :title="effect.description"
-              :class="[
-                'focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45 lg:w-full',
-                effect.id === sessionStore.cameraEffectId
-                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
-                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
-              ]"
-              @click="selectCameraEffect(effect.id)"
-            >
-              <span
-                class="border-stc-border/50 relative block size-8 overflow-hidden rounded-xl border shadow-inner"
-                :style="cameraEffectSwatchStyle(effect.id)"
-              >
-                <img
-                  v-if="effect.thumbnail"
-                  :src="effect.thumbnail"
-                  alt=""
-                  class="h-full w-full object-contain p-1"
-                />
-              </span>
-              <span class="max-w-full truncate">{{ effect.label }}</span>
-            </button>
-            <button
-              v-if="hiddenCameraEffectOptions.length > 0"
-              type="button"
-              class="border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border bg-white px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 lg:w-full"
-              aria-label="Buka semua overlay kamera"
-              @click="openOptionPicker('overlay')"
-            >
-              <span
-                class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-xl border text-base font-semibold"
-                aria-hidden="true"
-              >
-                +
-              </span>
-              <span>Lainnya</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-if="activeOptionPicker"
-      class="fixed inset-0 z-[70] flex items-end justify-center bg-black/35 px-4 py-5 sm:items-center"
-      role="dialog"
-      aria-modal="true"
-      @click.self="closeOptionPicker"
-    >
-      <div
-        class="border-stc-border max-h-[min(42rem,calc(100dvh-2.5rem))] w-full max-w-2xl overflow-hidden rounded-lg border bg-white"
-      >
-        <div
-          class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-5"
-        >
-          <div class="min-w-0">
-            <p :class="ui.sectionLabel">
-              {{ activeOptionPicker === 'filter' ? 'Efek Kamera' : 'Overlay Kamera' }}
-            </p>
-          </div>
-          <button
-            :class="ui.iconButton"
-            type="button"
-            aria-label="Tutup"
-            @click="closeOptionPicker"
-          >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-
-        <div class="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4">
-          <div v-if="activeOptionPicker === 'filter'" class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              v-for="filter in filterOptions"
-              :key="filter.id"
-              type="button"
-              :aria-label="`Pilih efek ${filter.label}`"
-              :aria-pressed="filter.id === sessionStore.filterId"
-              :disabled="!canChangeFilter && filter.id !== sessionStore.filterId"
-              :class="[
-                'focus-visible:ring-stc-pink/40 flex min-h-12 min-w-0 flex-row items-center justify-start gap-3 rounded-md border px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
-                filter.id === sessionStore.filterId
-                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
-                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
-              ]"
-              @click="selectFilterFromPicker(filter.id)"
-            >
-              <span
-                class="border-stc-border/50 block size-10 shrink-0 rounded-xl border shadow-inner"
-                :style="filterSwatchStyle(filter.id)"
-              ></span>
-              <span class="max-w-full truncate">{{ filter.label }}</span>
-            </button>
-          </div>
-
-          <div v-else class="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <button
-              v-for="effect in cameraEffectOptions"
-              :key="effect.id"
-              type="button"
-              :aria-label="`Pilih overlay ${effect.label}`"
-              :aria-pressed="effect.id === sessionStore.cameraEffectId"
-              :disabled="!canChangeFilter && effect.id !== sessionStore.cameraEffectId"
-              :title="effect.description"
-              :class="[
-                'focus-visible:ring-stc-pink/40 flex min-h-12 min-w-0 flex-row items-center justify-start gap-3 rounded-md border px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
-                effect.id === sessionStore.cameraEffectId
-                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
-                  : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
-              ]"
-              @click="selectCameraEffectFromPicker(effect.id)"
-            >
-              <span
-                class="border-stc-border/50 relative block size-10 shrink-0 overflow-hidden rounded-xl border shadow-inner"
-                :style="cameraEffectSwatchStyle(effect.id)"
-              >
-                <img
-                  v-if="effect.thumbnail"
-                  :src="effect.thumbnail"
-                  alt=""
-                  class="h-full w-full object-contain p-1"
-                />
-              </span>
-              <span class="max-w-full truncate">{{ effect.label }}</span>
-            </button>
-          </div>
-        </div>
+        <BoothDecorationPicker
+          class="w-full max-w-5xl"
+          kind="all"
+          :filter-id="sessionStore.filterId"
+          :camera-effect-id="sessionStore.cameraEffectId"
+          :virtual-background-id="sessionStore.virtualBackgroundId"
+          :disabled="!canChangeFilter"
+          @select-filter="selectFilter"
+          @select-effect="selectCameraEffect"
+          @select-background="selectVirtualBackground"
+          @custom-file="handleCustomBackground"
+        />
       </div>
     </div>
 
@@ -1656,12 +1309,9 @@ function goToUploadFallback() {
         </button>
         <div class="min-w-0">
           <h3 :class="ui.title">Ambil Foto</h3>
-          <p :class="ui.subtitle">Izinkan kamera untuk lanjut.</p>
         </div>
       </div>
     </div>
-    <FlowProgress current="capture" source="camera" />
-
     <div class="m-auto flex w-full max-w-md flex-col px-4 py-10">
       <div :class="[ui.panel, 'w-full p-5']">
         <h3 class="text-stc-text text-[15px] font-medium">Kamera Tidak Diizinkan</h3>
@@ -1700,12 +1350,9 @@ function goToUploadFallback() {
         </button>
         <div class="min-w-0">
           <h3 :class="ui.title">Ambil Foto</h3>
-          <p :class="ui.subtitle">Kamera belum bisa dibuka.</p>
         </div>
       </div>
     </div>
-    <FlowProgress current="capture" source="camera" />
-
     <div class="m-auto flex w-full max-w-md flex-col px-4 py-10">
       <div :class="[ui.panel, 'w-full p-5']">
         <h3 class="text-stc-text text-[15px] font-medium">{{ unavailableTitle }}</h3>
@@ -1724,18 +1371,15 @@ function goToUploadFallback() {
     <div :class="ui.header">
       <div class="min-w-0">
         <h3 :class="ui.title">Ambil Foto</h3>
-        <p :class="ui.subtitle">Memuat preview perangkat.</p>
       </div>
     </div>
-    <FlowProgress current="capture" source="camera" />
 
     <div class="m-auto flex w-full max-w-sm flex-col px-4 py-10">
       <div :class="[ui.panel, 'w-full p-5 text-center']">
         <div
           class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
         ></div>
-        <h3 class="text-stc-text text-[15px] font-medium">Menyiapkan Kamera...</h3>
-        <p class="text-stc-text-soft mt-1 text-[13px]">Memuat preview perangkat.</p>
+        <h3 class="text-stc-text text-[15px] font-medium">Menyiapkan kamera</h3>
       </div>
     </div>
   </div>
@@ -1743,21 +1387,14 @@ function goToUploadFallback() {
 
 <style scoped>
 .camera-preview {
-  max-width: min(1040px, calc((100dvh - 20rem) * 4 / 3));
-  max-height: calc(100dvh - 20rem);
+  max-width: min(960px, calc((100dvh - 18rem) * 4 / 3));
+  max-height: calc(100dvh - 18rem);
 }
 
 @media (max-width: 767px) {
   .camera-preview {
-    max-width: 1040px;
-    max-height: none;
-  }
-}
-
-@media (max-height: 720px) and (min-width: 768px) {
-  .camera-preview {
-    max-width: min(900px, calc((100dvh - 16rem) * 4 / 3));
-    max-height: calc(100dvh - 16rem);
+    max-width: min(100%, calc((100dvh - 20rem) * 4 / 3));
+    max-height: calc(100dvh - 20rem);
   }
 }
 </style>
