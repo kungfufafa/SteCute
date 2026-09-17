@@ -319,7 +319,7 @@ Tanggung jawab:
 - membangun URL undangan yang memuat kode yang sama sebagai identitas join
 - menolak kode kosong, rusak, atau tidak dikenal
 - menjalankan protokol 2 peer: start countdown, tukar still, compose pair-row `host | tamu`
-- menyinkronkan setup host termasuk `filterId`, `cameraEffectId`, dan `virtualBackgroundId` beserta asset gambar latar virtual kustom bila dipilih host; background pilihan host diterapkan ke kedua peserta
+- menyinkronkan setup host termasuk `filterId`, `cameraEffectId`, `virtualBackgroundId`, dan `autoCapture` beserta asset gambar latar virtual kustom bila dipilih host; background pilihan host diterapkan ke kedua peserta
 - menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
 - tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
 

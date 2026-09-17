@@ -150,5 +150,29 @@ function selectCountdown(seconds: number) {
         </button>
       </div>
     </div>
+
+    <div class="flex items-center justify-between gap-4">
+      <div class="min-w-0">
+        <p class="text-stc-text text-[13px] font-medium">Otomatis</p>
+        <p class="text-stc-text-soft mt-0.5 text-[13px]">
+          Ambil semua foto otomatis tanpa klik ulang.
+        </p>
+      </div>
+      <button
+        type="button"
+        class="focus-visible:ring-stc-pink/40 relative h-5 w-9 shrink-0 rounded-full transition-colors outline-none focus-visible:ring-2 disabled:opacity-80"
+        :class="setup.autoCapture ? 'bg-stc-pink' : 'bg-stc-bg-3'"
+        :disabled="disabled"
+        aria-label="Otomatis"
+        :aria-pressed="setup.autoCapture"
+        @click="update({ autoCapture: !setup.autoCapture })"
+      >
+        <span
+          class="absolute top-0.5 left-0.5 size-4 rounded-full bg-white transition-transform"
+          :class="setup.autoCapture ? 'translate-x-4' : ''"
+          aria-hidden="true"
+        ></span>
+      </button>
+    </div>
   </div>
 </template>

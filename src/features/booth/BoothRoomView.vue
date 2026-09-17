@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch, type WatchStopHandle } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { Shot } from '@/db/schema'
 import { getLayoutById } from '@/layouts'
@@ -49,11 +49,13 @@ import {
   createDefaultBoothSetup,
   boothHostPeerBackgroundLabel,
   boothHostStartLabel,
+  BOOTH_AUTO_CAPTURE_GAP_MS,
   createPeerId,
   isBoothCaptureBackgroundReady,
   joinBoothByCode,
   isRemotePreviewReady,
   joinBoothByInvite,
+  nextBoothAutoCaptureAction,
   normalizeBoothCode,
   normalizeBoothSetup,
   pairSlotForLayout,
@@ -149,6 +151,9 @@ let waitStartedAt = Date.now()
 let copyNoticeTimer: number | null = null
 let remoteReadyTimer: ReturnType<typeof setInterval> | null = null
 let outputBlob: Blob | null = null
+let autoCaptureTimeout: ReturnType<typeof setTimeout> | null = null
+let autoCaptureRunning = false
+let stopAutoStartWatch: WatchStopHandle | null = null
 
 const formattedCode = computed(() => identity.value?.code ?? '')
 const slotCount = computed(() => boothSetup.value.slotCount)
@@ -251,7 +256,9 @@ const pageTitle = computed(() => {
 })
 const setupSummary = computed(
   () =>
-    `${activeTemplate.value?.name ?? 'Classic'} · ${slotCount.value} foto · ${Math.round(boothSetup.value.countdownMs / 1000)} detik`,
+    `${activeTemplate.value?.name ?? 'Classic'} · ${slotCount.value} foto · ${Math.round(boothSetup.value.countdownMs / 1000)} detik${
+      boothSetup.value.autoCapture ? ' · Otomatis' : ''
+    }`,
 )
 const showFullSetup = computed(
   () => role.value === 'host' && stage.value === 'live' && capturedCount.value === 0,
@@ -342,6 +349,81 @@ function firstMissingMoment() {
     if (!composedShots.value[index]) return index
   }
   return slotCount.value
+}
+
+function clearAutoCaptureTimer() {
+  if (autoCaptureTimeout) {
+    clearTimeout(autoCaptureTimeout)
+    autoCaptureTimeout = null
+  }
+}
+
+function stopAutoCapture() {
+  autoCaptureRunning = false
+  clearAutoCaptureTimer()
+  stopAutoStartWatch?.()
+  stopAutoStartWatch = null
+}
+
+function armAutoCapture() {
+  if (boothSetup.value.autoCapture) autoCaptureRunning = true
+}
+
+function tryStartNextAutoPose() {
+  if (role.value !== 'host') return
+
+  const action = nextBoothAutoCaptureAction({
+    enabled: boothSetup.value.autoCapture,
+    running: autoCaptureRunning,
+    shotsComplete: shotsComplete.value,
+    stage: stage.value,
+    friendJoined: friendJoined.value,
+    canStart: canStart.value,
+  })
+
+  if (action !== 'wait') {
+    stopAutoStartWatch?.()
+    stopAutoStartWatch = null
+  }
+
+  if (action === 'stop') {
+    stopAutoCapture()
+    return
+  }
+
+  if (action === 'start') {
+    startPose()
+    return
+  }
+
+  if (!stopAutoStartWatch) {
+    stopAutoStartWatch = watch([canStart, friendJoined, shotsComplete, stage], () => {
+      tryStartNextAutoPose()
+    })
+  }
+}
+
+function scheduleNextAutoPose() {
+  if (role.value !== 'host' || !autoCaptureRunning || !boothSetup.value.autoCapture) return
+  clearAutoCaptureTimer()
+  stopAutoStartWatch?.()
+  stopAutoStartWatch = null
+  autoCaptureTimeout = setTimeout(() => {
+    autoCaptureTimeout = null
+    tryStartNextAutoPose()
+  }, BOOTH_AUTO_CAPTURE_GAP_MS)
+}
+
+function cancelBoothCountdown() {
+  if (role.value !== 'host' || countdownValue.value == null) return
+  const momentIndex = currentMoment.value
+  stopAutoCapture()
+  void stopBoothLiveCamClip()
+  peerSession?.cancelMoment(momentIndex, 'cancelled')
+}
+
+function handleGlobalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') cancelBoothCountdown()
 }
 
 function publishSetup(next: BoothSessionSetup) {
@@ -799,13 +881,19 @@ async function captureCurrentMoment(momentIndex: number) {
         slotCount.value,
       )
     ) {
+      stopAutoCapture()
       stage.value = 'review'
       statusMessage.value = 'Strip siap ditinjau.'
     } else {
       stage.value = 'live'
-      statusMessage.value = `Pose ${momentIndex + 1} tersimpan. Siap pose berikutnya.`
+      statusMessage.value =
+        role.value === 'host' && autoCaptureRunning
+          ? `Pose ${momentIndex + 1} tersimpan. Pose berikutnya otomatis.`
+          : `Pose ${momentIndex + 1} tersimpan. Siap pose berikutnya.`
+      scheduleNextAutoPose()
     }
   } catch {
+    stopAutoCapture()
     statusMessage.value = 'Gagal mengambil still. Coba mulai pose lagi.'
   }
 }
@@ -818,6 +906,7 @@ function clearComposedMoment(momentIndex: number) {
 }
 
 function applyCaptureReset() {
+  stopAutoCapture()
   composedShots.value = []
   currentMoment.value = 0
   stage.value = 'live'
@@ -951,6 +1040,7 @@ function listenForRemoteReset(session: BoothPeerSession) {
 
 function startPose() {
   if (!peerSession || !canStart.value) return
+  armAutoCapture()
   void attachPreviewStream()
   void attachRemoteStream()
   const momentIndex = firstMissingMoment()
@@ -959,6 +1049,7 @@ function startPose() {
 
 function retakeShot(index: number) {
   if (role.value !== 'host' || !peerSession || rendering.value) return
+  stopAutoCapture()
   stage.value = 'live'
   currentMoment.value = index
   const next = composedShots.value.slice()
@@ -979,6 +1070,7 @@ function retakeAll() {
 function disposeSession() {
   stopCountdown()
   finishCountdownWaiter()
+  stopAutoCapture()
   void stopBoothLiveCamClip()
   stopRemoteReadyPoll()
   if (backgroundProcessor.value) {
@@ -1303,6 +1395,7 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
           stopCountdown()
           finishCountdownWaiter()
         }
+        stopAutoCapture()
         showBackgroundErrorModal.value = true
       }
     })
@@ -1310,6 +1403,8 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
     activePeerSession.onMomentCancelled(({ reason }) => {
       stopCountdown()
       finishCountdownWaiter()
+      stopAutoCapture()
+      void stopBoothLiveCamClip()
       if (reason === 'background_error' || reason === 'timeout') {
         showBackgroundErrorModal.value = true
       } else {
@@ -1369,6 +1464,7 @@ function enterRoom() {
 }
 
 onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeydown)
   enterRoom()
   void startCamera()
 })
@@ -1383,6 +1479,7 @@ watch(
 )
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
   disposeSession()
   stopPreview()
   if (copyNoticeTimer) window.clearTimeout(copyNoticeTimer)
@@ -1629,15 +1726,23 @@ onUnmounted(() => {
 
               <div
                 v-if="countdownValue != null"
-                class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-black/50"
+                class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/50"
                 aria-live="assertive"
               >
-                <div class="text-center text-white">
+                <div class="pointer-events-none text-center text-white">
                   <p class="text-6xl font-semibold tabular-nums">{{ countdownValue }}</p>
                   <p class="mt-2 text-sm font-medium text-white/80">
                     Pose {{ currentMoment + 1 }} / {{ slotCount }}
                   </p>
                 </div>
+                <button
+                  v-if="role === 'host'"
+                  type="button"
+                  class="mt-8 rounded-full border border-white/30 bg-white/10 px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-white/20 active:scale-95"
+                  @click="cancelBoothCountdown"
+                >
+                  Batal
+                </button>
               </div>
             </div>
 

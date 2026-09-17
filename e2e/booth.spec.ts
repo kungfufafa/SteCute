@@ -99,6 +99,11 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Menunggu teman' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
     await expect(page.getByRole('button', { name: 'Render strip' })).toHaveCount(0)
 
     const scratch = process.env.BOOTH_PARITY_SCRATCH

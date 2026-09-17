@@ -15,6 +15,7 @@ export type BoothSessionSetup = {
   templateId: string
   slotCount: number
   countdownMs: number
+  autoCapture: boolean
   filterId: string
   cameraEffectId: string
   virtualBackgroundId: string
@@ -38,6 +39,7 @@ export function createDefaultBoothSetup(): BoothSessionSetup {
     templateId: template.id,
     slotCount: layout.slotCount,
     countdownMs: DEFAULT_BOOTH_COUNTDOWN_SECONDS * 1000,
+    autoCapture: false,
     filterId: 'normal',
     cameraEffectId: 'none',
     virtualBackgroundId: 'off',
@@ -76,6 +78,7 @@ export function normalizeBoothSetup(input?: Partial<BoothSessionSetup> | null): 
     templateId: template.id,
     slotCount: layout.slotCount,
     countdownMs: normalizeBoothCountdownMs(input?.countdownMs),
+    autoCapture: Boolean(input?.autoCapture),
     filterId: normalizePhotoFilterId(input?.filterId),
     cameraEffectId: normalizeCameraEffectId(input?.cameraEffectId),
     virtualBackgroundId: normalizeVirtualBackgroundId(input?.virtualBackgroundId),
@@ -102,6 +105,7 @@ export function boothSetupsEqual(
     left.templateId === right.templateId &&
     left.slotCount === right.slotCount &&
     left.countdownMs === right.countdownMs &&
+    left.autoCapture === right.autoCapture &&
     left.filterId === right.filterId &&
     left.cameraEffectId === right.cameraEffectId &&
     left.virtualBackgroundId === right.virtualBackgroundId &&
