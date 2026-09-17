@@ -13,9 +13,9 @@ test.describe('config and camera visual smoke', () => {
   test('keeps config clear, camera framed at 4:3, and countdown unblurred', async ({ page }) => {
     await page.goto('/config?source=camera')
 
-    await expect(page.getByRole('heading', { name: 'Pilih jumlah foto.' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
     await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
-    await expect(page.getByText('Upload PNG/WebP, jumlah area transparan akan dideteksi otomatis.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Upload Frame' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
@@ -73,11 +73,11 @@ test.describe('config and camera visual smoke', () => {
     expect(secondOverlayFrameMs).not.toBe(firstOverlayFrameMs)
 
     await page.getByRole('button', { name: 'Ambil foto' }).click()
-    const countdownLabel = page.getByText(/Foto ke-/)
-    await expect(countdownLabel).toBeVisible()
+    const countdown = page.getByTestId('camera-countdown')
+    await expect(countdown).toBeVisible()
 
-    const backdropFilter = await countdownLabel.evaluate((label) => {
-      const styles = getComputedStyle(label.parentElement!)
+    const backdropFilter = await countdown.evaluate((label) => {
+      const styles = getComputedStyle(label)
       return styles.backdropFilter || styles.webkitBackdropFilter || 'none'
     })
 

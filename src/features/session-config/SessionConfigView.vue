@@ -100,12 +100,6 @@ const selectedOption = computed(() => {
 })
 const selectedLayout = computed(() => selectedOption.value?.layout)
 const selectedTemplate = computed(() => selectedOption.value?.template)
-const selectedPhotoRatioLabel = computed(() =>
-  selectedTemplate.value?.nativeLayout?.id === selectedLayoutId.value ||
-  selectedTemplate.value?.layoutOverrides?.[selectedLayoutId.value]
-    ? 'Sesuai blanko'
-    : '4:3',
-)
 const sourceLabel = computed(() => (selectedSource.value === 'upload' ? 'Upload Lokal' : 'Kamera'))
 const actionLabel = computed(() =>
   selectedSource.value === 'upload' ? 'Pilih Foto' : 'Buka Kamera',
@@ -318,24 +312,16 @@ async function handleUploadTemplate() {
         ]"
       >
         <section class="min-w-0 space-y-8 pb-28 lg:pb-8">
-          <!-- 1. Jumlah Foto (Pose) -->
           <div>
-            <div :class="ui.sectionIntro">
-              <p :class="ui.sectionLabel">Jumlah Foto</p>
-              <h2 :class="ui.sectionTitle">Pilih jumlah foto.</h2>
-              <p :class="ui.sectionCopy">
-                Tentukan berapa banyak pose foto dalam satu lembar strip.
-              </p>
-            </div>
-
-            <div class="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <p :class="ui.sectionLabel">Jumlah Foto</p>
+            <div class="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               <button
                 v-for="layout in standardLayouts"
                 :key="layout.id"
                 type="button"
                 :aria-label="`${selectedTemplate?.name ?? 'Classic'} ${layout.slotCount} foto`"
                 :class="[
-                  'focus-visible:ring-stc-pink/40 flex flex-col items-center justify-center gap-1 rounded-lg border p-3.5 text-center transition-all outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stc-pink/40 flex items-center justify-center rounded-lg border p-3.5 text-center transition-all outline-none focus-visible:ring-2',
                   selectedLayoutId === layout.id && !selectedTemplate?.nativeLayout
                     ? ui.selectedCard
                     : ui.card,
@@ -345,20 +331,13 @@ async function handleUploadTemplate() {
                 <span class="text-stc-text text-base font-semibold"
                   >{{ layout.slotCount }} Foto</span
                 >
-                <span class="text-stc-text-soft text-xs">{{ layout.printFormat.description }}</span>
               </button>
             </div>
           </div>
 
-          <!-- 2. Desain Frame -->
           <div>
-            <div :class="ui.sectionIntro">
-              <p :class="ui.sectionLabel">Desain Frame</p>
-              <h2 :class="ui.sectionTitle">Pilih desain frame.</h2>
-              <p :class="ui.sectionCopy">Pilih tema warna atau frame untuk foto strip kamu.</p>
-            </div>
-
-            <div class="mt-4 grid grid-cols-1 gap-2.5 min-[500px]:grid-cols-2 xl:grid-cols-3">
+            <p :class="ui.sectionLabel">Frame</p>
+            <div class="mt-3 grid grid-cols-1 gap-2.5 min-[500px]:grid-cols-2 xl:grid-cols-3">
               <button
                 v-for="blankoPackage in blankoPackages"
                 :key="blankoPackage.id"
@@ -386,9 +365,6 @@ async function handleUploadTemplate() {
                       {{ optionKindLabel(blankoPackage.kind) }}
                     </span>
                   </div>
-                  <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-                    {{ blankoPackage.subtitle }}
-                  </p>
                 </div>
               </button>
             </div>
@@ -397,17 +373,9 @@ async function handleUploadTemplate() {
               {{ customTemplateError }}
             </div>
 
-            <div
-              class="border-stc-border mt-4 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="min-w-0">
-                <p class="text-stc-text text-[13px] font-medium">Pakai frame sendiri</p>
-                <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-                  Upload PNG/WebP, jumlah area transparan akan dideteksi otomatis.
-                </p>
-              </div>
+            <div class="mt-3">
               <button
-                :class="[ui.secondaryButton, 'self-start']"
+                :class="ui.secondaryButton"
                 :disabled="isUploadingTemplate"
                 @click="handleUploadTemplate"
               >
@@ -417,14 +385,9 @@ async function handleUploadTemplate() {
           </div>
 
           <div v-if="selectedSource === 'camera'">
-            <h2 class="text-stc-text text-[15px] font-medium">Timer & Mode</h2>
-
-            <div class="border-stc-border divide-stc-border mt-3 divide-y border-y">
+            <div class="border-stc-border divide-stc-border divide-y border-y">
               <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p class="text-stc-text text-[13px] font-medium">Waktu Timer</p>
-                  <p class="text-stc-text-soft mt-0.5 text-[13px]">Jeda sebelum foto diambil.</p>
-                </div>
+                <p class="text-stc-text text-[13px] font-medium">Timer</p>
                 <div :class="[ui.segmented, 'w-full sm:w-fit']">
                   <button
                     v-for="time in [3, 5, 10]"
@@ -442,12 +405,7 @@ async function handleUploadTemplate() {
               </div>
 
               <div class="flex items-center justify-between gap-4 py-3">
-                <div class="min-w-0">
-                  <p class="text-stc-text text-[13px] font-medium">Otomatis</p>
-                  <p class="text-stc-text-soft mt-0.5 text-[13px]">
-                    Ambil semua foto otomatis tanpa klik ulang.
-                  </p>
-                </div>
+                <p class="text-stc-text text-[13px] font-medium">Otomatis</p>
                 <button
                   type="button"
                   class="focus-visible:ring-stc-pink/40 relative h-5 w-9 shrink-0 rounded-full transition-colors outline-none focus-visible:ring-2"
@@ -488,17 +446,6 @@ async function handleUploadTemplate() {
               <StripCanvasPreview :layout="selectedLayout" :template-config="selectedTemplate" />
             </div>
 
-            <div class="mt-3 grid grid-cols-2 gap-2 text-[13px]">
-              <div :class="ui.softTile">
-                <p :class="ui.sectionLabel">Rasio</p>
-                <p class="text-stc-text mt-0.5 font-medium">{{ selectedPhotoRatioLabel }}</p>
-              </div>
-              <div :class="ui.softTile">
-                <p :class="ui.sectionLabel">Output</p>
-                <p class="text-stc-text mt-0.5 font-medium">PNG</p>
-              </div>
-            </div>
-
             <button :class="[ui.primaryButton, 'mt-4 w-full']" @click="proceed">
               {{ actionLabel }}
             </button>
@@ -513,11 +460,8 @@ async function handleUploadTemplate() {
       <div class="mx-auto flex max-w-lg items-center gap-3">
         <div class="min-w-0 flex-1">
           <p class="text-stc-text truncate text-[13px] font-medium">
-            {{ selectedLayout?.printFormat.label ?? 'Strip' }}
-          </p>
-          <p class="text-stc-text-faint truncate text-[13px]">
-            {{ selectedLayout?.printFormat.paperSize }} ·
-            {{ selectedTemplate?.name ?? 'Classic' }} · PNG
+            {{ selectedTemplate?.name ?? 'Classic' }} ·
+            {{ selectedLayout?.slotCount ?? sessionStore.slotCount }} foto
           </p>
         </div>
         <button :class="ui.primaryButton" @click="proceed">

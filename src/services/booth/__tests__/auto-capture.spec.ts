@@ -107,7 +107,7 @@ describe('booth auto-capture UI wiring', () => {
       'utf8',
     )
     expect(source).toContain('aria-label="Otomatis"')
-    expect(source).toContain('Ambil semua foto otomatis tanpa klik ulang.')
+    expect(source).toContain('aria-pressed')
     expect(source).toContain('update({ autoCapture: !setup.autoCapture })')
   })
 

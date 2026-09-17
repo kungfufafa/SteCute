@@ -92,15 +92,7 @@ function selectEffect(effectId: string) {
 </script>
 
 <template>
-  <div class="grid gap-3">
-    <VirtualBackgroundPicker
-      v-if="kind === 'background' || kind === 'all'"
-      :background-id="virtualBackgroundId"
-      :disabled="disabled"
-      :stacked="stacked"
-      @select="emit('selectBackground', $event)"
-      @custom-file="emit('customFile', $event)"
-    />
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
     <div v-if="kind === 'filter' || kind === 'all'">
       <p :class="[ui.sectionLabel, 'mb-2']">Efek Kamera</p>
       <div
@@ -214,6 +206,15 @@ function selectEffect(effectId: string) {
         </button>
       </div>
     </div>
+
+    <VirtualBackgroundPicker
+      v-if="kind === 'background' || kind === 'all'"
+      :background-id="virtualBackgroundId"
+      :disabled="disabled"
+      :stacked="stacked"
+      @select="emit('selectBackground', $event)"
+      @custom-file="emit('customFile', $event)"
+    />
 
     <div
       v-if="activeOptionPicker"

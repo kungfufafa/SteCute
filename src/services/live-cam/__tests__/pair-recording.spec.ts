@@ -1,7 +1,16 @@
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { isLiveStripRenderingSupported, startPairLiveCamRecording } from '@/services/live-cam'
 
 describe('booth pair live cam', () => {
+  it('flips both pair halves when preview mirroring is requested', () => {
+    const source = readFileSync(fileURLToPath(new URL('../index.ts', import.meta.url)), 'utf8')
+    expect(source).toContain('remoteMirrored?: boolean')
+    expect(source).toContain('options.localOnLeft ? localMirrored : remoteMirrored')
+    expect(source).toContain('options.localOnLeft ? remoteMirrored : localMirrored')
+  })
+
   it('does not start a pair recording without a live camera frame', () => {
     const video = {
       videoWidth: 0,

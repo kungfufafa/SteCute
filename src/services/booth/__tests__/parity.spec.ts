@@ -39,6 +39,26 @@ describe('booth bundled strip parity', () => {
     expect(source).toContain('Unduh PNG')
     expect(source).toContain('booth-local-tile')
     expect(source).toContain('booth-remote-tile')
+    expect(source).toContain('shouldMirrorCamera')
+    expect(source).toContain('grid-cols-2')
+    expect(source).not.toContain('grid-rows-2')
+    expect(source.match(/shouldMirrorLocalCamera \? 'scale-x-\[-1\]' : ''/g)).toHaveLength(2)
+    expect(source).toContain('data-testid="booth-local-video"')
+    expect(source).toContain('data-testid="booth-remote-video"')
+    expect(source).toContain('remoteMirrored: shouldMirrorLocalCamera.value')
+    expect(source).toContain(':mirrored="shouldMirrorLocalCamera"')
+
+    const hub = readFileSync(
+      fileURLToPath(new URL('../../../features/booth/BoothHubView.vue', import.meta.url)),
+      'utf8',
+    )
+    expect(hub).toContain('shouldMirrorCamera')
+    expect(hub).toContain('grid-cols-2')
+    expect(hub).not.toContain('grid-rows-2')
+    expect(hub).toContain("shouldMirrorLocalCamera ? 'scale-x-[-1]' : ''")
+    expect(hub).toContain('data-testid="booth-hub-local-video"')
+    expect(hub).toContain('data-testid="booth-hub-local-tile"')
+    expect(hub).toContain('data-testid="booth-hub-remote-tile"')
     expect(source).toContain('faceBounds: latestOverlayFaces.value.map')
     expect(source).toContain('cameraEffectFrameMs: shot.cameraEffectFrameMs')
     expect(decoration).toContain('Pilih efek ${filter.label}')
