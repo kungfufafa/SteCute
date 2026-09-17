@@ -28,5 +28,5 @@
     }
   },
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
-  "exclude": ["src/**/*.d.ts", "src/**/__tests__/*", "src/workers/**"]
+  "exclude": ["src/**/*.d.ts", "src/**/__tests__/*", "src/workers/**", "src/vite/**"]
 }

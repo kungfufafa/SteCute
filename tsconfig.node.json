@@ -11,6 +11,8 @@
     "vite.config.*",
     "vitest.config.*",
     "playwright.config.*",
-    "server/booth-relay.d.ts"
-  ]
+    "server/booth-relay.d.ts",
+    "src/vite/**/*.ts"
+  ],
+  "exclude": ["src/vite/**/__tests__/**"]
 }
