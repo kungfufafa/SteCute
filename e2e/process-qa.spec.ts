@@ -17,7 +17,7 @@ test.describe('process QA empty and entry states', () => {
     await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
-    await expect(cta(page, 'Booth Bareng')).toBeVisible()
+    await expect(cta(page, 'Foto Duet')).toBeVisible()
     await expect(page.getByText('Tanpa Login')).toBeVisible()
   })
 
@@ -27,7 +27,7 @@ test.describe('process QA empty and entry states', () => {
     await expect(page).toHaveURL('/config?source=camera')
     await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Buka Kamera' })).toBeVisible()
-    await expect(page.getByText('Blanko Strip', { exact: true })).toBeVisible()
+    await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
   })
 
   test('upload config process starts from Upload Lokal', async ({ page }) => {
@@ -74,13 +74,13 @@ test.describe('process QA empty and entry states', () => {
 
   test('booth process rejects malformed codes and keeps waiting for a well-formed host', async ({ page }) => {
     await page.goto('/booth')
-    await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Foto Duet' })).toBeVisible()
     await page.getByLabel('Kode booth').fill('@@@')
     await page.getByRole('button', { name: 'Gabung' }).click()
     await expect(page.getByRole('alert')).toContainText('tidak valid')
 
     await page.goto('/j/ZZZ-ZZZ')
-    await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Foto Duet' })).toBeVisible()
     await expect(page.getByText(/Menghubungkan ke host|Host belum online/)).toBeVisible()
     await expect(page.getByText('Booth tidak ditemukan')).toHaveCount(0)
   })

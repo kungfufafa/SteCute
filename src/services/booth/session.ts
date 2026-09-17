@@ -13,13 +13,14 @@ export type BoothPeerSession = {
   peerId: string
   role: BoothPeerRole
   startMoment(momentIndex: number, countdownMs?: number): void
+  cancelMoment(momentIndex?: number, reason?: string): void
   submitStill(momentIndex: number, still: BoothStill): Promise<void>
   waitForComposed(momentIndex: number, timeoutMs?: number): Promise<ComposedPairShot>
   waitForCountdown(momentIndex: number): Promise<number>
   waitForStart(): Promise<BoothStartEvent>
   waitForSetup(): Promise<BoothSessionSetup>
   waitForReset(): Promise<void>
-  setSetup(setup: BoothSessionSetup): void
+  setSetup(setup: BoothSessionSetup, assetBlob?: Blob | null): Promise<void> | void
   resetCapture(): void
   getSetup(): BoothSessionSetup | null
   getComposedShots(): ComposedPairShot[]
@@ -27,7 +28,41 @@ export type BoothPeerSession = {
   getRemotePeerId(): string | null
   getRejectedReason(): 'full' | null
   announce(): void
+  confirmBackgroundReady(revision: number, assetId?: string): void
+  reportBackgroundError(revision: number, error: string): void
+  requestBackgroundAsset(revision: number, assetId: string): void
+  requestBackgroundFallback(revision: number): void
+  getPeerBackgroundStatus(): {
+    peerId: string
+    revision: number
+    status: 'loading' | 'ready' | 'error'
+    assetId?: string
+    errorReason?: string
+  } | null
+  onBackgroundAsset(
+    handler: (event: { revision: number; assetId: string; blob: Blob }) => void,
+  ): () => void
+  onPeerBackgroundStatus(
+    handler: (event: {
+      peerId: string
+      revision: number
+      status: 'loading' | 'ready' | 'error'
+      assetId?: string
+      errorReason?: string
+    }) => void,
+  ): () => void
+  onMomentCancelled(handler: (event: { momentIndex?: number; reason?: string }) => void): () => void
   dispose(): void
+}
+
+async function calculateBufferSha256(buffer: ArrayBuffer): Promise<string> {
+  if (typeof globalThis.crypto?.subtle?.digest === 'function') {
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', buffer)
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+  }
+  return ''
 }
 
 export function createBoothPeerSession(options: {
@@ -89,6 +124,39 @@ export function createBoothPeerSession(options: {
   let disposed = false
   const REMOTE_TIMEOUT_MS = 12_000
 
+  // Background asset and status state
+  let cachedAssetBlob: Blob | null = null
+  let cachedAssetBytes: ArrayBuffer | null = null
+  let cachedAssetHash: string | null = null
+  let cachedAssetId: string | null = null
+  let cachedAssetRevision = 0
+  let setupBroadcastGeneration = 0
+  let peerBackgroundStatus: {
+    peerId: string
+    revision: number
+    status: 'loading' | 'ready' | 'error'
+    assetId?: string
+    errorReason?: string
+  } | null = null
+
+  const backgroundAssetHandlers = new Set<
+    (event: { revision: number; assetId: string; blob: Blob }) => void
+  >()
+  const peerBackgroundStatusHandlers = new Set<
+    (event: {
+      peerId: string
+      revision: number
+      status: 'loading' | 'ready' | 'error'
+      assetId?: string
+      errorReason?: string
+    }) => void
+  >()
+  const momentCancelledHandlers = new Set<
+    (event: { momentIndex?: number; reason?: string }) => void
+  >()
+
+  const assetTimers: ReturnType<typeof globalThis.setTimeout>[] = []
+
   const unsubscribe = options.transport.subscribe((message) => {
     void handleMessage(message).catch((error) => {
       if (message.type === 'still') rejectComposed(message.momentIndex, error)
@@ -146,7 +214,7 @@ export function createBoothPeerSession(options: {
     if (message.type === 'session-setup') {
       const duplicateKey = message.nonce
         ? `setup:${message.nonce}`
-        : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.filterId}:${message.cameraEffectId}`
+        : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.filterId}:${message.cameraEffectId}:${message.virtualBackgroundId}:${message.revision}`
       if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
       lastRemoteAt = Date.now()
       applySetup({
@@ -156,7 +224,24 @@ export function createBoothPeerSession(options: {
         countdownMs: message.countdownMs,
         filterId: message.filterId,
         cameraEffectId: message.cameraEffectId,
+        virtualBackgroundId: message.virtualBackgroundId ?? 'off',
+        virtualBackgroundAssetId: message.virtualBackgroundAssetId,
+        revision: message.revision ?? 1,
       })
+      if (
+        options.role === 'guest' &&
+        message.virtualBackgroundId === 'custom' &&
+        message.virtualBackgroundAssetId
+      ) {
+        const rev = message.revision ?? 1
+        if (
+          cachedAssetId !== message.virtualBackgroundAssetId ||
+          cachedAssetRevision !== rev ||
+          !cachedAssetBlob
+        ) {
+          triggerAssetRequest(message.virtualBackgroundAssetId, rev)
+        }
+      }
       return
     }
 
@@ -176,6 +261,131 @@ export function createBoothPeerSession(options: {
       if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
       lastRemoteAt = Date.now()
       emitStart(message.momentIndex, message.countdownMs, { nonce: message.nonce })
+      return
+    }
+
+    if (message.type === 'cancel-moment') {
+      const duplicateKey = message.nonce
+        ? `cancel:${message.nonce}`
+        : `cancel:${message.momentIndex}:${message.reason}`
+      if (isDuplicate(duplicateKey, 2000)) return
+      lastRemoteAt = Date.now()
+      if (message.momentIndex != null) {
+        startedMoments.delete(message.momentIndex)
+        startedNonces.delete(message.momentIndex)
+        const waiters = countdownWaiters.get(message.momentIndex) ?? []
+        countdownWaiters.delete(message.momentIndex)
+        for (const waiter of waiters) {
+          waiter.reject(new Error(message.reason || 'Moment cancelled'))
+        }
+      } else {
+        startedMoments.clear()
+        startedNonces.clear()
+        for (const [, waiters] of countdownWaiters) {
+          for (const waiter of waiters) {
+            waiter.reject(new Error(message.reason || 'Moment cancelled'))
+          }
+        }
+        countdownWaiters.clear()
+      }
+      for (const handler of momentCancelledHandlers) {
+        handler({ momentIndex: message.momentIndex, reason: message.reason })
+      }
+      return
+    }
+
+    if (message.type === 'background-asset') {
+      const activeSetup = sessionSetup
+      if (
+        options.role !== 'guest' ||
+        message.peerId !== remotePeerId ||
+        !activeSetup ||
+        activeSetup.virtualBackgroundId !== 'custom' ||
+        activeSetup.virtualBackgroundAssetId !== message.assetId ||
+        (activeSetup.revision ?? 1) !== message.revision
+      ) {
+        return
+      }
+      if (message.peerId === remotePeerId) lastRemoteAt = Date.now()
+      if (message.bytes.byteLength > 10 * 1024 * 1024) {
+        reportBackgroundError(message.revision, 'payload_too_large')
+        return
+      }
+      const calculatedHash = await calculateBufferSha256(message.bytes)
+      if (message.hash && calculatedHash && calculatedHash !== message.hash) {
+        reportBackgroundError(message.revision, 'hash_mismatch')
+        return
+      }
+      const latestSetup = sessionSetup
+      if (
+        !latestSetup ||
+        latestSetup.virtualBackgroundId !== 'custom' ||
+        latestSetup.virtualBackgroundAssetId !== message.assetId ||
+        (latestSetup.revision ?? 1) !== message.revision
+      ) {
+        return
+      }
+      clearAssetTimers()
+      const blob = new Blob([message.bytes], { type: message.mimeType || 'image/jpeg' })
+      cachedAssetBlob = blob
+      cachedAssetBytes = message.bytes
+      cachedAssetHash = message.hash
+      cachedAssetId = message.assetId
+      cachedAssetRevision = message.revision
+      for (const handler of backgroundAssetHandlers) {
+        handler({ revision: message.revision, assetId: message.assetId, blob })
+      }
+      return
+    }
+
+    if (message.type === 'background-fallback-request') {
+      if (
+        options.role !== 'host' ||
+        message.peerId !== remotePeerId ||
+        !sessionSetup ||
+        sessionSetup.virtualBackgroundId === 'off' ||
+        (sessionSetup.revision ?? 1) !== message.revision
+      ) {
+        return
+      }
+
+      await broadcastSetup({
+        ...sessionSetup,
+        virtualBackgroundId: 'off',
+        virtualBackgroundAssetId: null,
+        revision: (sessionSetup.revision ?? 1) + 1,
+      })
+      return
+    }
+
+    if (message.type === 'background-asset-request') {
+      if (message.fromPeerId === remotePeerId) lastRemoteAt = Date.now()
+      if (options.role === 'host' && cachedAssetBytes && cachedAssetId === message.assetId) {
+        options.transport.send({
+          type: 'background-asset',
+          assetId: message.assetId,
+          revision: message.revision,
+          hash: cachedAssetHash ?? '',
+          mimeType: cachedAssetBlob?.type || 'image/jpeg',
+          bytes: cachedAssetBytes,
+          peerId: options.peerId,
+        })
+      }
+      return
+    }
+
+    if (message.type === 'background-status') {
+      if (message.peerId === remotePeerId) lastRemoteAt = Date.now()
+      peerBackgroundStatus = {
+        peerId: message.peerId,
+        revision: message.revision,
+        status: message.status,
+        assetId: message.assetId ?? undefined,
+        errorReason: message.errorReason,
+      }
+      for (const handler of peerBackgroundStatusHandlers) {
+        handler(peerBackgroundStatus)
+      }
       return
     }
 
@@ -214,6 +424,111 @@ export function createBoothPeerSession(options: {
     bucket.set(momentIndex, still)
   }
 
+  function clearAssetTimers() {
+    for (const timer of assetTimers) {
+      globalThis.clearTimeout(timer)
+    }
+    assetTimers.length = 0
+  }
+
+  function triggerAssetRequest(assetId: string, revision: number) {
+    clearAssetTimers()
+    peerBackgroundStatus = {
+      peerId: options.peerId,
+      revision,
+      status: 'loading',
+      assetId,
+    }
+    options.transport.send({
+      type: 'background-status',
+      peerId: options.peerId,
+      revision,
+      assetId,
+      status: 'loading',
+    })
+    options.transport.send({
+      type: 'background-asset-request',
+      assetId,
+      revision,
+      fromPeerId: options.peerId,
+    })
+
+    // Retry 1 at 2s
+    assetTimers.push(
+      globalThis.setTimeout(() => {
+        if (cachedAssetId === assetId && cachedAssetRevision === revision && cachedAssetBlob) return
+        options.transport.send({
+          type: 'background-asset-request',
+          assetId,
+          revision,
+          fromPeerId: options.peerId,
+        })
+      }, 2000),
+    )
+
+    // Retry 2 at 5s
+    assetTimers.push(
+      globalThis.setTimeout(() => {
+        if (cachedAssetId === assetId && cachedAssetRevision === revision && cachedAssetBlob) return
+        options.transport.send({
+          type: 'background-asset-request',
+          assetId,
+          revision,
+          fromPeerId: options.peerId,
+        })
+      }, 5000),
+    )
+
+    // Timeout at 10s
+    assetTimers.push(
+      globalThis.setTimeout(() => {
+        if (cachedAssetId === assetId && cachedAssetRevision === revision && cachedAssetBlob) return
+        reportBackgroundError(revision, 'timeout')
+      }, 10000),
+    )
+  }
+
+  function reportBackgroundError(revision: number, error: string) {
+    peerBackgroundStatus = {
+      peerId: options.peerId,
+      revision,
+      status: 'error',
+      assetId: sessionSetup?.virtualBackgroundAssetId ?? undefined,
+      errorReason: error,
+    }
+    options.transport.send({
+      type: 'background-status',
+      peerId: options.peerId,
+      revision,
+      assetId: sessionSetup?.virtualBackgroundAssetId ?? null,
+      status: 'error',
+      errorReason: error,
+    })
+    for (const handler of peerBackgroundStatusHandlers) {
+      handler(peerBackgroundStatus)
+    }
+  }
+
+  function confirmBackgroundReady(revision: number, assetId?: string) {
+    const aid = assetId ?? sessionSetup?.virtualBackgroundAssetId ?? undefined
+    peerBackgroundStatus = {
+      peerId: options.peerId,
+      revision,
+      status: 'ready',
+      assetId: aid,
+    }
+    options.transport.send({
+      type: 'background-status',
+      peerId: options.peerId,
+      revision,
+      assetId: aid ?? null,
+      status: 'ready',
+    })
+    for (const handler of peerBackgroundStatusHandlers) {
+      handler(peerBackgroundStatus)
+    }
+  }
+
   function replayStartedMoments() {
     for (const [momentIndex, countdownMs] of startedMoments.entries()) {
       if (composed.has(momentIndex)) continue
@@ -233,6 +548,56 @@ export function createBoothPeerSession(options: {
       ...sessionSetup,
       nonce: nextSetupNonce(),
     })
+    if (sessionSetup.virtualBackgroundId === 'custom' && cachedAssetBytes && cachedAssetId) {
+      options.transport.send({
+        type: 'background-asset',
+        assetId: cachedAssetId,
+        revision: sessionSetup.revision ?? 1,
+        hash: cachedAssetHash ?? '',
+        mimeType: cachedAssetBlob?.type || 'image/jpeg',
+        bytes: cachedAssetBytes,
+        peerId: options.peerId,
+      })
+    }
+  }
+
+  async function broadcastSetup(setup: BoothSessionSetup, assetBlob?: Blob | null) {
+    const generation = ++setupBroadcastGeneration
+    const normalized = normalizeBoothSetup(setup)
+    applySetup(normalized)
+
+    if (normalized.virtualBackgroundId === 'custom' && assetBlob) {
+      cachedAssetBlob = assetBlob
+      cachedAssetBytes = await assetBlob.arrayBuffer()
+      cachedAssetHash = await calculateBufferSha256(cachedAssetBytes)
+      cachedAssetId = normalized.virtualBackgroundAssetId ?? 'custom'
+      cachedAssetRevision = normalized.revision ?? 1
+    } else if (normalized.virtualBackgroundId !== 'custom') {
+      cachedAssetBlob = null
+      cachedAssetBytes = null
+      cachedAssetHash = null
+      cachedAssetId = null
+      cachedAssetRevision = 0
+    }
+
+    if (generation !== setupBroadcastGeneration) return
+
+    options.transport.send({
+      type: 'session-setup',
+      ...normalized,
+      nonce: nextSetupNonce(),
+    })
+    if (normalized.virtualBackgroundId === 'custom' && cachedAssetBytes && cachedAssetId) {
+      options.transport.send({
+        type: 'background-asset',
+        assetId: cachedAssetId,
+        revision: normalized.revision ?? 1,
+        hash: cachedAssetHash ?? '',
+        mimeType: cachedAssetBlob?.type || 'image/jpeg',
+        bytes: cachedAssetBytes,
+        peerId: options.peerId,
+      })
+    }
   }
 
   function nextStartNonce() {
@@ -294,11 +659,7 @@ export function createBoothPeerSession(options: {
     return false
   }
 
-  function emitStart(
-    momentIndex: number,
-    countdownMs: number,
-    start?: { nonce?: string },
-  ) {
+  function emitStart(momentIndex: number, countdownMs: number, start?: { nonce?: string }) {
     clearMoment(momentIndex)
     startedMoments.set(momentIndex, countdownMs)
     if (start?.nonce) startedNonces.set(momentIndex, start.nonce)
@@ -379,22 +740,55 @@ export function createBoothPeerSession(options: {
 
       const nonce = nextStartNonce()
       isDuplicate(`start:${nonce}`, 10_000)
-      options.transport.send({ type: 'start-moment', momentIndex, countdownMs, nonce })
+      options.transport.send({
+        type: 'start-moment',
+        momentIndex,
+        countdownMs,
+        revision: sessionSetup?.revision,
+        nonce,
+      })
       emitStart(momentIndex, countdownMs, { nonce })
     },
-    setSetup(setup) {
+    cancelMoment(momentIndex, reason = 'cancelled') {
+      if (disposed) return
+      const nonce = nextStartNonce()
+      isDuplicate(`cancel:${nonce}`, 2000)
+      if (momentIndex != null) {
+        startedMoments.delete(momentIndex)
+        startedNonces.delete(momentIndex)
+        const waiters = countdownWaiters.get(momentIndex) ?? []
+        countdownWaiters.delete(momentIndex)
+        for (const waiter of waiters) {
+          waiter.reject(new Error(reason))
+        }
+      } else {
+        startedMoments.clear()
+        startedNonces.clear()
+        for (const [, waiters] of countdownWaiters) {
+          for (const waiter of waiters) {
+            waiter.reject(new Error(reason))
+          }
+        }
+        countdownWaiters.clear()
+      }
+      options.transport.send({
+        type: 'cancel-moment',
+        momentIndex,
+        reason,
+        nonce,
+      })
+      for (const handler of momentCancelledHandlers) {
+        handler({ momentIndex, reason })
+      }
+    },
+    async setSetup(setup, assetBlob) {
       if (disposed) {
         throw new Error('Booth session disposed')
       }
       if (options.role !== 'host') {
         throw new Error('Only the booth host can choose the shared strip setup.')
       }
-      applySetup(setup)
-      options.transport.send({
-        type: 'session-setup',
-        ...normalizeBoothSetup(setup),
-        nonce: nextSetupNonce(),
-      })
+      await broadcastSetup(setup, assetBlob)
     },
     resetCapture() {
       if (disposed) {
@@ -499,6 +893,38 @@ export function createBoothPeerSession(options: {
         resetWaiters.push({ resolve, reject })
       })
     },
+    confirmBackgroundReady(revision, assetId) {
+      confirmBackgroundReady(revision, assetId)
+    },
+    reportBackgroundError(revision, error) {
+      reportBackgroundError(revision, error)
+    },
+    requestBackgroundAsset(revision, assetId) {
+      triggerAssetRequest(assetId, revision)
+    },
+    requestBackgroundFallback(revision) {
+      if (disposed || options.role !== 'guest') return
+      options.transport.send({
+        type: 'background-fallback-request',
+        peerId: options.peerId,
+        revision,
+      })
+    },
+    getPeerBackgroundStatus() {
+      return peerBackgroundStatus ? { ...peerBackgroundStatus } : null
+    },
+    onBackgroundAsset(handler) {
+      backgroundAssetHandlers.add(handler)
+      return () => backgroundAssetHandlers.delete(handler)
+    },
+    onPeerBackgroundStatus(handler) {
+      peerBackgroundStatusHandlers.add(handler)
+      return () => peerBackgroundStatusHandlers.delete(handler)
+    },
+    onMomentCancelled(handler) {
+      momentCancelledHandlers.add(handler)
+      return () => momentCancelledHandlers.delete(handler)
+    },
     getSetup() {
       return sessionSetup ? { ...sessionSetup } : null
     },
@@ -531,6 +957,13 @@ export function createBoothPeerSession(options: {
         options.transport.send({ type: 'bye', peerId: options.peerId })
       }
       disposed = true
+      clearAssetTimers()
+      backgroundAssetHandlers.clear()
+      peerBackgroundStatusHandlers.clear()
+      momentCancelledHandlers.clear()
+      cachedAssetBlob = null
+      cachedAssetBytes = null
+      cachedAssetHash = null
       unsubscribe()
       options.transport.dispose?.()
       const pending = [...composedWaiters.entries()]

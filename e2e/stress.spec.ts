@@ -23,7 +23,7 @@ test.describe('Stecute UI stress', () => {
 
     expect(new Set(codes).size).toBe(codes.length)
 
-    const junk = ['', '@@@', 'AB', 'ZZZZZZ', 'ABC0EF', '<script>', '🎉🎉🎉']
+    const junk = ['', '@@@', 'AB', 'ZZZZZZZ', 'ABC0EF', '<script>', '🎉🎉🎉']
     for (const value of junk) {
       await page.goto('/booth')
       if (value) await page.getByLabel('Kode booth').fill(value)
@@ -51,7 +51,7 @@ test.describe('Stecute UI stress', () => {
     await Promise.all(guests.map((guest) => guest.goto(inviteUrl)))
 
     for (const guest of guests) {
-      await expect(guest.getByTestId('booth-code')).toHaveText(code)
+      await expect(guest.getByTestId('booth-code')).toHaveText(code, { timeout: 15_000 })
       await expect(guest.getByText('Booth tidak ditemukan')).toHaveCount(0)
     }
 
@@ -61,7 +61,7 @@ test.describe('Stecute UI stress', () => {
   test('hammering landing CTAs does not strand the local upload route', async ({ page }) => {
     for (let index = 0; index < 8; index++) {
       await page.goto('/')
-      await cta(page, 'Booth Bareng').click()
+      await cta(page, 'Foto Duet').click()
       await expect(page).toHaveURL('/booth')
       await page.goto('/')
       await cta(page, 'Mulai Foto').click()
@@ -74,6 +74,6 @@ test.describe('Stecute UI stress', () => {
     await page.goto('/')
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
-    await expect(cta(page, 'Booth Bareng')).toBeVisible()
+    await expect(cta(page, 'Foto Duet')).toBeVisible()
   })
 })

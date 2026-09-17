@@ -11,7 +11,7 @@ test.describe('Stecute app smoke', () => {
     await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
-    await expect(cta(page, 'Booth Bareng')).toBeVisible()
+    await expect(cta(page, 'Foto Duet')).toBeVisible()
     await expect(page.getByText('Hasil Lokal')).toBeVisible()
   })
 
@@ -22,7 +22,7 @@ test.describe('Stecute app smoke', () => {
 
     await expect(page).toHaveURL('/config?source=camera')
     await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
-    await expect(page.getByText('Pilih paket strip.')).toBeVisible()
+    await expect(page.getByText('Pilih jumlah foto.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Buka Kamera' })).toBeVisible()
   })
 

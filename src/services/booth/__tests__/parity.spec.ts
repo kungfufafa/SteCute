@@ -43,6 +43,69 @@ describe('booth bundled strip parity', () => {
     expect(source).toContain('cameraEffectFrameMs: shot.cameraEffectFrameMs')
     expect(decoration).toContain('Pilih efek ${filter.label}')
     expect(decoration).toContain('Pilih overlay ${effect.label}')
+    expect(decoration).toContain('VirtualBackgroundPicker')
+    expect(decoration).toContain('virtualBackgroundId')
+  })
+
+  it('round-trips host virtual-background color and blur through setup sync', async () => {
+    const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-peer',
+      role: 'host',
+      transport: hostTransport,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-peer',
+      role: 'guest',
+      transport: guestTransport,
+      slot: PAIR_SLOT,
+    })
+
+    host.setSetup(
+      normalizeBoothSetup({
+        layoutId: strip4Config.id,
+        templateId: youthTemplate.id,
+        filterId: 'warm',
+        cameraEffectId: 'hearts',
+        virtualBackgroundId: 'pink',
+      }),
+    )
+    await expect(guest.waitForSetup()).resolves.toMatchObject({
+      filterId: 'warm',
+      cameraEffectId: 'hearts',
+      virtualBackgroundId: 'pink',
+    })
+
+    host.setSetup(
+      normalizeBoothSetup({
+        layoutId: strip4Config.id,
+        templateId: youthTemplate.id,
+        filterId: 'warm',
+        cameraEffectId: 'hearts',
+        virtualBackgroundId: 'blur',
+      }),
+    )
+    await expect(guest.waitForSetup()).resolves.toMatchObject({
+      virtualBackgroundId: 'blur',
+      filterId: 'warm',
+      cameraEffectId: 'hearts',
+    })
+
+    expect(
+      normalizeBoothSetup({ virtualBackgroundId: 'not-real' }).virtualBackgroundId,
+    ).toBe('off')
+
+    const decoration = createDefaultDecorationConfig(youthTemplate, {
+      filterId: 'warm',
+      cameraEffectId: 'hearts',
+      virtualBackgroundId: 'blue',
+    })
+    expect(decoration.virtualBackgroundId).toBe('blue')
+    expect(decoration.filterId).toBe('warm')
+
+    host.dispose()
+    guest.dispose()
   })
 
   it('captures layout slotCount pair-rows and renders Youth 4-foto with a real filter', async () => {

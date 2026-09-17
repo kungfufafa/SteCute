@@ -197,6 +197,7 @@ const requiredMediapipeAssetUrls = [
   'vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.js',
   'vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm',
   'vendor/mediapipe/models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite',
+  'vendor/mediapipe/models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite',
 ]
 
 const publicDir = resolve(repoRoot, 'public')
@@ -239,6 +240,15 @@ if (existsSync(mediapipeManifestPath)) {
   assert(
     mediapipeManifest.model?.license === 'Apache-2.0',
     'MediaPipe manifest model license should be Apache-2.0',
+  )
+  assert(
+    mediapipeManifest.segmentationModel?.sourceUrl ===
+      'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite',
+    'MediaPipe manifest segmentation model source URL is incorrect',
+  )
+  assert(
+    mediapipeManifest.segmentationModel?.license === 'Apache-2.0',
+    'MediaPipe manifest segmentation model license should be Apache-2.0',
   )
 
   const manifestAssets = new Map(

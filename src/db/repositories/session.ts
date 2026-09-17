@@ -55,6 +55,7 @@ export class SessionRepository {
 
     if (abandonedIds.length > 0) {
       await db.shots.where('sessionId').anyOf(abandonedIds).delete()
+      await db.assets.where('packId').anyOf(abandonedIds).delete()
       await db.sessions.bulkDelete(abandonedIds)
     }
   }

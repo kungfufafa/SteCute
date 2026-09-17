@@ -173,14 +173,16 @@ export function startLiveCamRecording(
 }
 
 export function startPairLiveCamRecording(options: {
-  localVideo: HTMLVideoElement
+  localVideo: HTMLVideoElement | HTMLCanvasElement
   remoteVideo: HTMLVideoElement | null
   width: number
   height: number
   localOnLeft: boolean
 }): LiveCamRecording | null {
   if (!isLiveStripRenderingSupported()) return null
-  if (options.localVideo.videoWidth < 2) return null
+  const localWidth =
+    'videoWidth' in options.localVideo ? options.localVideo.videoWidth : options.localVideo.width
+  if (localWidth < 2) return null
 
   const mimeType = getSupportedMimeType(LIVE_CAM_RECORD_MIME_TYPES)
   if (!mimeType) return null
@@ -190,8 +192,9 @@ export function startPairLiveCamRecording(options: {
   const canvas = document.createElement('canvas')
   canvas.width = width
   canvas.height = height
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
+  const rawCtx = canvas.getContext('2d')
+  if (!rawCtx) return null
+  const pairCtx: CanvasRenderingContext2D = rawCtx
 
   const canvasWithStream = canvas as HTMLCanvasElement & {
     captureStream?: (frameRate?: number) => MediaStream
@@ -209,10 +212,10 @@ export function startPairLiveCamRecording(options: {
   const halfWidth = Math.floor(width / 2)
 
   function drawPairFrame() {
-    ctx.fillStyle = '#0a0a0a'
-    ctx.fillRect(0, 0, width, height)
-    drawVideoCoverToRect(ctx, leftVideo, 0, 0, halfWidth, height)
-    drawVideoCoverToRect(ctx, rightVideo, halfWidth, 0, width - halfWidth, height)
+    pairCtx.fillStyle = '#0a0a0a'
+    pairCtx.fillRect(0, 0, width, height)
+    drawVideoCoverToRect(pairCtx, leftVideo, 0, 0, halfWidth, height)
+    drawVideoCoverToRect(pairCtx, rightVideo, halfWidth, 0, width - halfWidth, height)
   }
 
   function loop() {
@@ -282,19 +285,30 @@ export function startPairLiveCamRecording(options: {
 
 function drawVideoCoverToRect(
   ctx: CanvasRenderingContext2D,
-  video: HTMLVideoElement | null,
+  video: HTMLVideoElement | HTMLCanvasElement | null,
   x: number,
   y: number,
   width: number,
   height: number,
 ) {
-  if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || !video.videoWidth) {
+  if (!video) {
     ctx.fillStyle = '#111'
     ctx.fillRect(x, y, width, height)
     return
   }
 
-  const crop = getObjectCoverCrop(video.videoWidth, video.videoHeight, width, height)
+  const vWidth = 'videoWidth' in video ? video.videoWidth : video.width
+  const vHeight = 'videoHeight' in video ? video.videoHeight : video.height
+  const ready =
+    'readyState' in video ? video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA : true
+
+  if (!ready || !vWidth || !vHeight) {
+    ctx.fillStyle = '#111'
+    ctx.fillRect(x, y, width, height)
+    return
+  }
+
+  const crop = getObjectCoverCrop(vWidth, vHeight, width, height)
   ctx.drawImage(video, crop.sx, crop.sy, crop.sw, crop.sh, x, y, width, height)
 }
 

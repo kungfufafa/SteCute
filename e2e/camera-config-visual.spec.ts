@@ -13,8 +13,8 @@ test.describe('config and camera visual smoke', () => {
   test('keeps config clear, camera framed at 4:3, and countdown unblurred', async ({ page }) => {
     await page.goto('/config?source=camera')
 
-    await expect(page.getByRole('heading', { name: 'Pilih paket strip.' })).toBeVisible()
-    await expect(page.getByText('Blanko Strip', { exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Pilih jumlah foto.' })).toBeVisible()
+    await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
     await expect(page.getByText('Upload PNG/WebP, jumlah area transparan akan dideteksi otomatis.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()

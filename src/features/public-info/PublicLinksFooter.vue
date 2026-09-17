@@ -6,7 +6,7 @@ import { publicNavItems } from '@/features/public-info/content'
 <template>
   <footer class="border-stc-border mt-auto border-t">
     <div
-      class="mx-auto flex w-full max-w-5xl flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+      class="flex w-full flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5"
     >
       <RouterLink to="/" class="inline-flex w-fit" aria-label="Stecute beranda">
         <img

@@ -5,9 +5,11 @@ import {
   abandonIncompleteSession,
   createDefaultDecorationConfig,
   ensureSession,
+  getSessionBackgroundAsset,
   getSessionShots,
   getSessionSnapshot,
   isSessionComplete,
+  saveSessionBackgroundAsset,
   saveShot,
   updateSessionDecorationConfig,
 } from '@/services/session'
@@ -50,10 +52,22 @@ import {
 import type { FaceBounds } from '@/services/face-tracking'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
+import {
+  CameraBackgroundProcessor,
+  applyVirtualBackgroundToCanvas,
+  clearCustomVirtualBackgroundFrame,
+  loadCustomVirtualBackgroundFrame,
+  resolveVirtualBackgroundSpec,
+  setCustomVirtualBackgroundFrame,
+  validateCustomBackgroundFile,
+  type RgbaFrame,
+} from '@/services/virtual-background'
 import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
+import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
+import VirtualBackgroundPicker from '@/components/common/VirtualBackgroundPicker.vue'
 
 const router = useRouter()
 const cameraStore = useCameraStore()
@@ -65,10 +79,14 @@ const countdownActive = ref(false)
 const countdownValue = ref(0)
 const flashVisible = ref(false)
 const cameraError = ref<string | null>(null)
+const backgroundError = ref<string | null>(null)
+const backgroundProcessor = ref<CameraBackgroundProcessor | null>(null)
 const liveCamAvailable = ref(false)
 const liveCamRecordingActive = ref(false)
 const latestOverlayFaces = ref<FaceBounds[]>([])
 const latestOverlayFrameMs = ref(0)
+const customBackgroundFrame = ref<RgbaFrame | null>(null)
+const virtualBackgroundPreviewActive = ref(false)
 const cameraDevices = ref<CameraDeviceOption[]>([])
 const cameraPickerOpen = ref(false)
 const isSwitchingCamera = ref(false)
@@ -340,6 +358,26 @@ async function restoreStoredCameraSession(requireConfig?: {
   sessionStore.setCapturing()
 }
 
+async function restoreCameraBackgroundAsset(assetId: string | null | undefined) {
+  if (!assetId) {
+    customBackgroundFrame.value = null
+    clearCustomVirtualBackgroundFrame()
+    return
+  }
+
+  try {
+    const blob = await getSessionBackgroundAsset(assetId)
+    if (!blob) throw new Error('Background asset is missing')
+    const frame = await loadCustomVirtualBackgroundFrame(blob)
+    customBackgroundFrame.value = frame
+    setCustomVirtualBackgroundFrame(frame)
+  } catch (err) {
+    customBackgroundFrame.value = null
+    clearCustomVirtualBackgroundFrame()
+    console.warn('Could not restore session background asset:', err)
+  }
+}
+
 async function setupCamera() {
   const generation = ++setupGeneration
   cameraReady.value = false
@@ -388,6 +426,15 @@ async function setupCamera() {
 
     if (generation !== setupGeneration) return
 
+    if (sessionStore.virtualBackgroundId === 'custom') {
+      await restoreCameraBackgroundAsset(sessionStore.virtualBackgroundAssetId)
+    } else {
+      customBackgroundFrame.value = null
+      clearCustomVirtualBackgroundFrame()
+    }
+
+    if (generation !== setupGeneration) return
+
     const nextStream = await initCamera()
     if (generation !== setupGeneration) {
       stopCamera(nextStream)
@@ -398,6 +445,7 @@ async function setupCamera() {
     liveCamAvailable.value = isLiveCamRecordingSupported(stream)
     await nextTick()
     await attachPreviewStream(generation)
+    setupBackgroundProcessor()
     await refreshCameraDevices()
 
     if (generation !== setupGeneration) return
@@ -411,6 +459,8 @@ async function setupCamera() {
         decoration: createDefaultDecorationConfig(activeTemplate.value, {
           filterId: sessionStore.filterId,
           cameraEffectId: sessionStore.cameraEffectId,
+          virtualBackgroundId: sessionStore.virtualBackgroundId,
+          virtualBackgroundAssetId: sessionStore.virtualBackgroundAssetId,
         }),
       })
 
@@ -470,6 +520,8 @@ async function persistCameraDecoration(sessionId: string) {
     createDefaultDecorationConfig(activeTemplate.value, {
       filterId: sessionStore.filterId,
       cameraEffectId: sessionStore.cameraEffectId,
+      virtualBackgroundId: sessionStore.virtualBackgroundId,
+      virtualBackgroundAssetId: sessionStore.virtualBackgroundAssetId,
     }),
   )
 }
@@ -514,6 +566,114 @@ async function selectCameraEffect(effectId: string) {
 async function selectCameraEffectFromPicker(effectId: string) {
   await selectCameraEffect(effectId)
   closeOptionPicker()
+}
+
+async function selectVirtualBackground(backgroundId: string) {
+  if (!canChangeFilter.value && backgroundId !== sessionStore.virtualBackgroundId) return
+
+  sessionStore.setVirtualBackgroundId(backgroundId)
+  backgroundError.value = null
+
+  if (backgroundProcessor.value) {
+    void backgroundProcessor.value.configure(
+      {
+        id: backgroundId,
+        customImage: customBackgroundFrame.value,
+      },
+      { mirrored: shouldMirrorActiveCamera.value },
+    )
+  }
+
+  if (!sessionStore.sessionId) return
+
+  try {
+    await persistCameraDecoration(sessionStore.sessionId)
+  } catch (error) {
+    console.error('Failed to save virtual background:', error)
+    backgroundError.value = 'Latar virtual gagal disimpan. Coba pilih latar lagi.'
+  }
+}
+
+async function handleCustomBackground(file: File) {
+  if (!canChangeFilter.value && sessionStore.virtualBackgroundId !== 'custom') return
+
+  const validation = validateCustomBackgroundFile(file)
+  if (!validation.valid) {
+    backgroundError.value = validation.errors[0] ?? 'Gambar latar tidak valid.'
+    return
+  }
+
+  try {
+    const frame = await loadCustomVirtualBackgroundFrame(file)
+    customBackgroundFrame.value = frame
+    setCustomVirtualBackgroundFrame(frame)
+    backgroundError.value = null
+
+    if (sessionStore.sessionId) {
+      const assetId = crypto.randomUUID()
+      await saveSessionBackgroundAsset(sessionStore.sessionId, assetId, file)
+      sessionStore.setVirtualBackgroundAssetId(assetId)
+    }
+
+    await selectVirtualBackground('custom')
+  } catch (error) {
+    console.error('Failed to load virtual background image:', error)
+    backgroundError.value = 'Gambar latar gagal dibaca. Gunakan JPG, PNG, atau WebP.'
+  }
+}
+
+async function retryVirtualBackground() {
+  backgroundError.value = null
+  if (backgroundProcessor.value) {
+    await backgroundProcessor.value.configure(
+      {
+        id: sessionStore.virtualBackgroundId,
+        customImage: customBackgroundFrame.value,
+      },
+      { mirrored: shouldMirrorActiveCamera.value },
+    )
+  }
+}
+
+async function fallbackToOriginalBackground() {
+  backgroundError.value = null
+  await selectVirtualBackground('off')
+}
+
+function setupBackgroundProcessor() {
+  if (!videoRef.value) return
+  if (backgroundProcessor.value) {
+    backgroundProcessor.value.dispose()
+  }
+
+  backgroundProcessor.value = new CameraBackgroundProcessor({
+    video: videoRef.value,
+    rawStream: stream,
+    mirrored: shouldMirrorActiveCamera.value,
+    onStatusChange: (status, error) => {
+      if (status === 'error') {
+        backgroundError.value = error ?? 'Segmentasi latar belakang gagal.'
+      } else if (status === 'ready' || status === 'off') {
+        backgroundError.value = null
+      }
+    },
+  })
+
+  void backgroundProcessor.value.configure(
+    {
+      id: sessionStore.virtualBackgroundId,
+      customImage: customBackgroundFrame.value,
+    },
+    { mirrored: shouldMirrorActiveCamera.value },
+  )
+}
+
+function processCapturedBackground(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  applyVirtualBackgroundToCanvas(
+    canvas,
+    ctx,
+    resolveVirtualBackgroundSpec(sessionStore.virtualBackgroundId, customBackgroundFrame.value),
+  )
 }
 
 function updateOverlayFaces(faces: FaceBounds[]) {
@@ -561,6 +721,11 @@ onUnmounted(() => {
 
   autoCaptureRunning = false
   void stopActiveLiveCamRecording()
+
+  if (backgroundProcessor.value) {
+    backgroundProcessor.value.dispose()
+    backgroundProcessor.value = null
+  }
 
   if (stream) {
     stopCamera(stream)
@@ -635,14 +800,16 @@ async function selectCameraDevice(deviceId: string) {
 }
 
 function startLiveCamClip() {
-  if (!stream || !isLiveCamRecordingSupported(stream)) {
+  const isBgActive = backgroundProcessor.value?.isActive()
+  const recordStream = isBgActive ? backgroundProcessor.value?.stream : stream
+  if (!recordStream || !isLiveCamRecordingSupported(recordStream)) {
     liveCamAvailable.value = false
     return
   }
 
   try {
-    activeLiveCamRecording = startLiveCamRecording(stream, {
-      mirrored: shouldMirrorActiveCamera.value,
+    activeLiveCamRecording = startLiveCamRecording(recordStream, {
+      mirrored: isBgActive ? false : shouldMirrorActiveCamera.value,
     })
     liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
   } catch (error) {
@@ -674,9 +841,18 @@ async function handleCapture(liveClip: LiveCamClip | null = null, preCaptured?: 
   let frame: CapturedFrame
 
   try {
-    frame =
-      preCaptured ??
-      (await captureFrame(videoRef.value, { mirrored: shouldMirrorActiveCamera.value }))
+    if (preCaptured) {
+      frame = preCaptured
+    } else if (backgroundProcessor.value?.isActive()) {
+      frame = await backgroundProcessor.value.captureStill({
+        mirrored: shouldMirrorActiveCamera.value,
+      })
+    } else {
+      frame = await captureFrame(videoRef.value, {
+        mirrored: shouldMirrorActiveCamera.value,
+        processCanvas: processCapturedBackground,
+      })
+    }
   } catch (error) {
     console.error('Capture failed:', error)
     cameraError.value = 'Preview kamera belum siap. Coba ambil foto lagi.'
@@ -818,9 +994,16 @@ function runCountdownAndCapture() {
         let frame: CapturedFrame | undefined
         try {
           if (videoRef.value) {
-            frame = await captureFrame(videoRef.value, {
-              mirrored: shouldMirrorActiveCamera.value,
-            })
+            if (backgroundProcessor.value?.isActive()) {
+              frame = await backgroundProcessor.value.captureStill({
+                mirrored: shouldMirrorActiveCamera.value,
+              })
+            } else {
+              frame = await captureFrame(videoRef.value, {
+                mirrored: shouldMirrorActiveCamera.value,
+                processCanvas: processCapturedBackground,
+              })
+            }
           }
         } catch (error) {
           console.error('Capture failed:', error)
@@ -995,6 +1178,16 @@ function goToUploadFallback() {
               <span>Lainnya</span>
             </button>
           </div>
+          <div class="mt-3">
+            <p :class="[ui.sectionLabel, 'mb-2']">Latar Virtual</p>
+            <VirtualBackgroundPicker
+              :background-id="sessionStore.virtualBackgroundId"
+              :disabled="!canChangeFilter"
+              stacked
+              @select="selectVirtualBackground"
+              @custom-file="handleCustomBackground"
+            />
+          </div>
         </div>
 
         <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
@@ -1009,9 +1202,21 @@ function goToUploadFallback() {
               :class="[
                 'absolute inset-0 h-full w-full object-cover',
                 shouldMirrorActiveCamera ? 'scale-x-[-1]' : '',
+                virtualBackgroundPreviewActive ? 'opacity-0' : '',
               ]"
-              :style="videoFilterStyle"
+              :style="virtualBackgroundPreviewActive ? undefined : videoFilterStyle"
             ></video>
+            <VirtualBackgroundCanvas
+              :processor="backgroundProcessor"
+              :video-el="videoRef"
+              :background-id="sessionStore.virtualBackgroundId"
+              :custom-image="customBackgroundFrame"
+              :mirrored="shouldMirrorActiveCamera"
+              class="pointer-events-none absolute inset-0 z-[4] h-full w-full"
+              :style="virtualBackgroundPreviewActive ? videoFilterStyle : undefined"
+              @active="virtualBackgroundPreviewActive = $event"
+              @error="backgroundError = $event"
+            />
 
             <div
               v-if="liveCamAvailable"
@@ -1086,93 +1291,115 @@ function goToUploadFallback() {
 
           <div class="flex flex-col items-center gap-3">
             <div class="flex items-center justify-center gap-6">
-            <button
-              :class="[ui.iconButton, 'rounded-full']"
-              aria-label="Kembali ke setup sesi"
-              @click="goBack"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+              <button
+                :class="[ui.iconButton, 'rounded-full']"
+                aria-label="Kembali ke setup sesi"
+                @click="goBack"
               >
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-            </button>
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+              </button>
 
-            <button
-              class="camera-shutter group border-stc-border hover:border-stc-text relative inline-flex size-[72px] items-center justify-center rounded-full border-[4px] bg-white disabled:pointer-events-none disabled:opacity-60 sm:size-20"
-              aria-label="Ambil foto"
-              :disabled="!cameraReady || countdownActive || isCapturing"
-              @click="runCountdownAndCapture"
-            >
-              <span
-                class="bg-stc-pink inline-flex size-[52px] rounded-full shadow-inner transition-transform duration-200 group-hover:scale-95 group-active:scale-90 sm:size-[56px]"
-              ></span>
-            </button>
-
-            <button
-              :class="[ui.iconButton, 'rounded-full']"
-              :aria-label="`Ganti kamera. Aktif: ${activeCameraLabel}`"
-              :disabled="!canSwitchCamera"
-              @click="handleSwitchCamera"
-            >
-              <svg
-                width="22"
-                height="22"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+              <button
+                class="camera-shutter group border-stc-border hover:border-stc-text relative inline-flex size-[72px] items-center justify-center rounded-full border-[4px] bg-white disabled:pointer-events-none disabled:opacity-60 sm:size-20"
+                aria-label="Ambil foto"
+                :disabled="!cameraReady || countdownActive || isCapturing"
+                @click="runCountdownAndCapture"
               >
-                <path d="M17 2.1l4 4-4 4" />
-                <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4" />
-                <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
-              </svg>
-            </button>
-          </div>
+                <span
+                  class="bg-stc-pink inline-flex size-[52px] rounded-full shadow-inner transition-transform duration-200 group-hover:scale-95 group-active:scale-90 sm:size-[56px]"
+                ></span>
+              </button>
 
-          <div
-            v-if="cameraDevices.length > 1"
-            class="text-stc-text-soft max-w-full text-center text-xs font-medium"
-          >
-            <span class="truncate">
-              {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
-            </span>
-          </div>
-
-          <div class="flex flex-wrap items-center justify-center gap-2">
-            <div
-              v-for="index in sessionStore.slotCount"
-              :key="index"
-              :class="[
-                'flex h-8 w-8 items-center justify-center rounded-md border text-[11px] font-medium',
-                index - 1 === sessionStore.currentShotIndex
-                  ? 'border-stc-text bg-stc-text text-white'
-                  : sessionStore.shotIds[index - 1]
-                    ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
-                    : 'border-stc-border text-stc-text-faint bg-white',
-              ]"
-            >
-              {{
-                index - 1 === sessionStore.currentShotIndex
-                  ? `${index}/${sessionStore.slotCount}`
-                  : index
-              }}
+              <button
+                :class="[ui.iconButton, 'rounded-full']"
+                :aria-label="`Ganti kamera. Aktif: ${activeCameraLabel}`"
+                :disabled="!canSwitchCamera"
+                @click="handleSwitchCamera"
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M17 2.1l4 4-4 4" />
+                  <path d="M3 12.2v-2a4 4 0 0 1 4-4h12.8M7 21.9l-4-4 4-4" />
+                  <path d="M21 11.8v2a4 4 0 0 1-4 4H4.2" />
+                </svg>
+              </button>
             </div>
-          </div>
 
-          <div v-if="cameraError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
-            {{ cameraError }}
-          </div>
+            <div
+              v-if="cameraDevices.length > 1"
+              class="text-stc-text-soft max-w-full text-center text-xs font-medium"
+            >
+              <span class="truncate">
+                {{ isSwitchingCamera ? 'Mengganti kamera...' : activeCameraLabel }}
+              </span>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-2">
+              <div
+                v-for="index in sessionStore.slotCount"
+                :key="index"
+                :class="[
+                  'flex h-8 w-8 items-center justify-center rounded-md border text-[11px] font-medium',
+                  index - 1 === sessionStore.currentShotIndex
+                    ? 'border-stc-text bg-stc-text text-white'
+                    : sessionStore.shotIds[index - 1]
+                      ? 'border-stc-success/30 bg-stc-success-soft text-stc-success'
+                      : 'border-stc-border text-stc-text-faint bg-white',
+                ]"
+              >
+                {{
+                  index - 1 === sessionStore.currentShotIndex
+                    ? `${index}/${sessionStore.slotCount}`
+                    : index
+                }}
+              </div>
+            </div>
+
+            <div v-if="cameraError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
+              {{ cameraError }}
+            </div>
+
+            <div v-if="backgroundError" :class="[ui.alertError, 'mx-auto max-w-sm text-center']">
+              <p>{{ backgroundError }}</p>
+              <div class="mt-2 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  :class="ui.secondaryButton"
+                  class="!px-2.5 !py-1 !text-xs"
+                  @click="retryVirtualBackground"
+                >
+                  Coba lagi
+                </button>
+                <button
+                  type="button"
+                  :class="ui.secondaryButton"
+                  class="!px-2.5 !py-1 !text-xs"
+                  @click="fallbackToOriginalBackground"
+                >
+                  Gunakan latar asli
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 

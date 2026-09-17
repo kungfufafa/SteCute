@@ -13,6 +13,9 @@ export type BoothWireMessage =
       countdownMs: number
       filterId: string
       cameraEffectId: string
+      virtualBackgroundId?: string
+      virtualBackgroundAssetId?: string | null
+      revision?: number
       nonce?: string
     }
   | { type: 'session-reset'; nonce?: string }
@@ -20,6 +23,13 @@ export type BoothWireMessage =
       type: 'start-moment'
       momentIndex: number
       countdownMs: number
+      revision?: number
+      nonce?: string
+    }
+  | {
+      type: 'cancel-moment'
+      momentIndex?: number
+      reason?: string
       nonce?: string
     }
   | {
@@ -31,8 +41,37 @@ export type BoothWireMessage =
       width: number
       height: number
       bytes: ArrayBuffer
+      revision?: number
       faceBounds?: Array<{ x: number; y: number; width: number; height: number }>
       cameraEffectFrameMs?: number
+    }
+  | {
+      type: 'background-asset'
+      assetId: string
+      revision: number
+      hash: string
+      mimeType: string
+      bytes: ArrayBuffer
+      peerId: string
+    }
+  | {
+      type: 'background-asset-request'
+      assetId: string
+      revision: number
+      fromPeerId: string
+    }
+  | {
+      type: 'background-fallback-request'
+      peerId: string
+      revision: number
+    }
+  | {
+      type: 'background-status'
+      peerId: string
+      revision: number
+      assetId?: string | null
+      status: 'loading' | 'ready' | 'error'
+      errorReason?: string
     }
 
 export type BoothMediaSession = {
@@ -173,11 +212,20 @@ export function createFanoutBoothTransport(): BoothTransport & {
 }
 
 function cloneMessage(message: BoothWireMessage): BoothWireMessage {
-  if (message.type !== 'still') return { ...message }
-
-  return {
-    ...message,
-    bytes: message.bytes.slice(0),
-    faceBounds: message.faceBounds?.map((face) => ({ ...face })),
+  if (message.type === 'still') {
+    return {
+      ...message,
+      bytes: message.bytes.slice(0),
+      faceBounds: message.faceBounds?.map((face) => ({ ...face })),
+    }
   }
+
+  if (message.type === 'background-asset') {
+    return {
+      ...message,
+      bytes: message.bytes.slice(0),
+    }
+  }
+
+  return { ...message }
 }

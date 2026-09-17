@@ -483,13 +483,14 @@ function isIgnorablePeerError(error: unknown): boolean {
 }
 
 export function encodeBoothWirePayload(message: BoothWireMessage): BoothWireMessage | ArrayBuffer {
-  if (message.type !== 'still') return message
-  return encodeFramedStill(message)
+  if (message.type === 'still') return encodeFramedStill(message)
+  if (message.type === 'background-asset') return encodeFramedBackgroundAsset(message)
+  return message
 }
 
 export function decodeBoothWirePayload(data: unknown): BoothWireMessage | null {
   if (data instanceof ArrayBuffer || ArrayBuffer.isView(data)) {
-    return decodeFramedStill(toUint8Array(data))
+    return decodeFramedPayload(toUint8Array(data))
   }
 
   if (!data || typeof data !== 'object') return null
@@ -498,6 +499,15 @@ export function decodeBoothWirePayload(data: unknown): BoothWireMessage | null {
   if (!message.type) return null
 
   if (message.type === 'still') {
+    const record = data as { bytes?: unknown; bytesBase64?: unknown }
+    const bytes =
+      toArrayBuffer(record.bytes) ??
+      (typeof record.bytesBase64 === 'string' ? base64ToArrayBuffer(record.bytesBase64) : null)
+    if (!bytes) return null
+    return { ...message, bytes }
+  }
+
+  if (message.type === 'background-asset') {
     const record = data as { bytes?: unknown; bytesBase64?: unknown }
     const bytes =
       toArrayBuffer(record.bytes) ??
@@ -519,6 +529,7 @@ function encodeFramedStill(message: Extract<BoothWireMessage, { type: 'still' }>
       mimeType: message.mimeType,
       width: message.width,
       height: message.height,
+      revision: message.revision,
       faceBounds: message.faceBounds,
       cameraEffectFrameMs: message.cameraEffectFrameMs,
     }),
@@ -531,7 +542,28 @@ function encodeFramedStill(message: Extract<BoothWireMessage, { type: 'still' }>
   return frame.buffer
 }
 
-function decodeFramedStill(bytes: Uint8Array): BoothWireMessage | null {
+function encodeFramedBackgroundAsset(
+  message: Extract<BoothWireMessage, { type: 'background-asset' }>,
+): ArrayBuffer {
+  const header = new TextEncoder().encode(
+    JSON.stringify({
+      type: 'background-asset',
+      assetId: message.assetId,
+      revision: message.revision,
+      hash: message.hash,
+      mimeType: message.mimeType,
+      peerId: message.peerId,
+    }),
+  )
+  const payload = new Uint8Array(message.bytes)
+  const frame = new Uint8Array(4 + header.byteLength + payload.byteLength)
+  new DataView(frame.buffer).setUint32(0, header.byteLength)
+  frame.set(header, 4)
+  frame.set(payload, 4 + header.byteLength)
+  return frame.buffer
+}
+
+function decodeFramedPayload(bytes: Uint8Array): BoothWireMessage | null {
   if (bytes.byteLength < 4) return null
 
   const headerLength = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0)
@@ -540,25 +572,44 @@ function decodeFramedStill(bytes: Uint8Array): BoothWireMessage | null {
   try {
     const header = JSON.parse(
       new TextDecoder().decode(bytes.subarray(4, 4 + headerLength)),
-    ) as Extract<BoothWireMessage, { type: 'still' }>
-    if (header.type !== 'still') return null
+    ) as { type?: string; [key: string]: unknown }
+    if (!header.type) return null
 
     const payload = bytes.subarray(4 + headerLength)
     const copy = new Uint8Array(payload.byteLength)
     copy.set(payload)
 
-    return {
-      type: 'still',
-      momentIndex: header.momentIndex,
-      peerId: header.peerId,
-      role: header.role,
-      mimeType: header.mimeType || 'image/png',
-      width: header.width,
-      height: header.height,
-      bytes: copy.buffer,
-      faceBounds: header.faceBounds?.map((face) => ({ ...face })),
-      cameraEffectFrameMs: header.cameraEffectFrameMs,
+    if (header.type === 'still') {
+      const stillHeader = header as Extract<BoothWireMessage, { type: 'still' }>
+      return {
+        type: 'still',
+        momentIndex: stillHeader.momentIndex,
+        peerId: stillHeader.peerId,
+        role: stillHeader.role,
+        mimeType: stillHeader.mimeType || 'image/png',
+        width: stillHeader.width,
+        height: stillHeader.height,
+        bytes: copy.buffer,
+        revision: stillHeader.revision,
+        faceBounds: stillHeader.faceBounds?.map((face) => ({ ...face })),
+        cameraEffectFrameMs: stillHeader.cameraEffectFrameMs,
+      }
     }
+
+    if (header.type === 'background-asset') {
+      const assetHeader = header as Extract<BoothWireMessage, { type: 'background-asset' }>
+      return {
+        type: 'background-asset',
+        assetId: assetHeader.assetId,
+        revision: assetHeader.revision,
+        hash: assetHeader.hash,
+        mimeType: assetHeader.mimeType || 'image/jpeg',
+        bytes: copy.buffer,
+        peerId: assetHeader.peerId,
+      }
+    }
+
+    return null
   } catch {
     return null
   }

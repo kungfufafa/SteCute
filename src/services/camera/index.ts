@@ -23,6 +23,7 @@ export interface CapturedFrame {
 
 export interface CaptureFrameOptions {
   mirrored?: boolean
+  processCanvas?: (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => void
 }
 
 export interface CameraDeviceOption {
@@ -338,6 +339,7 @@ export function captureFrame(
     }
 
     ctx.drawImage(videoEl, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, crop.sw, crop.sh)
+    applyCaptureProcess(canvas, ctx, options)
     canvas.toBlob(
       (blob) => {
         if (blob) {
@@ -384,6 +386,7 @@ export function captureCoverFrame(
     }
 
     ctx.drawImage(videoEl, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
+    applyCaptureProcess(canvas, ctx, options)
     canvas.toBlob(
       (blob) => {
         if (blob) {
@@ -396,4 +399,14 @@ export function captureCoverFrame(
       0.92,
     )
   })
+}
+
+function applyCaptureProcess(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  options: CaptureFrameOptions,
+) {
+  if (!options.processCanvas) return
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  options.processCanvas(canvas, ctx)
 }

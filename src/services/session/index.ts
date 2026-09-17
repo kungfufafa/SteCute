@@ -1,9 +1,10 @@
 import type { DecorationConfig, Render, Session, Shot } from '@/db/schema'
 import { type LayoutConfig, type TemplateConfig } from '@/db/schema'
 import { db } from '@/db/schema'
-import { RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
+import { AssetRepository, RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { normalizePhotoFilterId } from '@/services/filter'
+import { normalizeVirtualBackgroundId } from '@/services/virtual-background'
 import type { LiveCamClip } from '@/services/live-cam'
 import { renderLiveStrip } from '@/services/live-cam'
 import { renderStrip } from '@/services/render'
@@ -19,6 +20,7 @@ export interface SessionFlowConfig {
 const sessionRepo = new SessionRepository()
 const shotRepo = new ShotRepository()
 const renderRepo = new RenderRepository()
+const assetRepo = new AssetRepository()
 
 export interface SessionSnapshot {
   session: Session
@@ -29,6 +31,8 @@ function normalizeDecorationConfig(input?: Partial<DecorationConfig>): Decoratio
   return {
     filterId: normalizePhotoFilterId(input?.filterId),
     cameraEffectId: normalizeCameraEffectId(input?.cameraEffectId),
+    virtualBackgroundId: normalizeVirtualBackgroundId(input?.virtualBackgroundId),
+    virtualBackgroundAssetId: input?.virtualBackgroundAssetId ?? null,
     frameColor: input?.frameColor ?? '#ffffff',
     selectedStickerIds: Array.isArray(input?.selectedStickerIds)
       ? [...input.selectedStickerIds]
@@ -230,7 +234,24 @@ export async function abandonIncompleteSession(sessionId: string | null): Promis
 
 export async function resetSessionData(sessionId: string): Promise<void> {
   await shotRepo.deleteBySession(sessionId)
+  await assetRepo.deleteBySessionId(sessionId)
   await sessionRepo.delete(sessionId)
+}
+
+export async function saveSessionBackgroundAsset(
+  sessionId: string,
+  assetId: string,
+  blob: Blob,
+): Promise<void> {
+  await assetRepo.saveSessionBackgroundAsset(sessionId, assetId, blob)
+}
+
+export async function getSessionBackgroundAsset(assetId: string): Promise<Blob | null> {
+  return assetRepo.getSessionBackgroundAsset(assetId)
+}
+
+export async function deleteSessionBackgroundAssets(sessionId: string): Promise<void> {
+  await assetRepo.deleteBySessionId(sessionId)
 }
 
 export async function renderAndStoreSession(params: {
@@ -305,10 +326,11 @@ export async function renderAndStoreSession(params: {
     })
   }
 
-  await db.transaction('rw', db.sessions, db.shots, db.renders, async () => {
+  await db.transaction('rw', db.sessions, db.shots, db.renders, db.assets, async () => {
     await sessionRepo.setFinalRender(params.sessionId, renderId)
     await sessionRepo.updateStatus(params.sessionId, 'completed')
     await shotRepo.deleteBySession(params.sessionId)
+    await assetRepo.deleteBySessionId(params.sessionId)
   })
 
   const deletedRenders = await renderRepo.deleteOldRenders()
@@ -317,8 +339,9 @@ export async function renderAndStoreSession(params: {
   )
 
   if (deletedSessionIds.length > 0) {
-    await db.transaction('rw', db.sessions, db.shots, async () => {
+    await db.transaction('rw', db.sessions, db.shots, db.assets, async () => {
       await Promise.all(deletedSessionIds.map((sessionId) => shotRepo.deleteBySession(sessionId)))
+      await Promise.all(deletedSessionIds.map((sessionId) => assetRepo.deleteBySessionId(sessionId)))
       await db.sessions.bulkDelete(deletedSessionIds)
     })
   }

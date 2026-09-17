@@ -46,7 +46,10 @@ export async function unsealBoothMessage(
       type?: string
       bytesBase64?: string
     }
-    if (parsed?.type === 'still-frame' && typeof parsed.bytesBase64 === 'string') {
+    if (
+      (parsed?.type === 'still-frame' || parsed?.type === 'framed-binary') &&
+      typeof parsed.bytesBase64 === 'string'
+    ) {
       return decodeBoothWirePayload(asArrayBuffer(base64ToBytes(parsed.bytesBase64)))
     }
     return decodeBoothWirePayload(parsed)
@@ -69,11 +72,11 @@ function serializableWire(
 ): unknown {
   if (encoded instanceof ArrayBuffer) {
     return {
-      type: 'still-frame',
+      type: 'framed-binary',
       bytesBase64: bytesToBase64(new Uint8Array(encoded)),
     }
   }
-  if (original.type !== 'still') return original
+  if (original.type !== 'still' && original.type !== 'background-asset') return original
   return {
     ...original,
     bytes: undefined,

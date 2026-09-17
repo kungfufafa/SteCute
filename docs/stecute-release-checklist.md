@@ -33,8 +33,12 @@ Tanggal: 2026-03-20
 - Offline relaunch pass
 - Live Cam capture/output pass pada browser yang mendukung `MediaRecorder`; PNG fallback pass saat capability tidak tersedia
 - MediaPipe face detector WASM/model tersedia lokal, ikut precache, dan cocok dengan manifest checksum vendor
+- MediaPipe image segmenter model (`selfie_segmenter.tflite`) tersedia lokal 100% offline tanpa CDN
+- Pipeline latar virtual Web Worker stabil dengan main-thread fallback dan confidence mask rendering halus
+- Normalisasi upload latar kustom (maks 1600px, maks 512 KiB JPEG, background putih, SHA-256) pass
+- WebRTC DataChannel chunking dan background sync pass di Booth Bareng
 - Reactions gesture tetap hidden/deferred dan tidak masuk daftar overlay v1
-- Storage cleanup pass
+- Storage cleanup pass (termasuk pembersihan asset `virtual-background` saat session complete/reset/stale)
 - Service worker update flow aman
 - SEO metadata, robots, sitemap, dan canonical public routes pass
 
@@ -44,7 +48,7 @@ Tanggal: 2026-03-20
 - CSP aktif
 - Permissions-Policy aktif
 - Font self-hosted
-- Tidak ada runtime CDN untuk MediaPipe face tracking
+- Tidak ada runtime CDN untuk MediaPipe face tracking maupun selfie segmentation
 - Tidak ada remote script non-esensial
 
 ## 5. QA
@@ -57,6 +61,11 @@ Tanggal: 2026-03-20
 - Error states pass
 - Preset filter kamera pass di preview dan hasil render final
 - Preset overlay kamera pass di preview kamera, review, dan hasil render final
+- Latar virtual solo flow (Asli, Pink, Biru, Ungu, Mint, Krem, Putih, Blur, dan Upload Gambar) tampil konsisten di preview, review, render final PNG, dan Live Cam
+- Pilihan latar virtual terkunci setelah capture dimulai, dan retake per-shot mempertahankan latar aktif
+- Booth Bareng: latar virtual pilihan host (termasuk gambar kustom) diterapkan ke kedua peserta (`host | tamu`) tanpa segmentasi ulang di sisi tamu
+- Booth Bareng: badge status persiapan latar tamu dan countdown gating pass (menunggu kedua peer siap)
+- Booth Bareng: timeout 10 detik atau kegagalan transfer latar membatalkan countdown dan memunculkan modal recovery ("Coba Lagi" / "Gunakan Asli bersama")
 - Live Cam download pass untuk session kamera dan tidak muncul untuk upload/local unsupported flow
 - Tidak ada entry point Reactions di UI produksi v1
 

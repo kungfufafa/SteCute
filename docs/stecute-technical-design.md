@@ -196,6 +196,7 @@ Tanggung jawab:
 - memilih device kamera
 - menyiapkan stream preview
 - menangani error hardware atau permission
+- mengganti latar ruangan (warna studio, blur, atau gambar unggahan lokal) di preview dan still capture lewat segmentasi orang lokal; gagal tertutup ke frame asli
 - memberi stream yang sama ke Live Cam Controller saat capability tersedia
 
 API internal utama:
@@ -306,6 +307,7 @@ Tanggung jawab:
 - precache app shell
 - cache layout, template, dan asset visual template inti
 - precache runtime face detector lokal, termasuk MediaPipe WASM dan model face detector yang dipakai overlay kamera
+- menyediakan runtime image segmenter lokal (`selfie_segmenter.tflite`) untuk latar virtual kamera, tanpa CDN
 - cache strategi runtime terbatas
 - support offline fallback untuk route aplikasi
 
@@ -317,10 +319,11 @@ Tanggung jawab:
 - membangun URL undangan yang memuat kode yang sama sebagai identitas join
 - menolak kode kosong, rusak, atau tidak dikenal
 - menjalankan protokol 2 peer: start countdown, tukar still, compose pair-row `host | tamu`
+- menyinkronkan setup host termasuk `filterId`, `cameraEffectId`, dan `virtualBackgroundId` beserta asset gambar latar virtual kustom bila dipilih host; background pilihan host diterapkan ke kedua peserta
 - menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
 - tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
 
-Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. WebRTC media (video only) menampilkan preview kehadiran kedua peserta dalam dua kotak `host | tamu`; data channel tetap untuk still. Preview dan still booth tidak di-mirror. Artefak capture adalah still, bukan rekaman panggilan. Alur kamera dan upload lokal tidak memuat modul ini.
+Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. WebRTC media (video only) menampilkan preview kehadiran kedua peserta dalam dua kotak `host | tamu` dengan latar virtual lokal masing-masing yang sudah dikomposisikan sebelum ditransmisikan (stream peer diterima dan ditampilkan langsung tanpa segmentasi ulang); data channel dipakai untuk sinkronisasi still, setup, dan asset latar virtual. Preview dan still booth tidak di-mirror. Artefak capture adalah still, bukan rekaman panggilan. Alur kamera dan upload lokal tidak memuat modul ini.
 
 ---
 
@@ -429,7 +432,7 @@ Contoh isi:
 | layoutId | string | layout aktif |
 | templateId | string | template aktif |
 | slotCount | number | jumlah frame untuk sesi |
-| decorationConfig | json | visual treatment default dari template; `filterId` dan `cameraEffectId` dipakai untuk preset kamera v1; field kustomisasi manual disiapkan untuk fase berikutnya |
+| decorationConfig | json | visual treatment default dari template; `filterId`, `cameraEffectId`, dan `virtualBackgroundId` dipakai untuk preset kamera v1 (filter, overlay, dan latar virtual orang-vs-ruangan, bukan kertas/blanko strip); `virtualBackgroundAssetId` menunjuk ke asset gambar unggahan lokal; field kustomisasi manual disiapkan untuk fase berikutnya |
 | startedAt | number | epoch ms |
 | completedAt | number | epoch ms nullable |
 | finalRenderId | string | relasi hasil akhir |
@@ -493,12 +496,14 @@ Contoh isi:
 | Field | Type | Keterangan |
 |---|---|---|
 | id | string | asset id |
-| type | string | frame, overlay, template-preview, future-sticker, filter-preview |
+| type | string | frame, overlay, template-preview, future-sticker, filter-preview, virtual-background |
 | name | string | nama asset |
-| path | string | lokasi asset lokal |
+| path | string | lokasi asset lokal (kosong jika berbasis blob IndexedDB) |
 | packId | string | grup asset |
 | isBundled | boolean | asset bawaan |
 | updatedAt | number | epoch ms |
+| blob | Blob nullable | payload binary untuk asset dinamis sesi seperti gambar latar virtual unggahan pengguna |
+| sessionId | string nullable | relasi session untuk pembersihan otomatis (lifecycle scoped to session) |
 
 #### `event_presets`
 
@@ -522,6 +527,7 @@ Catatan:
 - Saat batas terlampaui, hapus data render dan shot paling lama.
 - Session yang belum selesai lebih dari 24 jam dapat dibersihkan saat startup.
 - Raw shots yang sudah berhasil dirender dibersihkan setelah session selesai atau reset.
+- Asset gambar latar virtual (`virtual-background`) bersifat session-scoped: otomatis dihapus dari tabel `assets` saat session selesai, saat session di-reset, atau saat session kadaluarsa (> 24 jam) dibersihkan.
 
 ---
 
@@ -736,6 +742,7 @@ Gunakan Pinia untuk state runtime. Bagi state menjadi beberapa store.
 - renderId
 - filterId
 - cameraEffectId
+- virtualBackgroundId
 
 ### `useGalleryStore`
 
@@ -764,6 +771,7 @@ Aturan:
 - bundled template config
 - frame PNG atau SVG inti
 - MediaPipe face detector WASM dan model `.tflite` lokal untuk overlay kamera
+- MediaPipe image segmenter `.tflite` lokal (`selfie_segmenter`) untuk latar virtual kamera; production tidak boleh memuat model/WASM dari CDN
 - offline fallback assets
 - print stylesheet
 
@@ -780,6 +788,7 @@ Aturan:
 - Template visual assets: cache-first
 - Camera overlay animation frames (Kicau Mania, Windut, hearts, bluebirds): runtime CacheFirst, bukan precache first-visit
 - Face detector runtime assets: precache lokal dari `/vendor/mediapipe/`; production tidak boleh memuat MediaPipe WASM atau model dari CDN, dan file vendor harus cocok dengan checksum di `public/vendor/mediapipe/manifest.json`.
+- Selfie segmenter runtime assets: model `.tflite` lokal di `/vendor/mediapipe/models/image_segmenter/`; dipakai hanya untuk latar virtual kamera (orang vs ruangan), bukan untuk kertas/blanko strip. Jika init gagal, compositor mengembalikan frame asli.
 - Navigation requests: network-first with offline fallback atau app-shell fallback tergantung hosting
 - Remote optional APIs di fase depan: stale-while-revalidate atau network-first sesuai jenis data
 - Manifest PWA diproduksi dari konfigurasi `vite-plugin-pwa` sebagai `/manifest.webmanifest`; jangan menyimpan manifest publik kedua yang bisa drift dari konfigurasi utama.
@@ -844,6 +853,53 @@ Gunakan constraints adaptif, contoh:
 - Preview dapat menyesuaikan ratio device untuk fallback browser atau device yang tidak mendukung constraint ideal.
 - Jika area mobile landscape terlalu sempit untuk panel pendamping, UI boleh memadatkan kontrol tanpa memblokir rotasi.
 
+### 12.6 Virtual Background Pipeline
+
+Pipeline latar virtual menggantikan latar fisik ruangan dengan warna studio (`pink`, `blue`, `lilac`, `mint`, `cream`, `white`), efek `blur`, atau gambar kustom pengguna (`custom`), baik untuk satu orang maupun dua orang di depan satu kamera, serta disinkronkan di Booth Bareng.
+
+#### 12.6.1 Pemrosesan Kamera (`CameraBackgroundProcessor`)
+
+Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcessor`:
+
+1. **Frame Ingestion**: Membaca frame dari elemen `<video>` kamera aktif.
+2. **Crop & Mirroring**: Melakukan center-crop frame ke rasio standar `4:3`. Mirror horizontal hanya diterapkan untuk kamera depan pada alur `Mulai Foto` (kamera belakang dan Booth Bareng tidak di-mirror).
+3. **Inference & Masking**: Mengirimkan frame ke engine segmentasi untuk mendapatkan confidence mask person-vs-background.
+4. **Compositing**: Menggabungkan piksel subjek dengan latar yang dipilih:
+   - Warna studio: fill warna RGB solid.
+   - Blur: blur filter sedang pada latar asli.
+   - Custom: gambar latar dinormalisasi yang di-scale & center-crop memenuhi frame `4:3`.
+   - Asli (`off`): bypass langsung tanpa segmentasi.
+5. **Output Stream & Still Capture**:
+   - Preview UI: Canvas dirender langsung ke elemen canvas preview (`VirtualBackgroundCanvas.vue`).
+   - WebRTC Preview: Memakai `canvas.captureStream(15)` sehingga stream peer di Booth Bareng sudah memuat latar virtual lokal.
+   - Live Cam: Memakai elemen canvas langsung sebagai source stream perekaman klip lokal (`mirrored: false` untuk mencegah double-mirroring).
+   - Shutter Priority Capture (`captureStill()`): Saat shutter ditekan, segmentasi dan komposisi dieksekusi pada resolusi penuh frame kamera asli (bukan hasil downscale preview) agar still capture tetap beresolusi tinggi dan tajam.
+
+#### 12.6.2 Web Worker & Model Inference
+
+- **Offline-first**: MediaPipe WASM dan model `.tflite` (`public/vendor/mediapipe/models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite`) dimuat 100% dari origin lokal tanpa koneksi ke CDN eksternal.
+- **Worker Isolation**: Eksekusi segmentasi berjalan di dedicated Web Worker (`segment.worker.ts`) menggunakan `OffscreenCanvas` dan transferable `ImageBitmap`.
+- **Confidence Mask**: Mengonversi `Float32Array` confidence mask dari MediaPipe `ImageSegmenter` menjadi `Uint8ClampedArray` (0..255) untuk blending halus pada tepian subjek.
+- **Throttling & Frame Dropping**: Worker menerapkan single in-flight inference; jika worker sedang memproses frame sebelumnya, frame preview baru dilewati (dropped) untuk menjaga kelancaran UI tanpa antrian buffer.
+- **Resolusi Preview**: Worker membatasi resolusi input preview maksimal 720px pada 15 FPS. Jika Worker atau OffscreenCanvas tidak didukung browser, fallback ke main thread membatasi resolusi ke 480px pada 10 FPS.
+
+#### 12.6.3 Sinkronisasi Booth Bareng & WebRTC Wire Protocol
+
+- **Authoritative Host**: Pilihan latar virtual host (warna, blur, atau gambar unggahan) diterapkan ke kedua peserta (`host | tamu`).
+- **Tampilan Peer Tanpa Re-segmentasi**: Stream video peer yang diterima lewat WebRTC sudah merupakan video komposit dari perangkat masing-masing; penerima menampilkan stream langsung tanpa segmentasi ulang.
+- **Normalisasi Upload Host**: Gambar unggahan kustom dinormalisasi sebelum dikirim ke peer (JPEG, sisi terpanjang maksimal 1600px, ukuran maksimal 512 KiB, flattening ke background putih, dan kalkulasi SHA-256 hash).
+- **Protokol DataChannel**:
+  - `background-asset`: Pengiriman binary chunk asset latar kustom terenkripsi AES-GCM dengan validasi SHA-256.
+  - `background-asset-request`: Permintaan ulang asset dari tamu jika asset belum diterima atau corrupt (retry 2s dan 5s).
+  - `background-status`: Pelaporan status kesiapan latar (`ready`, `loading`, `error`) antar peer.
+  - `cancel-moment`: Pembatalan countdown capture jika penyiapan latar gagal atau melebihi timeout 10 detik.
+- **Countdown Gating & Recovery**: Countdown otomatis ditahan sampai kedua perangkat melaporkan status `ready`. Jika terjadi kegagalan atau timeout 10 detik, dialog pemulihan muncul dengan opsi "Coba Lagi" atau "Gunakan Asli bersama".
+
+#### 12.6.4 Siklus Hidup Asset Dexie (`db.assets`)
+
+- Asset gambar kustom pengguna disimpan di IndexedDB tabel `assets` dengan `type: 'virtual-background'`, relasi `sessionId`, dan binary `blob`.
+- Asset dibersihkan secara otomatis saat sesi selesai (`completed`), sesi di-reset/dibatalkan (`discarded`), atau saat startup aplikasi membersihkan sesi lama (> 24 jam).
+
 ---
 
 ## 13. Render and output design
@@ -864,7 +920,7 @@ Gunakan constraints adaptif, contoh:
 5. Crop dan fit ke slot.
 6. Gambar background.
 7. Gambar slot 1..N.
-8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` atau `shot.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `shot.cameraEffectId`, `faceBounds`, dan `cameraEffectFrameMs` bila tersedia agar overlay face-tracking sama dengan momen capture, dan tidak menggambar overlay face-tracking saat `faceBounds` kosong.
+8. Preload sprite overlay lokal jika `decorationConfig.cameraEffectId` atau `shot.cameraEffectId` aktif, lalu terapkan filter foto dan overlay kamera per slot; renderer memakai `shot.cameraEffectId`, `faceBounds`, dan `cameraEffectFrameMs` bila tersedia agar overlay face-tracking sama dengan momen capture, dan tidak menggambar overlay face-tracking saat `faceBounds` kosong. Latar virtual sudah tertanam di still capture, jadi render strip tidak menjalankan segmentasi ulang.
 9. Terapkan background template, photo backing, label template, dan frame default template.
 10. Ekspor Blob final.
 

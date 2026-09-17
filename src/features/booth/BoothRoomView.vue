@@ -15,6 +15,15 @@ import { getCameraEffectById, isFaceTrackingEffect } from '@/services/camera-eff
 import type { FaceBounds } from '@/services/face-tracking'
 import { getPhotoFilterCss } from '@/services/filter'
 import {
+  CameraBackgroundProcessor,
+  applyVirtualBackgroundToCanvas,
+  loadCustomVirtualBackgroundFrame,
+  normalizeHostCustomBackground,
+  resolveVirtualBackgroundSpec,
+  validateCustomBackgroundFile,
+  type RgbaFrame,
+} from '@/services/virtual-background'
+import {
   detectOutputCapabilities,
   downloadBlob,
   generateFilename,
@@ -57,6 +66,7 @@ import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from './BoothDecorationPicker.vue'
 import BoothStripSetup from './BoothStripSetup.vue'
 
@@ -98,10 +108,25 @@ const outputError = ref('')
 const showMoreActions = ref(false)
 const latestOverlayFaces = ref<FaceBounds[]>([])
 const latestOverlayFrameMs = ref(0)
+const customBackgroundFrame = ref<RgbaFrame | null>(null)
+const localBackgroundPreviewActive = ref(false)
 const liveCamAvailable = ref(false)
 const liveCamRecordingActive = ref(false)
 const livePreviewUrl = ref('')
 const renderError = ref('')
+
+const backgroundProcessor = ref<CameraBackgroundProcessor | null>(null)
+const backgroundError = ref<string | null>(null)
+const showBackgroundErrorModal = ref(false)
+const guestBackgroundStatus = ref<'off' | 'loading' | 'ready' | 'error'>('off')
+const peerBgStatus = ref<{
+  peerId: string
+  revision: number
+  status: 'loading' | 'ready' | 'error'
+  assetId?: string
+  errorReason?: string
+} | null>(null)
+let activeBackgroundBlob: Blob | null = null
 
 let stream: MediaStream | null = null
 let peerSession: BoothPeerSession | null = null
@@ -138,6 +163,24 @@ const canChangeSetup = computed(
     countdownValue.value == null &&
     !rendering.value,
 )
+
+const isBackgroundReady = computed(() => {
+  if (boothSetup.value.virtualBackgroundId === 'off') return true
+  if (!backgroundProcessor.value || backgroundProcessor.value.currentStatus !== 'ready') {
+    return false
+  }
+  if (friendJoined.value) {
+    if (role.value === 'host') {
+      if (!peerBgStatus.value) return false
+      if (peerBgStatus.value.status !== 'ready') return false
+      if (peerBgStatus.value.revision !== (boothSetup.value.revision ?? 1)) return false
+    } else {
+      if (guestBackgroundStatus.value !== 'ready') return false
+    }
+  }
+  return true
+})
+
 const canStart = computed(
   () =>
     role.value === 'host' &&
@@ -145,7 +188,8 @@ const canStart = computed(
     countdownValue.value == null &&
     !shotsComplete.value &&
     !rendering.value &&
-    stage.value === 'live',
+    stage.value === 'live' &&
+    isBackgroundReady.value,
 )
 const localTileLabel = computed(() => (role.value === 'host' ? 'Kamu · Host' : 'Kamu · Tamu'))
 const remoteTileLabel = computed(() => (role.value === 'host' ? 'Teman · Tamu' : 'Teman · Host'))
@@ -188,10 +232,10 @@ const reviewShots = computed<Shot[]>(() =>
 )
 const reviewShotUrls = ref<string[]>([])
 const pageTitle = computed(() => {
-  if (joinError.value) return 'Booth Bareng'
+  if (joinError.value) return 'Foto Duet'
   if (stage.value === 'output') return 'Hasil'
   if (stage.value === 'review') return 'Preview'
-  return 'Booth Bareng'
+  return 'Foto Duet'
 })
 const setupSummary = computed(
   () =>
@@ -207,7 +251,7 @@ const pageSubtitle = computed(() => {
   if (!friendJoined.value) {
     return role.value === 'host'
       ? 'Bagikan kode, lalu tunggu teman masuk.'
-      : 'Menghubungkan ke host…'
+      : statusMessage.value || 'Menghubungkan ke host…'
   }
   return role.value === 'host'
     ? 'Teman sudah masuk. Mulai pose kapan siap.'
@@ -294,8 +338,15 @@ function publishSetup(next: BoothSessionSetup) {
     boothSetup.value = normalized
     return
   }
+  peerBgStatus.value = null
   boothSetup.value = normalized
-  if (role.value === 'host') peerSession?.setSetup(normalized)
+  if (role.value === 'host') {
+    if (normalized.virtualBackgroundId === 'custom' && activeBackgroundBlob) {
+      void peerSession?.setSetup(normalized, activeBackgroundBlob)
+    } else {
+      peerSession?.setSetup(normalized)
+    }
+  }
 }
 
 function handleSetupChange(next: BoothSessionSetup) {
@@ -313,6 +364,198 @@ function handleEffectChange(cameraEffectId: string) {
   latestOverlayFaces.value = []
   latestOverlayFrameMs.value = 0
   publishSetup({ ...boothSetup.value, cameraEffectId })
+}
+
+async function handleBackgroundChange(virtualBackgroundId: string) {
+  if (!canChangeSetup.value) return
+  const nextRev = (boothSetup.value.revision ?? 0) + 1
+  if (virtualBackgroundId === 'off') {
+    customBackgroundFrame.value = null
+    activeBackgroundBlob = null
+  }
+  const nextSetup: BoothSessionSetup = {
+    ...boothSetup.value,
+    virtualBackgroundId,
+    virtualBackgroundAssetId:
+      virtualBackgroundId === 'custom' ? boothSetup.value.virtualBackgroundAssetId : null,
+    revision: nextRev,
+  }
+  publishSetup(nextSetup)
+  if (backgroundProcessor.value) {
+    await backgroundProcessor.value.configure({
+      id: virtualBackgroundId,
+      customImage: customBackgroundFrame.value,
+    })
+    updateTransportStream()
+  }
+}
+
+async function handleCustomBackground(file: File) {
+  if (!canChangeSetup.value) return
+  const validation = validateCustomBackgroundFile(file)
+  if (!validation.valid) {
+    cameraError.value = validation.errors[0] ?? 'Gambar latar tidak valid.'
+    return
+  }
+
+  try {
+    statusMessage.value = 'Mengompres gambar latar...'
+    const normalized = await normalizeHostCustomBackground(file)
+    activeBackgroundBlob = normalized.blob
+    const frame = await loadCustomVirtualBackgroundFrame(normalized.blob)
+    customBackgroundFrame.value = frame
+    cameraError.value = ''
+
+    const assetId = `bg-${Date.now()}`
+    const nextRev = (boothSetup.value.revision ?? 0) + 1
+    const nextSetup: BoothSessionSetup = {
+      ...boothSetup.value,
+      virtualBackgroundId: 'custom',
+      virtualBackgroundAssetId: assetId,
+      revision: nextRev,
+    }
+    boothSetup.value = nextSetup
+    if (role.value === 'host' && peerSession) {
+      await peerSession.setSetup(nextSetup, normalized.blob)
+    }
+    if (backgroundProcessor.value) {
+      await backgroundProcessor.value.configure({
+        id: 'custom',
+        customImage: frame,
+      })
+      updateTransportStream()
+    }
+    statusMessage.value = 'Latar virtual diterapkan.'
+  } catch (err) {
+    console.error('Failed to process custom background:', err)
+    cameraError.value = 'Gambar latar gagal diproses. Gunakan JPG, PNG, atau WebP.'
+  }
+}
+
+function processCapturedBackground(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+  applyVirtualBackgroundToCanvas(
+    canvas,
+    ctx,
+    resolveVirtualBackgroundSpec(boothSetup.value.virtualBackgroundId, customBackgroundFrame.value),
+  )
+}
+
+function setupBackgroundProcessor() {
+  if (!videoRef.value || !stream) return
+  if (backgroundProcessor.value) {
+    backgroundProcessor.value.dispose()
+  }
+
+  backgroundProcessor.value = new CameraBackgroundProcessor({
+    video: videoRef.value,
+    rawStream: stream,
+    mirrored: false,
+    onStatusChange: (status, error) => {
+      if (status === 'error') {
+        backgroundError.value = error ?? 'Segmentasi latar belakang gagal.'
+        if (role.value === 'guest') {
+          guestBackgroundStatus.value = 'error'
+          peerSession?.reportBackgroundError(
+            boothSetup.value.revision ?? 1,
+            error ?? 'segmentation_error',
+          )
+        }
+      } else if (status === 'ready') {
+        backgroundError.value = null
+        if (
+          role.value === 'guest' &&
+          (boothSetup.value.virtualBackgroundId !== 'custom' ||
+            Boolean(customBackgroundFrame.value))
+        ) {
+          guestBackgroundStatus.value = 'ready'
+          peerSession?.confirmBackgroundReady(
+            boothSetup.value.revision ?? 1,
+            boothSetup.value.virtualBackgroundAssetId ?? undefined,
+          )
+        }
+      } else if (status === 'off') {
+        backgroundError.value = null
+        if (role.value === 'guest') guestBackgroundStatus.value = 'off'
+      }
+    },
+  })
+
+  void backgroundProcessor.value
+    .configure({
+      id: boothSetup.value.virtualBackgroundId,
+      customImage: customBackgroundFrame.value,
+    })
+    .then(() => {
+      updateTransportStream()
+    })
+}
+
+function updateTransportStream() {
+  const current = backgroundProcessor.value?.stream ?? stream
+  if (current && roomTransport?.media) {
+    roomTransport.media.attachLocalStream(current)
+  }
+}
+
+async function retryBackground() {
+  showBackgroundErrorModal.value = false
+  backgroundError.value = null
+  if (role.value === 'host') {
+    if (boothSetup.value.virtualBackgroundId === 'custom' && activeBackgroundBlob) {
+      await peerSession?.setSetup(boothSetup.value, activeBackgroundBlob)
+    } else {
+      peerSession?.setSetup(boothSetup.value)
+    }
+    if (backgroundProcessor.value) {
+      await backgroundProcessor.value.configure({
+        id: boothSetup.value.virtualBackgroundId,
+        customImage: customBackgroundFrame.value,
+      })
+      updateTransportStream()
+    }
+  } else {
+    guestBackgroundStatus.value = 'loading'
+    if (
+      boothSetup.value.virtualBackgroundId === 'custom' &&
+      boothSetup.value.virtualBackgroundAssetId
+    ) {
+      peerSession?.requestBackgroundAsset(
+        boothSetup.value.revision ?? 1,
+        boothSetup.value.virtualBackgroundAssetId,
+      )
+    } else if (backgroundProcessor.value) {
+      await backgroundProcessor.value.configure({ id: boothSetup.value.virtualBackgroundId })
+      updateTransportStream()
+      guestBackgroundStatus.value = 'ready'
+      peerSession?.confirmBackgroundReady(boothSetup.value.revision ?? 1)
+    }
+  }
+}
+
+async function fallbackToNormalBackground() {
+  showBackgroundErrorModal.value = false
+  backgroundError.value = null
+  guestBackgroundStatus.value = 'off'
+  customBackgroundFrame.value = null
+  activeBackgroundBlob = null
+  const previousRevision = boothSetup.value.revision ?? 1
+  const nextRev = previousRevision + 1
+  const updated: BoothSessionSetup = {
+    ...boothSetup.value,
+    virtualBackgroundId: 'off',
+    virtualBackgroundAssetId: null,
+    revision: nextRev,
+  }
+  boothSetup.value = updated
+  if (role.value === 'host') {
+    void peerSession?.setSetup(updated)
+  } else {
+    peerSession?.requestBackgroundFallback(previousRevision)
+  }
+  if (backgroundProcessor.value) {
+    await backgroundProcessor.value.configure({ id: 'off' })
+    updateTransportStream()
+  }
 }
 
 watch(videoRef, () => {
@@ -390,7 +633,8 @@ function bindRoomMedia(transport: BoothTransport) {
     transport.media?.subscribeRemoteStream((next) => {
       remoteStream.value = next
     }) ?? null
-  if (stream) transport.media?.attachLocalStream(stream)
+  const current = backgroundProcessor.value?.stream ?? stream
+  if (current) transport.media?.attachLocalStream(current)
 }
 
 async function startCamera() {
@@ -400,8 +644,9 @@ async function startCamera() {
     stream = await initCamera()
     cameraLive.value = true
     liveCamAvailable.value = isLiveStripRenderingSupported()
-    roomTransport?.media?.attachLocalStream(stream)
     await nextTick()
+    setupBackgroundProcessor()
+    updateTransportStream()
     await attachPreviewStream()
   } catch {
     cameraLive.value = false
@@ -448,9 +693,13 @@ function startBoothLiveCamClip() {
   }
 
   const pairSlot = pairSlotForLayout(boothSetup.value.layoutId)
+  const localSource = backgroundProcessor.value?.isActive()
+    ? backgroundProcessor.value.canvas
+    : videoRef.value
+
   try {
     activeLiveCamRecording = startPairLiveCamRecording({
-      localVideo: videoRef.value,
+      localVideo: localSource,
       remoteVideo: remoteVideoRef.value,
       width: pairSlot.width,
       height: pairSlot.height,
@@ -482,14 +731,24 @@ async function captureCurrentMoment(momentIndex: number) {
   try {
     const liveClipPromise = stopBoothLiveCamClip(450)
     const pairSlot = pairSlotForLayout(boothSetup.value.layoutId)
-    const still = await captureCoverFrame(
-      videoRef.value,
-      {
-        width: Math.floor(pairSlot.width / 2),
-        height: pairSlot.height,
-      },
-      { mirrored: false },
-    )
+    const slot = {
+      width: Math.floor(pairSlot.width / 2),
+      height: pairSlot.height,
+    }
+    let still: { blob: Blob; width: number; height: number }
+    if (backgroundProcessor.value?.isActive()) {
+      const frame = await backgroundProcessor.value.captureStill(slot)
+      still = {
+        blob: frame.blob,
+        width: frame.width,
+        height: frame.height,
+      }
+    } else {
+      still = await captureCoverFrame(videoRef.value, slot, {
+        mirrored: false,
+        processCanvas: processCapturedBackground,
+      })
+    }
     await peerSession.submitStill(momentIndex, {
       ...still,
       faceBounds: latestOverlayFaces.value.map((face) => ({ ...face })),
@@ -570,6 +829,13 @@ function runCountdown(momentIndex: number, countdownMs: number): Promise<void> {
         finishCountdownWaiter()
         return
       }
+      if (backgroundError.value) {
+        stopCountdown()
+        peerSession?.cancelMoment(momentIndex, 'background_error')
+        showBackgroundErrorModal.value = true
+        finishCountdownWaiter()
+        return
+      }
       if (countdownValue.value <= 1) {
         stopCountdown()
         void captureCurrentMoment(momentIndex).finally(finishCountdownWaiter)
@@ -606,7 +872,28 @@ function listenForRemoteSetup(session: BoothPeerSession) {
     try {
       while (session === peerSession) {
         const next = await session.waitForSetup()
-        boothSetup.value = normalizeBoothSetup(next)
+        const normalized = normalizeBoothSetup(next)
+        boothSetup.value = normalized
+
+        if (normalized.virtualBackgroundId !== 'custom') {
+          customBackgroundFrame.value = null
+          if (backgroundProcessor.value) {
+            if (role.value === 'guest') {
+              guestBackgroundStatus.value =
+                normalized.virtualBackgroundId === 'off' ? 'off' : 'loading'
+            }
+            await backgroundProcessor.value.configure({ id: normalized.virtualBackgroundId })
+            updateTransportStream()
+          }
+        } else if (role.value === 'guest') {
+          guestBackgroundStatus.value = 'loading'
+        } else if (backgroundProcessor.value) {
+          await backgroundProcessor.value.configure({
+            id: 'custom',
+            customImage: customBackgroundFrame.value,
+          })
+          updateTransportStream()
+        }
       }
     } catch {
       // Session disposed.
@@ -660,6 +947,10 @@ function disposeSession() {
   finishCountdownWaiter()
   void stopBoothLiveCamClip()
   stopRemoteReadyPoll()
+  if (backgroundProcessor.value) {
+    backgroundProcessor.value.dispose()
+    backgroundProcessor.value = null
+  }
   if (presenceTimer) {
     clearInterval(presenceTimer)
     presenceTimer = null
@@ -689,6 +980,7 @@ async function renderBoothStrip() {
     const decoration = createDefaultDecorationConfig(activeTemplate.value, {
       filterId: boothSetup.value.filterId,
       cameraEffectId: boothSetup.value.cameraEffectId,
+      virtualBackgroundId: boothSetup.value.virtualBackgroundId,
     })
     const sessionId = await createSession({
       layoutId: activeLayout.value.id,
@@ -881,7 +1173,7 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
 
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
     connectionHelp.value = true
-    statusMessage.value = 'Booth Bareng butuh internet. Cek koneksi, lalu coba hubungkan lagi.'
+    statusMessage.value = 'Foto Duet butuh internet. Cek koneksi, lalu coba hubungkan lagi.'
     return
   }
 
@@ -911,6 +1203,9 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
 
   try {
     const transport = await createBoothRoomTransport(normalized, nextRole)
+    if (stream && videoRef.value) {
+      setupBackgroundProcessor()
+    }
     bindRoomMedia(transport)
     peerSession = createBoothPeerSession({
       peerId,
@@ -921,7 +1216,80 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
     listenForRemoteCountdown(peerSession)
     listenForRemoteSetup(peerSession)
     listenForRemoteReset(peerSession)
-    if (nextRole === 'host') peerSession.setSetup(boothSetup.value)
+
+    const activePeerSession = peerSession
+    activePeerSession.onBackgroundAsset(async ({ revision, assetId, blob }) => {
+      const setupBeforeDecode = activePeerSession.getSetup()
+      if (
+        role.value !== 'guest' ||
+        setupBeforeDecode?.virtualBackgroundId !== 'custom' ||
+        setupBeforeDecode.virtualBackgroundAssetId !== assetId ||
+        (setupBeforeDecode.revision ?? 1) !== revision
+      ) {
+        return
+      }
+
+      try {
+        guestBackgroundStatus.value = 'loading'
+        const frame = await loadCustomVirtualBackgroundFrame(blob)
+        const setupAfterDecode = activePeerSession.getSetup()
+        if (
+          activePeerSession !== peerSession ||
+          setupAfterDecode?.virtualBackgroundId !== 'custom' ||
+          setupAfterDecode.virtualBackgroundAssetId !== assetId ||
+          (setupAfterDecode.revision ?? 1) !== revision
+        ) {
+          return
+        }
+        customBackgroundFrame.value = frame
+        if (backgroundProcessor.value) {
+          await backgroundProcessor.value.configure({
+            id: 'custom',
+            customImage: frame,
+          })
+          updateTransportStream()
+        }
+        guestBackgroundStatus.value = 'ready'
+        activePeerSession.confirmBackgroundReady(revision, assetId)
+      } catch (err) {
+        console.error('Failed to load guest background asset:', err)
+        guestBackgroundStatus.value = 'error'
+        activePeerSession.reportBackgroundError(revision, 'decode_error')
+      }
+    })
+
+    activePeerSession.onPeerBackgroundStatus((status) => {
+      if (role.value === 'host' && status.peerId === activePeerSession.peerId) return
+      if (role.value === 'host') {
+        const remotePeerId = activePeerSession.getRemotePeerId()
+        if (remotePeerId && status.peerId !== remotePeerId) return
+      }
+      peerBgStatus.value = status
+      if (status.status === 'error') {
+        if (countdownValue.value != null) {
+          stopCountdown()
+          finishCountdownWaiter()
+        }
+        showBackgroundErrorModal.value = true
+      }
+    })
+
+    activePeerSession.onMomentCancelled(({ reason }) => {
+      stopCountdown()
+      finishCountdownWaiter()
+      if (reason === 'background_error' || reason === 'timeout') {
+        showBackgroundErrorModal.value = true
+      } else {
+        statusMessage.value = 'Pose dibatalkan.'
+      }
+    })
+
+    if (nextRole === 'host') {
+      void activePeerSession.setSetup(
+        boothSetup.value,
+        boothSetup.value.virtualBackgroundId === 'custom' ? activeBackgroundBlob : null,
+      )
+    }
   } catch {
     joinError.value = nextRole === 'guest' ? 'unknown' : joinError.value
     statusMessage.value = 'Signaling booth gagal. Coba buat booth baru.'
@@ -997,7 +1365,7 @@ onUnmounted(() => {
       <div :class="ui.headerGroup">
         <button
           :class="ui.iconButton"
-          aria-label="Kembali ke Booth Bareng"
+          aria-label="Kembali ke Foto Duet"
           @click="router.push('/booth')"
         >
           <svg
@@ -1049,7 +1417,7 @@ onUnmounted(() => {
           :class="[ui.secondaryButton, 'sm:w-auto sm:self-center']"
           @click="router.push('/booth')"
         >
-          Kembali ke Booth Bareng
+          Kembali ke Foto Duet
         </button>
       </section>
 
@@ -1071,10 +1439,25 @@ onUnmounted(() => {
               stacked
               :filter-id="boothSetup.filterId"
               :camera-effect-id="boothSetup.cameraEffectId"
+              :virtual-background-id="boothSetup.virtualBackgroundId"
               :disabled="!canChangeSetup"
               @select-filter="handleFilterChange"
               @select-effect="handleEffectChange"
+              @select-background="handleBackgroundChange"
+              @custom-file="handleCustomBackground"
             />
+            <div class="mt-3">
+              <BoothDecorationPicker
+                kind="background"
+                stacked
+                :filter-id="boothSetup.filterId"
+                :camera-effect-id="boothSetup.cameraEffectId"
+                :virtual-background-id="boothSetup.virtualBackgroundId"
+                :disabled="!canChangeSetup"
+                @select-background="handleBackgroundChange"
+                @custom-file="handleCustomBackground"
+              />
+            </div>
           </div>
 
           <div class="order-1 flex min-h-0 w-full flex-col items-center gap-4 lg:order-2">
@@ -1092,6 +1475,49 @@ onUnmounted(() => {
                 />
                 {{ liveCamRecordingActive ? 'Live Cam merekam' : 'Live Cam siap' }}
               </div>
+              <div
+                v-if="boothSetup.virtualBackgroundId !== 'off'"
+                class="absolute top-3 right-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                <template v-if="role === 'guest'">
+                  <span
+                    class="inline-flex size-2 rounded-full"
+                    :class="
+                      guestBackgroundStatus === 'loading'
+                        ? 'animate-pulse bg-amber-400'
+                        : guestBackgroundStatus === 'ready'
+                          ? 'bg-emerald-400'
+                          : 'bg-rose-400'
+                    "
+                  />
+                  <span>{{
+                    guestBackgroundStatus === 'loading'
+                      ? 'Memuat latar...'
+                      : guestBackgroundStatus === 'ready'
+                        ? 'Latar siap'
+                        : 'Latar gagal'
+                  }}</span>
+                </template>
+                <template v-else>
+                  <span
+                    class="inline-flex size-2 rounded-full"
+                    :class="
+                      peerBgStatus?.status === 'loading'
+                        ? 'animate-pulse bg-amber-400'
+                        : peerBgStatus?.status === 'ready'
+                          ? 'bg-emerald-400'
+                          : 'bg-zinc-400'
+                    "
+                  />
+                  <span>{{
+                    peerBgStatus?.status === 'loading'
+                      ? 'Teman memuat latar...'
+                      : peerBgStatus?.status === 'ready'
+                        ? 'Teman siap'
+                        : 'Menyiapkan latar...'
+                  }}</span>
+                </template>
+              </div>
               <div class="grid h-full grid-cols-2">
                 <article
                   class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
@@ -1101,11 +1527,21 @@ onUnmounted(() => {
                   <video
                     ref="videoRef"
                     class="absolute inset-0 h-full w-full object-cover"
+                    :class="localBackgroundPreviewActive ? 'opacity-0' : ''"
                     data-testid="booth-local-video"
                     autoplay
                     muted
                     playsinline
-                    :style="videoFilterStyle"
+                    :style="localBackgroundPreviewActive ? undefined : videoFilterStyle"
+                  />
+                  <VirtualBackgroundCanvas
+                    :video-el="videoRef"
+                    :background-id="boothSetup.virtualBackgroundId"
+                    :custom-image="customBackgroundFrame"
+                    :processor="backgroundProcessor"
+                    class="pointer-events-none absolute inset-0 z-[4] h-full w-full"
+                    :style="localBackgroundPreviewActive ? videoFilterStyle : undefined"
+                    @active="localBackgroundPreviewActive = $event"
                   />
                   <CameraEffectCanvas
                     v-if="selectedCameraEffect.id !== 'none' && !isCurrentEffectFaceTracking"
@@ -1190,8 +1626,17 @@ onUnmounted(() => {
                 :disabled="!canStart"
                 @click="startPose"
               >
-                {{ friendJoined ? 'Mulai pose' : 'Menunggu teman' }}
+                {{
+                  friendJoined
+                    ? isBackgroundReady
+                      ? 'Mulai pose'
+                      : 'Menyiapkan latar...'
+                    : 'Menunggu teman'
+                }}
               </button>
+              <p class="text-stc-text-soft text-xs font-medium">
+                {{ pageSubtitle }}
+              </p>
               <p class="text-stc-text-faint text-xs">
                 {{ capturedCount }}/{{ slotCount }} pose · {{ setupSummary }}
               </p>
@@ -1242,17 +1687,17 @@ onUnmounted(() => {
               stacked
               :filter-id="boothSetup.filterId"
               :camera-effect-id="boothSetup.cameraEffectId"
+              :virtual-background-id="boothSetup.virtualBackgroundId"
               :disabled="!canChangeSetup"
               @select-filter="handleFilterChange"
               @select-effect="handleEffectChange"
+              @select-background="handleBackgroundChange"
+              @custom-file="handleCustomBackground"
             />
           </div>
         </div>
 
-        <div
-          v-if="stage === 'review'"
-          :class="[ui.pageContent, 'items-center gap-6 text-center']"
-        >
+        <div v-if="stage === 'review'" :class="[ui.pageContent, 'items-center gap-6 text-center']">
           <StripCanvasPreview
             :layout="activeLayout"
             :template-config="activeTemplate"
@@ -1295,7 +1740,7 @@ onUnmounted(() => {
               <figcaption :class="ui.sectionLabel">Foto</figcaption>
               <img
                 :src="renderUrl"
-                alt="Photo strip Booth Bareng"
+                alt="Photo strip Foto Duet"
                 class="rendered-strip mx-auto block h-auto"
               />
             </figure>
@@ -1380,6 +1825,43 @@ onUnmounted(() => {
         </section>
       </template>
     </main>
+
+    <div
+      v-if="showBackgroundErrorModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+    >
+      <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
+        <div
+          class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+        </div>
+        <h3 class="text-stc-text text-base font-bold">Latar Virtual Gagal Disiapkan</h3>
+        <p class="text-stc-text-soft mt-2 text-xs leading-relaxed">
+          Terjadi kendala saat menyinkronkan atau memproses latar virtual bersama. Anda bisa mencoba
+          lagi atau menggunakan latar asli bersama.
+        </p>
+        <div class="mt-6 flex flex-col gap-2">
+          <button type="button" :class="ui.primaryButton" @click="retryBackground">
+            Coba Lagi
+          </button>
+          <button type="button" :class="ui.secondaryButton" @click="fallbackToNormalBackground">
+            Gunakan Asli bersama
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

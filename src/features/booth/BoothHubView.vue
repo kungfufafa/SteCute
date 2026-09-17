@@ -118,14 +118,7 @@ onUnmounted(() => {
             <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <img
-          class="block h-auto w-[108px]"
-          src="/icons.svg"
-          alt="Stecute"
-          width="442"
-          height="123"
-          decoding="async"
-        />
+        <span :class="ui.title">Foto Duet</span>
       </div>
     </nav>
 
@@ -133,15 +126,15 @@ onUnmounted(() => {
       class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)] lg:items-center lg:gap-12"
     >
       <section class="flex min-w-0 flex-col">
-        <p :class="ui.sectionLabel">Photo booth berdua</p>
+        <p :class="ui.sectionLabel">Photo booth 2 perangkat</p>
         <h1
           class="text-stc-text mt-2 max-w-[12ch] text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
         >
-          Booth Bareng
+          Foto Duet
         </h1>
         <p class="text-stc-text-soft mt-3 max-w-[36em] text-[13px] leading-normal sm:text-sm">
-          Bagikan kode, lihat teman live, lalu simpan strip di perangkat. Tanpa akun dan tanpa
-          audio.
+          Bagikan kode, lihat teman live, lalu ambil foto bersama dari 2 perangkat berbeda. Tanpa
+          akun dan tanpa audio.
         </p>
 
         <div class="mt-6 flex flex-wrap items-center gap-2">
@@ -180,7 +173,7 @@ onUnmounted(() => {
 
       <section
         class="border-stc-border mx-auto w-full max-w-md overflow-hidden rounded-lg border bg-black"
-        aria-label="Preview kamera Booth Bareng"
+        aria-label="Preview kamera Foto Duet"
       >
         <div class="grid aspect-[4/3] grid-cols-2">
           <article class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950">

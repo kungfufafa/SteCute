@@ -162,28 +162,29 @@ Kebutuhan utama:
 6. Countdown default 3 detik untuk flow kamera.
 7. Preset filter kamera lokal sebelum capture, dengan preview live dan hasil render final memakai efek yang sama.
 8. Preset overlay kamera lokal sebelum capture, seperti hati, burung, `Kicau Mania`, atau `Windut`, dengan preview live, preview review, dan render final memakai efek yang sama. Ini bukan editor sticker manual pasca-capture dan bukan pemanggilan API native Apple Reactions.
-9. Capture berurutan sesuai jumlah slot layout.
-10. Review hasil per sesi.
-11. Retake seluruh sesi.
-12. Retake per-shot sebelum render final.
-13. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
-14. Render hasil final photo strip.
-15. Download hasil PNG.
-16. Live Cam output lokal untuk flow kamera bila `MediaRecorder` dan canvas video rendering didukung browser; hasil berupa strip bergerak tanpa audio, sementara PNG tetap wajib tersedia.
-17. Save to device melalui flow browser yang tersedia.
-18. Native share sheet jika browser mendukung.
-19. Print ringan jika browser mendukung.
-20. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
-21. Dukungan offline setelah initial install atau cache.
-22. Reset session cepat untuk pengguna berikutnya.
-23. Shortcut keyboard dasar untuk desktop.
-24. Basic responsive UI untuk desktop, tablet, mobile.
+9. Latar virtual kamera lokal sebelum capture untuk `Mulai Foto` dan Booth Bareng: matikan, warna studio solid (wajib termasuk pink dan biru plus warna studio serupa), blur ruangan asli, atau unggah gambar JPG/PNG/WebP lokal (maks. `10 MB`). Orang di frame tetap tajam; hanya latar ruangan yang diganti. Ini bukan ganti kertas/blanko strip.
+10. Capture berurutan sesuai jumlah slot layout.
+11. Review hasil per sesi.
+12. Retake seluruh sesi.
+13. Retake per-shot sebelum render final.
+14. Template default `Classic` dengan visual photobooth clean, pilihan template bundled yang kompatibel dengan layout aktif, dan upload blanko strip lokal.
+15. Render hasil final photo strip.
+16. Download hasil PNG.
+17. Live Cam output lokal untuk flow kamera bila `MediaRecorder` dan canvas video rendering didukung browser; hasil berupa strip bergerak tanpa audio, sementara PNG tetap wajib tersedia.
+18. Save to device melalui flow browser yang tersedia.
+19. Native share sheet jika browser mendukung.
+20. Print ringan jika browser mendukung.
+21. Penyimpanan lokal gallery terbatas untuk 10 final render terakhir.
+22. Dukungan offline setelah initial install atau cache.
+23. Reset session cepat untuk pengguna berikutnya.
+24. Shortcut keyboard dasar untuk desktop.
+25. Basic responsive UI untuk desktop, tablet, mobile.
 
 ### 8.2 Fitur nice-to-have bila sempat dalam MVP+
 
 - Kustomisasi manual pasca-capture: frame color, sticker, date/time, dan logo text.
 - Filter per-shot, filter custom, atau preview filter berbasis asset raster.
-- Upload custom background lokal di luar blanko strip.
+- Upload custom background lokal di luar blanko strip (kertas/template strip). Ini berbeda dari latar virtual kamera yang mengganti ruangan di belakang orang.
 - `Reactions` berbasis gesture tangan lokal ditunda dan disembunyikan dari v1 sampai kualitas visual, penempatan terhadap subjek, fallback manual, dan status aset/lisensi sudah siap untuk rilis.
 - Sound on or off.
 - Auto-reset sesudah export untuk event mode.
@@ -206,7 +207,7 @@ Kebutuhan utama:
 
 ### 8.4 Mode opsional: Booth Bareng
 
-Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Kedua peserta melihat kamera sendiri dan kamera teman secara live dalam dua kotak seperti video call (`host | tamu`), tanpa mirror. Host memilih setup strip yang sama dengan `Mulai Foto`: layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown (default `3` detik), plus preset `Efek Kamera` dan `Overlay Kamera`. Jumlah momen capture mengikuti jumlah slot layout. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang mengisi satu slot strip. Setelah semua slot terisi, kedua peserta masuk review (retake per-shot atau seluruh sesi) lalu merender PNG lewat pipeline strip lokal yang sama, menyimpan ke galeri (retensi `10`), dan memakai aksi output `Unduh PNG` plus save/share/print berbasis capability.
+Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Kedua peserta melihat kamera sendiri dan kamera teman secara live dalam dua kotak seperti video call (`host | tamu`), tanpa mirror. Host memilih setup strip yang sama dengan `Mulai Foto`: layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown (default `3` detik), plus preset `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual` (warna studio, blur, atau gambar unggahan host yang dinormalisasi dan diterapkan ke kedua peserta). Jumlah momen capture mengikuti jumlah slot layout. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang mengisi satu slot strip. Setelah semua slot terisi, kedua peserta masuk review (retake per-shot atau seluruh sesi) lalu merender PNG lewat pipeline strip lokal yang sama, menyimpan ke galeri (retensi `10`), dan memakai aksi output `Unduh PNG` plus save/share/print berbasis capability.
 
 Batasan yang dikunci:
 
@@ -246,8 +247,8 @@ Batasan yang dikunci:
 1. Pengguna menekan `Booth Bareng` dari landing, terpisah dari `Mulai Foto` dan `Upload Lokal`.
 2. Host membuat booth dan mendapat satu kode unik plus URL undangan yang memuat kode yang sama.
 3. Tamu gabung dengan mengetik kode itu atau membuka URL undangan.
-4. Host memilih blanko `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, timer, efek kamera, dan overlay. Tamu memakai pilihan host yang sama.
-5. Kedua peserta melihat preview kamera diri sendiri dan teman secara live, disusun seperti video call (host kiri, tamu kanan, tanpa mirror); tidak ada audio. Filter dan overlay tampil di preview live.
+4. Host memilih blanko `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, timer, efek kamera, overlay, dan latar virtual. Tamu memakai pilihan host yang sama untuk warna studio atau blur; gambar unggahan hanya dipakai di perangkat yang menyimpan file itu.
+5. Kedua peserta melihat preview kamera diri sendiri dan teman secara live, disusun seperti video call (host kiri, tamu kanan, tanpa mirror); tidak ada audio. Filter, overlay, dan latar virtual tampil di preview live.
 6. Host memulai countdown bersama. Jumlah pose sama dengan slot layout. Tiap momen mengambil still dari kedua perangkat dan menyusun pair-row `host | tamu`.
 7. Setelah slot lengkap, review per-shot atau ulang seluruh sesi, lalu render PNG lewat pipeline lokal yang sama.
 8. Hasil masuk galeri lokal (retensi `10`). Masing-masing mengunduh PNG, plus save/share/print bila browser mendukung. Ruang booth berakhir bersama sesi.
@@ -278,6 +279,9 @@ Acceptance criteria:
 
 - Jika izin ditolak, aplikasi memberi panduan recovery yang jelas.
 - Preview tampil dengan rasio yang sesuai layout aktif.
+- Sebelum capture, pengguna dapat mematikan latar virtual atau memilih warna studio (termasuk pink dan biru), blur ruangan, atau unggah gambar JPG/PNG/WebP lokal maks. `10 MB`.
+- Bila segmentasi orang tersedia, preview dan still hasil capture menampilkan orang tetap tajam dengan latar yang diganti. Bila segmentasi gagal, capture tetap jalan dengan ruangan asli.
+- Latar virtual ini mengganti ruangan di belakang orang pada `Mulai Foto` (satu kamera, satu atau dua orang di frame) dan Booth Bareng; bukan mengganti kertas/blanko strip.
 
 ### FR-03 Session configuration
 
@@ -394,7 +398,7 @@ Acceptance criteria:
 - Host membuat booth tanpa akun dan melihat kode unik plus URL undangan yang memakai kode yang sama sebagai identitas join.
 - Tamu yang membuka URL undangan atau mengetik kode yang sama (hyphen opsional, case-insensitive) masuk ke booth yang sama.
 - Kode kosong, tidak dikenal, atau tidak valid ditolak dengan pesan yang jelas.
-- Host memilih layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown (default `3` detik), serta preset `Efek Kamera` dan `Overlay Kamera` yang sama dengan alur kamera lokal. Jumlah momen capture sama dengan jumlah slot layout, bukan strip 2-pose Classic yang dikunci.
+- Host memilih layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown (default `3` detik), serta preset `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual` yang sama dengan alur kamera lokal. Jumlah momen capture sama dengan jumlah slot layout, bukan strip 2-pose Classic yang dikunci. Warna studio dan blur mengikuti setup host di kedua tile; gambar unggahan hanya di perangkat yang punya file.
 - Countdown bersama menghasilkan satu still per peserta per momen; still disusun pair-row `host | tamu` lalu masuk review (retake per-shot atau seluruh sesi) sebelum render PNG lewat pipeline strip yang ada, galeri lokal, dan `Unduh PNG`.
 - Kedua peserta melihat stream kamera teman secara live di kotak terpisah. Preview dan still Booth Bareng tidak di-mirror agar arah gerakan sama dengan hasil foto.
 - Mode ini membutuhkan koneksi untuk signaling; alur kamera dan upload lokal v1 tidak boleh bergantung padanya.

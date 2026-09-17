@@ -203,6 +203,7 @@ Preset `reactions` sedang di-hold dan disembunyikan dari v1. Jika diaktifkan kem
 - overlay final harus digambar via render engine pada setiap slot foto
 - preview kamera dan preview review memakai canvas lokal dengan sumber gambar bitmap bundled yang sama
 - face detection untuk overlay memakai MediaPipe runtime asset lokal dari `public/vendor/mediapipe/`, termasuk WASM tasks-vision dan model `blaze_face_short_range.tflite`; tidak boleh memuat model atau WASM dari CDN saat production
+- latar virtual kamera (pengganti ruangan di belakang orang) memakai model `selfie_segmenter.tflite` lokal dari `public/vendor/mediapipe/`; ini bukan asset kertas/blanko strip
 - `hearts` memakai mekanik lovestruck: hati muncul dari area sekitar kepala, mengambang naik, lalu fade/scale dalam loop
 - `bluebirds` memakai mekanik dizzy: `8` burung mengorbit area atas kepala dalam lintasan elips, arah sprite mengikuti tangent gerak, dan frame sayap memakai urutan `0-3`
 - `kicau-mania` memakai mekanik dance loop: frame PNG lokal melompat kecil di area atas kepala dengan frame sprite urutan `0-52`, tanpa elemen heart tambahan
@@ -227,18 +228,32 @@ Mapping awal yang bisa dievaluasi ulang: `ILoveYou` untuk love, `Thumb_Up` untuk
 
 ### 7.4 MediaPipe runtime assets
 
-Asset runtime face detector wajib tersedia lokal:
+Asset runtime face detector dan selfie segmenter wajib tersedia lokal:
 
 - `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_internal.js`
 - `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_internal.wasm`
 - `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.js`
 - `public/vendor/mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm`
 - `public/vendor/mediapipe/models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite`
+- `public/vendor/mediapipe/models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite`
 
 Asset ini adalah dependency runtime non-visual dan dihitung terpisah dari budget visual `< 8 MB`.
 Provenance, versi package, sumber model, ukuran file, dan SHA-256 setiap file wajib dicatat di
 `public/vendor/mediapipe/manifest.json`; audit PWA harus gagal jika file vendor tidak cocok dengan
 manifest tersebut.
+
+Latar virtual kamera memakai `selfie_segmenter.tflite` untuk memisahkan orang dari ruangan pada preview/capture `Mulai Foto` dan Booth Bareng. Ini berbeda dari blanko/kertas strip: blanko adalah kertas template di sekeliling foto, sedangkan latar virtual mengganti ruangan di belakang orang di dalam slot foto.
+
+### 7.1 Spesifikasi gambar kustom latar virtual
+
+- Format input yang diterima: JPG, PNG, dan WebP hingga ukuran file maksimal `10 MB`.
+- Di alur lokal (`Mulai Foto`), file disimpan di basis data lokal sesi (`db.assets`) dengan tipe `'virtual-background'`, dan dibersihkan otomatis saat sesi selesai, di-reset, atau kedaluwarsa.
+- Khusus Booth Bareng, gambar unggahan host dinormalisasi sebelum disinkronkan ke tamu melalui WebRTC:
+  - Format transfer: `image/jpeg`
+  - Resolusi: sisi terpanjang maksimal `1600 px` (aspek rasio asli dipertahankan)
+  - Ukuran file: dikompresi hingga `<= 512 KiB`
+  - Transparansi: jika file sumber memiliki alpha channel (PNG/WebP), diratakan (*flattened*) ke warna latar putih `#ffffff`
+  - Integritas: diverifikasi dengan hash SHA-256 pada sisi penerima (tamu).
 
 ---
 

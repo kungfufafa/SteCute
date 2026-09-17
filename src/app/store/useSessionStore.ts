@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { Session, Shot } from '@/db/schema'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { persistActiveSessionId, persistRetakeIndex } from '@/services/session/persist'
+import { normalizeVirtualBackgroundId } from '@/services/virtual-background'
 
 export type SessionStatus =
   | 'idle'
@@ -25,6 +26,8 @@ export const useSessionStore = defineStore('session', () => {
   const countdownSeconds = ref<number>(3)
   const filterId = ref<string>('normal')
   const cameraEffectId = ref<string>('none')
+  const virtualBackgroundId = ref<string>('off')
+  const virtualBackgroundAssetId = ref<string | null>(null)
   const slotCount = ref<number>(3)
   const currentShotIndex = ref<number>(0)
   const shotIds = ref<string[]>([])
@@ -56,6 +59,10 @@ export const useSessionStore = defineStore('session', () => {
     templateId.value = session.templateId
     filterId.value = session.decorationConfig.filterId || 'normal'
     cameraEffectId.value = normalizeCameraEffectId(session.decorationConfig.cameraEffectId)
+    virtualBackgroundId.value = normalizeVirtualBackgroundId(
+      session.decorationConfig.virtualBackgroundId,
+    )
+    virtualBackgroundAssetId.value = session.decorationConfig.virtualBackgroundAssetId ?? null
     slotCount.value = session.slotCount
     currentShotIndex.value = firstMissingOrder ?? Math.max(0, session.slotCount - 1)
     shotIds.value = Array.from(
@@ -135,6 +142,14 @@ export const useSessionStore = defineStore('session', () => {
     cameraEffectId.value = normalizeCameraEffectId(id)
   }
 
+  function setVirtualBackgroundId(id: string) {
+    virtualBackgroundId.value = normalizeVirtualBackgroundId(id)
+  }
+
+  function setVirtualBackgroundAssetId(assetId: string | null) {
+    virtualBackgroundAssetId.value = assetId
+  }
+
   function reset() {
     sessionId.value = null
     sessionStatus.value = 'idle'
@@ -145,6 +160,8 @@ export const useSessionStore = defineStore('session', () => {
     errorMessage.value = null
     filterId.value = 'normal'
     cameraEffectId.value = 'none'
+    virtualBackgroundId.value = 'off'
+    virtualBackgroundAssetId.value = null
     persistActiveSessionId(null)
   }
 
@@ -158,6 +175,8 @@ export const useSessionStore = defineStore('session', () => {
     countdownSeconds,
     filterId,
     cameraEffectId,
+    virtualBackgroundId,
+    virtualBackgroundAssetId,
     slotCount,
     currentShotIndex,
     shotIds,
@@ -177,6 +196,8 @@ export const useSessionStore = defineStore('session', () => {
     setRenderId,
     setFilterId,
     setCameraEffectId,
+    setVirtualBackgroundId,
+    setVirtualBackgroundAssetId,
     reset,
   }
 })

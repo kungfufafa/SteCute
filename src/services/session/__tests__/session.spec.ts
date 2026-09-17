@@ -8,6 +8,7 @@ describe('session decoration config', () => {
     expect(Array.isArray(result.selectedStickerIds)).toBe(true)
     expect(result.filterId).toBe('normal')
     expect(result.cameraEffectId).toBe('none')
+    expect(result.virtualBackgroundId).toBe('off')
     expect(result.frameColor).toBe('#ffffff')
     expect(result.showDateTime).toBe(false)
   })
@@ -46,6 +47,21 @@ describe('session decoration config', () => {
       createDefaultDecorationConfig(undefined, { cameraEffectId: 'reaction-hearts' })
         .cameraEffectId,
     ).toBe('none')
+  })
+
+  it('normalizes supported and unsupported virtual-background overrides', () => {
+    expect(
+      createDefaultDecorationConfig(undefined, { virtualBackgroundId: 'pink' })
+        .virtualBackgroundId,
+    ).toBe('pink')
+    expect(
+      createDefaultDecorationConfig(undefined, { virtualBackgroundId: 'blur' })
+        .virtualBackgroundId,
+    ).toBe('blur')
+    expect(
+      createDefaultDecorationConfig(undefined, { virtualBackgroundId: 'unknown' })
+        .virtualBackgroundId,
+    ).toBe('off')
   })
 
   it('treats a session as complete only when every slot order is present', () => {

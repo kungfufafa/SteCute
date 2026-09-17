@@ -146,10 +146,7 @@ onBeforeUnmount(() => {
             <polyline points="12 19 5 12 12 5" />
           </svg>
         </button>
-        <div class="min-w-0">
-          <h3 :class="ui.title">Galeri</h3>
-          <p :class="ui.subtitle">10 hasil render terakhir tersimpan lokal.</p>
-        </div>
+        <h1 :class="ui.title">Galeri</h1>
       </div>
       <span :class="ui.badge">{{ galleryStore.recentRenders.length }} item</span>
     </div>

@@ -16,7 +16,7 @@ test.describe('Booth Bareng two-peer camera corroboration', () => {
   test('two pages in one booth can show a camera preview', async ({ context }) => {
     const host = await context.newPage()
     await host.goto('/')
-    await host.getByRole('button', { name: 'Booth Bareng' }).click()
+    await host.getByRole('button', { name: 'Foto Duet' }).click()
     await host.getByRole('button', { name: 'Buat Booth' }).click()
 
     const roomCode = (await host.getByTestId('booth-code').innerText()).trim()

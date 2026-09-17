@@ -14,6 +14,10 @@ export function cloneDecorationConfig(config: DecorationConfig): DecorationConfi
   return {
     filterId: String(config.filterId ?? 'normal'),
     cameraEffectId: String(config.cameraEffectId ?? 'none'),
+    virtualBackgroundId: String(config.virtualBackgroundId ?? 'off'),
+    virtualBackgroundAssetId: config.virtualBackgroundAssetId
+      ? String(config.virtualBackgroundAssetId)
+      : null,
     frameColor: String(config.frameColor ?? '#ffffff'),
     selectedStickerIds: Array.from(config.selectedStickerIds ?? [], (id) => String(id)),
     showDateTime: Boolean(config.showDateTime),

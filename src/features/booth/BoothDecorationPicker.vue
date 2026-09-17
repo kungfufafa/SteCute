@@ -3,24 +3,29 @@ import { computed, ref } from 'vue'
 import { CAMERA_EFFECTS, getCameraEffectById } from '@/services/camera-effects'
 import { PHOTO_FILTERS, getPhotoFilterById } from '@/services/filter'
 import { ui } from '@/ui/styles'
+import VirtualBackgroundPicker from '@/components/common/VirtualBackgroundPicker.vue'
 
 const props = withDefaults(
   defineProps<{
     filterId: string
     cameraEffectId: string
+    virtualBackgroundId?: string
     disabled?: boolean
-    kind?: 'filter' | 'overlay' | 'all'
+    kind?: 'filter' | 'overlay' | 'background' | 'all'
     stacked?: boolean
   }>(),
   {
     kind: 'all',
     stacked: false,
+    virtualBackgroundId: 'off',
   },
 )
 
 const emit = defineEmits<{
   selectFilter: [filterId: string]
   selectEffect: [effectId: string]
+  selectBackground: [backgroundId: string]
+  customFile: [file: File]
 }>()
 
 const FILTER_INLINE_LIMIT = 4
@@ -88,6 +93,14 @@ function selectEffect(effectId: string) {
 
 <template>
   <div class="grid gap-3">
+    <VirtualBackgroundPicker
+      v-if="kind === 'background' || kind === 'all'"
+      :background-id="virtualBackgroundId"
+      :disabled="disabled"
+      :stacked="stacked"
+      @select="emit('selectBackground', $event)"
+      @custom-file="emit('customFile', $event)"
+    />
     <div v-if="kind === 'filter' || kind === 'all'">
       <p :class="[ui.sectionLabel, 'mb-2']">Efek Kamera</p>
       <div

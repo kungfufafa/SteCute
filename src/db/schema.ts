@@ -24,6 +24,8 @@ export interface Session {
 export interface DecorationConfig {
   filterId: string
   cameraEffectId: string
+  virtualBackgroundId: string
+  virtualBackgroundAssetId?: string | null
   frameColor: string
   selectedStickerIds: string[]
   showDateTime: boolean
@@ -170,11 +172,13 @@ export interface TemplateConfig {
 
 export interface AssetRecord {
   id: string
-  type: 'frame' | 'sticker' | 'overlay' | 'filter-preview'
+  type: 'frame' | 'sticker' | 'overlay' | 'filter-preview' | 'virtual-background'
   name: string
   path: string
   packId: string
   isBundled: boolean
+  blob?: Blob
+  assetBlob?: Blob
   updatedAt: number
 }
 

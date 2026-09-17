@@ -152,7 +152,7 @@ async function installApp() {
 
         <div class="mt-6 flex flex-wrap items-center gap-2">
           <button :class="ui.primaryButton" @click="startWithCamera">Mulai Foto</button>
-          <button :class="ui.secondaryButton" @click="startBoothBareng">Booth Bareng</button>
+          <button :class="ui.secondaryButton" @click="startBoothBareng">Foto Duet</button>
           <button v-if="canPromptInstall" :class="ui.ghostButton" @click="installApp">
             Pasang App
           </button>

@@ -2,6 +2,7 @@ import { getLayoutById, standardLayouts } from '@/layouts'
 import { getTemplateById, templates } from '@/templates'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { normalizePhotoFilterId } from '@/services/filter'
+import { normalizeVirtualBackgroundId } from '@/services/virtual-background'
 import { DEFAULT_PAIR_SLOT } from './compose'
 
 export const BOOTH_COUNTDOWN_SECONDS = [3, 5, 10] as const
@@ -16,8 +17,10 @@ export type BoothSessionSetup = {
   countdownMs: number
   filterId: string
   cameraEffectId: string
+  virtualBackgroundId: string
+  virtualBackgroundAssetId?: string | null
+  revision: number
 }
-
 export function bundledBoothLayouts() {
   return standardLayouts
 }
@@ -37,6 +40,9 @@ export function createDefaultBoothSetup(): BoothSessionSetup {
     countdownMs: DEFAULT_BOOTH_COUNTDOWN_SECONDS * 1000,
     filterId: 'normal',
     cameraEffectId: 'none',
+    virtualBackgroundId: 'off',
+    virtualBackgroundAssetId: null,
+    revision: 1,
   }
 }
 
@@ -72,6 +78,11 @@ export function normalizeBoothSetup(input?: Partial<BoothSessionSetup> | null): 
     countdownMs: normalizeBoothCountdownMs(input?.countdownMs),
     filterId: normalizePhotoFilterId(input?.filterId),
     cameraEffectId: normalizeCameraEffectId(input?.cameraEffectId),
+    virtualBackgroundId: normalizeVirtualBackgroundId(input?.virtualBackgroundId),
+    virtualBackgroundAssetId: input?.virtualBackgroundAssetId
+      ? String(input.virtualBackgroundAssetId)
+      : null,
+    revision: Math.max(1, Math.round(Number(input?.revision) || 1)),
   }
 }
 
@@ -92,6 +103,9 @@ export function boothSetupsEqual(
     left.slotCount === right.slotCount &&
     left.countdownMs === right.countdownMs &&
     left.filterId === right.filterId &&
-    left.cameraEffectId === right.cameraEffectId
+    left.cameraEffectId === right.cameraEffectId &&
+    left.virtualBackgroundId === right.virtualBackgroundId &&
+    left.virtualBackgroundAssetId === right.virtualBackgroundAssetId &&
+    left.revision === right.revision
   )
 }

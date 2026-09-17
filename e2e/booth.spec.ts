@@ -20,7 +20,7 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page).toHaveURL('/')
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
-    await expect(cta(page, 'Booth Bareng')).toBeVisible()
+    await expect(cta(page, 'Foto Duet')).toBeVisible()
 
     await page.goto('/booth')
     await expect(cta(page, 'Buat Booth')).toBeVisible()
@@ -56,10 +56,10 @@ test.describe('Booth Bareng join paths', () => {
 
   test('host sees a room code and invite URL after creating a booth', async ({ page }) => {
     await page.goto('/')
-    await cta(page, 'Booth Bareng').click()
+    await cta(page, 'Foto Duet').click()
 
     await expect(page).toHaveURL('/booth')
-    await expect(page.getByRole('heading', { name: 'Booth Bareng' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Foto Duet' })).toBeVisible()
     await expect(page.getByText(/hotspot|4G vs Wi-Fi kantor sering gagal/i)).toHaveCount(0)
     await expect(page.getByText(/Perangkat bisa beda jaringan/)).toBeVisible()
 
@@ -109,7 +109,7 @@ test.describe('Booth Bareng join paths', () => {
 
   test('guest can join by typing the host code', async ({ context, page }) => {
     await page.goto('/')
-    await cta(page, 'Booth Bareng').click()
+    await cta(page, 'Foto Duet').click()
     await page.getByRole('button', { name: 'Buat Booth' }).click()
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()
@@ -136,7 +136,7 @@ test.describe('Booth Bareng join paths', () => {
     await guest.route(/peerjs/i, (route) => route.abort())
 
     await host.goto('/')
-    await cta(host, 'Booth Bareng').click()
+    await cta(host, 'Foto Duet').click()
     await host.getByRole('button', { name: 'Buat Booth' }).click()
     const roomCode = (await host.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await host.getByTestId('booth-invite-url').inputValue()
@@ -152,7 +152,7 @@ test.describe('Booth Bareng join paths', () => {
 
   test('invite URL enters the same booth as the host code', async ({ context, page }) => {
     await page.goto('/')
-    await cta(page, 'Booth Bareng').click()
+    await cta(page, 'Foto Duet').click()
     await page.getByRole('button', { name: 'Buat Booth' }).click()
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()

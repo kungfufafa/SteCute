@@ -78,7 +78,7 @@ export const publicPages = {
         id: 'yang-tidak-dilakukan',
         title: 'Yang tidak dilakukan Stecute',
         body: [
-          'Fitur inti tidak mewajibkan akun, cloud sync, share link, QR handoff server, atau upload foto otomatis ke backend. Booth Bareng boleh memakai relay HTTPS ephemeral terenkripsi agar dua perangkat di jaringan berbeda tetap terhubung; payload itu bukan galeri dan tidak disimpan setelah sesi.',
+          'Fitur inti tidak mewajibkan akun, cloud sync, share link, QR handoff server, atau upload foto otomatis ke backend. Foto Duet (mode booth online 2 orang) boleh memakai relay HTTPS ephemeral terenkripsi agar dua perangkat di jaringan berbeda tetap terhubung; payload itu bukan galeri dan tidak disimpan setelah sesi.',
           'Jika analytics, cloud, atau integrasi pihak ketiga ditambahkan nanti, kebijakan privasi harus diperbarui sebelum fitur dipakai.',
         ],
         bullets: [
@@ -190,7 +190,7 @@ export const publicPages = {
             question: 'Apakah foto saya diupload ke server?',
             answer: [
               'Tidak untuk fitur inti. Foto dari kamera atau upload lokal diproses di browser untuk preview, review, render, dan output lokal.',
-              'Booth Bareng adalah mode opsional dua orang. Kedua peserta melihat kamera teman secara live seperti video call, tanpa audio; stream itu tidak disimpan. Foto still tidak disimpan di server. Kedua perangkat boleh beda jaringan, termasuk 4G vs Wi-Fi kantor. Stecute memakai signaling ephemeral, STUN/TURN publik bila tersedia, dan relay HTTPS ephemeral terenkripsi di origin aplikasi agar kedua browser tetap bisa bertemu. Payload relay bukan galeri dan dihapus setelah sesi. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
+              'Foto Duet adalah mode opsional dua orang. Kedua peserta melihat kamera teman secara live seperti video call, tanpa audio; stream itu tidak disimpan. Foto still tidak disimpan di server. Kedua perangkat boleh beda jaringan, termasuk 4G vs Wi-Fi kantor. Stecute memakai signaling ephemeral, STUN/TURN publik bila tersedia, dan relay HTTPS ephemeral terenkripsi di origin aplikasi agar kedua browser tetap bisa bertemu. Payload relay bukan galeri dan dihapus setelah sesi. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
             ],
           },
           {
