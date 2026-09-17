@@ -7,7 +7,20 @@ import { getTemplatesForLayout } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
 import { createTemplateFromStripFile, openStripTemplatePicker } from '@/services/template-upload'
-import { writePendingSessionConfig } from '@/services/session/persist'
+import {
+  readPendingBoothSetup,
+  writePendingBoothSetup,
+  writePendingSessionConfig,
+} from '@/services/session/persist'
+import {
+  createBooth,
+  DEFAULT_BOOTH_COUNTDOWN_SECONDS,
+  DEFAULT_BOOTH_LAYOUT_ID,
+  DEFAULT_BOOTH_TEMPLATE_ID,
+  getBoothRegistry,
+  joinBoothByCode,
+  persistBoothHostRole,
+} from '@/services/booth'
 import { ui } from '@/ui/styles'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import FlowProgress from '@/components/common/FlowProgress.vue'
@@ -17,7 +30,7 @@ const router = useRouter()
 const sessionStore = useSessionStore()
 const customTemplateStore = useCustomTemplateStore()
 
-type CaptureSource = 'camera' | 'upload'
+type CaptureSource = 'camera' | 'upload' | 'booth'
 type BlankoOptionKind = 'standard' | 'public' | 'custom'
 
 interface BlankoOption {
@@ -38,8 +51,13 @@ interface BlankoPackage {
   subtitle: string
 }
 
-const selectedSource = computed<CaptureSource>(() =>
-  route.query.source === 'upload' ? 'upload' : 'camera',
+const selectedSource = computed<CaptureSource>(() => {
+  if (route.query.source === 'upload') return 'upload'
+  if (route.query.source === 'booth') return 'booth'
+  return 'camera'
+})
+const boothQueryCode = computed(() =>
+  typeof route.query.code === 'string' ? route.query.code : '',
 )
 const selectedLayoutId = ref(sessionStore.layoutId)
 const selectedTemplateId = ref(sessionStore.templateId)
@@ -100,18 +118,51 @@ const selectedOption = computed(() => {
 })
 const selectedLayout = computed(() => selectedOption.value?.layout)
 const selectedTemplate = computed(() => selectedOption.value?.template)
-const sourceLabel = computed(() => (selectedSource.value === 'upload' ? 'Upload Lokal' : 'Kamera'))
-const actionLabel = computed(() =>
-  selectedSource.value === 'upload' ? 'Pilih Foto' : 'Buka Kamera',
+const sourceLabel = computed(() => {
+  if (selectedSource.value === 'upload') return 'Upload Lokal'
+  if (selectedSource.value === 'booth') return 'Foto Duet'
+  return 'Kamera'
+})
+const actionLabel = computed(() => {
+  if (selectedSource.value === 'upload') return 'Pilih Foto'
+  if (selectedSource.value === 'booth') return 'Buka Booth'
+  return 'Buka Kamera'
+})
+const backLabel = computed(() => {
+  if (selectedSource.value !== 'booth') return 'Kembali ke beranda'
+  return boothQueryCode.value ? 'Kembali ke booth' : 'Kembali ke Foto Duet'
+})
+const visibleBlankoPackages = computed(() =>
+  selectedSource.value === 'booth'
+    ? blankoPackages.value.filter((pkg) => pkg.kind === 'standard')
+    : blankoPackages.value,
 )
 
 const selectedTimer = ref(sessionStore.countdownSeconds)
 const autoCapture = ref(sessionStore.autoCapture)
 const customTemplateError = ref<string | null>(null)
+const proceedError = ref<string | null>(null)
 const isUploadingTemplate = ref(false)
 const templatesReady = ref(false)
 
+function hydrateBoothSetup() {
+  const pending = readPendingBoothSetup(boothQueryCode.value || undefined)
+  if (pending) {
+    selectedLayoutId.value = pending.layoutId
+    selectedTemplateId.value = pending.templateId
+    selectedTimer.value = pending.countdownSeconds
+    autoCapture.value = pending.autoCapture
+    return
+  }
+
+  selectedLayoutId.value = DEFAULT_BOOTH_LAYOUT_ID
+  selectedTemplateId.value = DEFAULT_BOOTH_TEMPLATE_ID
+  selectedTimer.value = DEFAULT_BOOTH_COUNTDOWN_SECONDS
+  autoCapture.value = false
+}
+
 onMounted(async () => {
+  if (selectedSource.value === 'booth') hydrateBoothSetup()
   await customTemplateStore.loadPersistedTemplates()
   templatesReady.value = true
 })
@@ -223,8 +274,18 @@ function selectLayout(layout: LayoutConfig) {
   }
 }
 
+function resolveBoothCode() {
+  const fromQuery =
+    typeof route.query.code === 'string' ? route.query.code : boothQueryCode.value
+  const existing = fromQuery ? joinBoothByCode(fromQuery) : null
+  if (existing?.ok) return existing.identity.code
+  return createBooth(getBoothRegistry()).code
+}
+
 function proceed() {
   const option = selectedOption.value
+  const source = selectedSource.value
+  proceedError.value = null
 
   sessionStore.layoutId = option?.layout.id ?? selectedLayoutId.value
   sessionStore.templateId = option?.template.id ?? selectedTemplateId.value
@@ -232,19 +293,52 @@ function proceed() {
   sessionStore.autoCapture = autoCapture.value
   sessionStore.slotCount = option?.layout.slotCount ?? 3
 
+  if (source === 'booth') {
+    try {
+      const code = resolveBoothCode()
+      persistBoothHostRole(code)
+      const previous = readPendingBoothSetup(code)
+      writePendingBoothSetup({
+        code,
+        layoutId: sessionStore.layoutId,
+        templateId: sessionStore.templateId,
+        slotCount: sessionStore.slotCount,
+        countdownSeconds: sessionStore.countdownSeconds,
+        autoCapture: sessionStore.autoCapture,
+        filterId: previous?.filterId,
+        cameraEffectId: previous?.cameraEffectId,
+        virtualBackgroundId: previous?.virtualBackgroundId,
+      })
+      router.push({ name: 'booth-join', params: { code } })
+    } catch {
+      proceedError.value = 'Booth gagal dibuat. Coba lagi.'
+    }
+    return
+  }
+
   writePendingSessionConfig({
     layoutId: sessionStore.layoutId,
     templateId: sessionStore.templateId,
     slotCount: sessionStore.slotCount,
     countdownSeconds: sessionStore.countdownSeconds,
     autoCapture: sessionStore.autoCapture,
-    source: selectedSource.value,
+    source,
   })
 
-  router.push(selectedSource.value === 'upload' ? '/upload' : '/camera')
+  router.push(source === 'upload' ? '/upload' : '/camera')
 }
 
 function goBack() {
+  if (selectedSource.value === 'booth') {
+    const existing = boothQueryCode.value ? joinBoothByCode(boothQueryCode.value) : null
+    if (existing?.ok) {
+      router.push({ name: 'booth-join', params: { code: existing.identity.code } })
+      return
+    }
+    router.push('/booth')
+    return
+  }
+
   router.push('/')
 }
 
@@ -282,7 +376,7 @@ async function handleUploadTemplate() {
   <div :class="ui.page">
     <div :class="ui.header">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali ke beranda" @click="goBack">
+        <button :class="ui.iconButton" :aria-label="backLabel" @click="goBack">
           <svg
             width="16"
             height="16"
@@ -339,7 +433,7 @@ async function handleUploadTemplate() {
             <p :class="ui.sectionLabel">Frame</p>
             <div class="mt-3 grid grid-cols-1 gap-2.5 min-[500px]:grid-cols-2 xl:grid-cols-3">
               <button
-                v-for="blankoPackage in blankoPackages"
+                v-for="blankoPackage in visibleBlankoPackages"
                 :key="blankoPackage.id"
                 type="button"
                 :aria-label="`${blankoPackage.title}, ${packageSlotLabel(blankoPackage)}`"
@@ -373,7 +467,7 @@ async function handleUploadTemplate() {
               {{ customTemplateError }}
             </div>
 
-            <div class="mt-3">
+            <div v-if="selectedSource !== 'booth'" class="mt-3">
               <button
                 :class="ui.secondaryButton"
                 :disabled="isUploadingTemplate"
@@ -384,7 +478,7 @@ async function handleUploadTemplate() {
             </div>
           </div>
 
-          <div v-if="selectedSource === 'camera'">
+          <div v-if="selectedSource !== 'upload'">
             <div class="border-stc-border divide-stc-border divide-y border-y">
               <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-stc-text text-[13px] font-medium">Timer</p>
@@ -449,6 +543,9 @@ async function handleUploadTemplate() {
             <button :class="[ui.primaryButton, 'mt-4 w-full']" @click="proceed">
               {{ actionLabel }}
             </button>
+            <p v-if="proceedError" class="text-stc-error-strong mt-2 text-[13px]" role="alert">
+              {{ proceedError }}
+            </p>
           </div>
         </aside>
       </div>
@@ -468,6 +565,9 @@ async function handleUploadTemplate() {
           {{ actionLabel }}
         </button>
       </div>
+      <p v-if="proceedError" class="text-stc-error-strong mt-2 text-[13px] lg:hidden" role="alert">
+        {{ proceedError }}
+      </p>
     </div>
   </div>
 </template>

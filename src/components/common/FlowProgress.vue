@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 type FlowStep = 'landing' | 'config' | 'capture' | 'review' | 'render' | 'output'
-type CaptureSource = 'camera' | 'upload'
+type CaptureSource = 'camera' | 'upload' | 'booth'
 
 const props = withDefaults(
   defineProps<{
@@ -19,7 +19,8 @@ const props = withDefaults(
 )
 
 const steps = computed(() => {
-  const captureLabel = props.source === 'upload' ? 'Upload' : 'Foto'
+  const captureLabel =
+    props.source === 'upload' ? 'Upload' : props.source === 'booth' ? 'Duet' : 'Foto'
   if (props.compact) {
     return [
       { id: 'config' as const, label: 'Format' },

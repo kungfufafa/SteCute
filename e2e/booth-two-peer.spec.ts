@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { startHostBooth } from './booth-flow'
 
 test.use({
   launchOptions: {
@@ -17,7 +18,7 @@ test.describe('Booth Bareng two-peer camera corroboration', () => {
     const host = await context.newPage()
     await host.goto('/')
     await host.getByRole('button', { name: 'Foto Duet' }).click()
-    await host.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(host)
 
     const roomCode = (await host.getByTestId('booth-code').innerText()).trim()
     await expect(host.getByTestId('booth-local-video')).toBeVisible({ timeout: 15_000 })

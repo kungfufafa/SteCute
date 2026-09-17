@@ -101,14 +101,17 @@ describe('booth auto-capture chain', () => {
 })
 
 describe('booth auto-capture UI wiring', () => {
-  it('exposes the Otomatis toggle in booth strip setup', () => {
+  it('exposes the Otomatis toggle on session config for camera and booth', () => {
     const source = readFileSync(
-      fileURLToPath(new URL('../../../features/booth/BoothStripSetup.vue', import.meta.url)),
+      fileURLToPath(
+        new URL('../../../features/session-config/SessionConfigView.vue', import.meta.url),
+      ),
       'utf8',
     )
     expect(source).toContain('aria-label="Otomatis"')
     expect(source).toContain('aria-pressed')
-    expect(source).toContain('update({ autoCapture: !setup.autoCapture })')
+    expect(source).toContain("selectedSource !== 'upload'")
+    expect(source).toContain("source === 'booth'")
   })
 
   it('chains host poses after the local 800ms gap and lets the host cancel', () => {

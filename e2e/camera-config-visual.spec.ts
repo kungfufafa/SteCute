@@ -53,8 +53,8 @@ test.describe('config and camera visual smoke', () => {
     expect(cameraBox.ratio).toBeLessThan(1.35)
     expect(cameraBox.radius).toBeLessThanOrEqual(12)
 
-    await expect(page.getByText('Efek Kamera')).toBeVisible()
-    await expect(page.getByText('Overlay Kamera')).toBeVisible()
+    await expect(page.getByText('Efek', { exact: true })).toBeVisible()
+    await expect(page.getByText('Overlay', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Pilih efek Hangat' }).click()
     await page.getByRole('button', { name: 'Pilih overlay Hati' }).click()
 

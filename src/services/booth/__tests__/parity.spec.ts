@@ -63,6 +63,8 @@ describe('booth bundled strip parity', () => {
     expect(source).toContain('cameraEffectFrameMs: shot.cameraEffectFrameMs')
     expect(decoration).toContain('Pilih efek ${filter.label}')
     expect(decoration).toContain('Pilih overlay ${effect.label}')
+    expect(decoration).toContain('>Efek</p>')
+    expect(decoration).not.toContain('Efek Kamera')
     expect(decoration).toContain('VirtualBackgroundPicker')
     expect(decoration).toContain('virtualBackgroundId')
   })

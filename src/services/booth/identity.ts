@@ -2,6 +2,7 @@ export const BOOTH_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 export const BOOTH_CODE_LENGTH = 6
 export const BOOTH_INVITE_PREFIX = '/j/'
 export const BOOTH_STORAGE_KEY = 'stecute.booth.rooms.v1'
+export const BOOTH_ROLE_STORAGE_PREFIX = 'stecute.booth.role'
 export const BOOTH_TTL_MS = 30 * 60 * 1000
 
 export type BoothIdentity = {
@@ -44,6 +45,17 @@ export function formatBoothCode(normalized: string): string {
   }
 
   return `${code.slice(0, 3)}-${code.slice(3)}`
+}
+
+export function persistBoothHostRole(code: string): void {
+  const normalized = normalizeBoothCode(code)
+  if (!normalized || typeof sessionStorage === 'undefined') return
+
+  try {
+    sessionStorage.setItem(`${BOOTH_ROLE_STORAGE_PREFIX}.${normalized}`, 'host')
+  } catch {
+    // sessionStorage can be blocked in private browsing.
+  }
 }
 
 export function buildInvitePath(code: string): string {

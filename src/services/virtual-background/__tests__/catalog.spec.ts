@@ -74,9 +74,9 @@ describe('virtual background catalog', () => {
       'utf8',
     )
 
-    expect(cameraView).toContain('VirtualBackgroundPicker')
+    expect(cameraView).toContain('BoothDecorationPicker')
     expect(decoration).toContain('kind === \'background\'')
-    expect(picker).toContain('Latar Virtual')
+    expect(picker).toContain('Latar')
     expect(picker).toContain('Pilih latar ${background.label}')
     expect(picker).toContain('VIRTUAL_BACKGROUNDS')
     expect(picker).toContain("'off'")

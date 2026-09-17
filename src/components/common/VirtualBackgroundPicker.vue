@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import {
   VIRTUAL_BACKGROUNDS,
   getVirtualBackgroundById,
 } from '@/services/virtual-background'
 import { openImagePicker } from '@/services/upload'
 import { ui } from '@/ui/styles'
+import DecorationSwatch from '@/components/common/DecorationSwatch.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -64,62 +65,50 @@ async function selectBackground(backgroundId: string) {
   emit('select', backgroundId)
   pickerOpen.value = false
 }
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') pickerOpen.value = false
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
   <div>
-    <p :class="[ui.sectionLabel, 'mb-2']">Latar Virtual</p>
-    <div
-      class="flex gap-2 overflow-x-auto pb-1"
-      :class="stacked ? 'lg:grid lg:grid-cols-1 lg:overflow-visible lg:pb-0' : ''"
-    >
-      <button
+    <p :class="[ui.sectionLabel, 'mb-1.5']">Latar</p>
+    <div class="flex gap-2 overflow-x-auto pb-1">
+      <DecorationSwatch
         v-for="background in inlineOptions"
         :key="background.id"
-        type="button"
+        :label="background.label"
         :aria-label="`Pilih latar ${background.label}`"
-        :aria-pressed="background.id === backgroundId"
-        :disabled="disabled && background.id !== backgroundId"
         :title="background.description"
-        :class="[
-          'focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
-          stacked
-            ? 'lg:h-auto lg:min-h-12 lg:w-full lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2 lg:text-[13px]'
-            : '',
-          background.id === backgroundId
-            ? 'border-stc-text bg-stc-bg-2 text-stc-text'
-            : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
-        ]"
+        :selected="background.id === backgroundId"
+        :disabled="disabled && background.id !== backgroundId"
         @click="selectBackground(background.id)"
       >
-        <span
-          class="border-stc-border/50 block size-8 rounded-xl border shadow-inner"
-          :class="stacked ? 'lg:size-10 lg:shrink-0' : ''"
-          :style="swatchStyle(background.id)"
-        ></span>
-        <span class="max-w-full truncate">{{ background.label }}</span>
-      </button>
-      <button
+        <span class="block size-full" :style="swatchStyle(background.id)"></span>
+      </DecorationSwatch>
+      <DecorationSwatch
         v-if="hiddenOptions.length > 0"
-        type="button"
-        class="border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text focus-visible:ring-stc-pink/40 flex h-14 w-14 shrink-0 flex-col items-center justify-center gap-1 rounded-md border bg-white px-1.5 text-[11px] font-medium outline-none focus-visible:ring-2"
-        :class="
-          stacked
-            ? 'lg:h-auto lg:min-h-12 lg:w-full lg:flex-row lg:justify-start lg:gap-3 lg:px-3 lg:py-2 lg:text-[13px]'
-            : ''
-        "
-        aria-label="Buka semua latar virtual"
+        aria-label="Buka semua latar"
+        title="Semua latar"
         :disabled="disabled"
         @click="pickerOpen = true"
       >
         <span
-          class="border-stc-border/60 bg-stc-bg-2 text-stc-pink flex size-8 items-center justify-center rounded-xl border text-base font-semibold"
+          class="text-stc-pink flex size-full items-center justify-center bg-stc-bg-2 text-lg font-semibold"
           aria-hidden="true"
         >
           +
         </span>
-        <span>Lainnya</span>
-      </button>
+      </DecorationSwatch>
     </div>
 
     <div
@@ -133,7 +122,7 @@ async function selectBackground(backgroundId: string) {
         class="border-stc-border max-h-[min(42rem,calc(100dvh-2.5rem))] w-full max-w-2xl overflow-hidden rounded-lg border bg-white"
       >
         <div class="border-stc-border flex items-center justify-between gap-3 border-b px-4 py-3">
-          <p :class="ui.sectionLabel">Latar Virtual</p>
+          <p :class="ui.sectionLabel">Latar</p>
           <button
             :class="ui.iconButton"
             type="button"
@@ -168,13 +157,13 @@ async function selectBackground(backgroundId: string) {
               :class="[
                 'focus-visible:ring-stc-pink/40 flex min-h-12 min-w-0 flex-row items-center justify-start gap-3 rounded-md border px-3 py-2 text-[13px] font-medium outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-45',
                 background.id === backgroundId
-                  ? 'border-stc-text bg-stc-bg-2 text-stc-text'
+                  ? 'border-stc-pink bg-stc-bg-2 text-stc-text'
                   : 'border-stc-border text-stc-text-soft hover:bg-stc-bg-2 hover:text-stc-text bg-white',
               ]"
               @click="selectBackground(background.id)"
             >
               <span
-                class="border-stc-border/50 block size-10 shrink-0 rounded-xl border shadow-inner"
+                class="border-stc-border/50 block size-10 shrink-0 rounded-lg border shadow-inner"
                 :style="swatchStyle(background.id)"
               ></span>
               <span class="max-w-full truncate">{{ background.label }}</span>

@@ -2,12 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCameraStore } from '@/app/store/useCameraStore'
-import {
-  createBooth,
-  getBoothRegistry,
-  joinBoothByCode,
-  normalizeBoothCode,
-} from '@/services/booth'
+import { getBoothRegistry, joinBoothByCode, normalizeBoothCode } from '@/services/booth'
 import { initCamera, shouldMirrorCamera, stopCamera } from '@/services/camera'
 import { ui } from '@/ui/styles'
 
@@ -15,7 +10,6 @@ const router = useRouter()
 const cameraStore = useCameraStore()
 const joinCode = ref('')
 const joinError = ref('')
-const createError = ref('')
 const cameraLive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let stream: MediaStream | null = null
@@ -24,21 +18,8 @@ const shouldMirrorLocalCamera = computed(() => shouldMirrorCamera(cameraStore.ac
 const ROLE_KEY = 'stecute.booth.role'
 const PEER_KEY = 'stecute.booth.peer'
 
-function persistHostRole(code: string) {
-  const normalized = normalizeBoothCode(code)
-  if (!normalized) return
-  sessionStorage.setItem(`${ROLE_KEY}.${normalized}`, 'host')
-}
-
 function createRoom() {
-  createError.value = ''
-  try {
-    const identity = createBooth(getBoothRegistry())
-    persistHostRole(identity.code)
-    router.push({ name: 'booth-join', params: { code: identity.code } })
-  } catch {
-    createError.value = 'Booth gagal dibuat. Coba lagi.'
-  }
+  router.push({ path: '/config', query: { source: 'booth' } })
 }
 
 function joinRoom() {
@@ -143,7 +124,6 @@ onUnmounted(() => {
         <div class="mt-6 flex flex-wrap items-center gap-2">
           <button :class="ui.primaryButton" @click="createRoom">Buat Booth</button>
         </div>
-        <p v-if="createError" class="text-stc-error-strong mt-2 text-[13px]">{{ createError }}</p>
 
         <form class="mt-8 max-w-sm" @submit.prevent="joinRoom">
           <label class="text-stc-text text-[13px] font-medium" for="booth-join-code">

@@ -69,13 +69,16 @@ import {
   type BoothTransport,
   type ComposedPairShot,
 } from '@/services/booth'
+import {
+  readPendingBoothSetup,
+  writePendingBoothSetup,
+} from '@/services/session/persist'
 import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from './BoothDecorationPicker.vue'
-import BoothStripSetup from './BoothStripSetup.vue'
 
 type BoothStage = 'live' | 'review' | 'output'
 
@@ -248,9 +251,7 @@ const pageTitle = computed(() => {
   if (stage.value === 'review') return 'Preview'
   return 'Foto Duet'
 })
-const showFullSetup = computed(
-  () => role.value === 'host' && stage.value === 'live' && capturedCount.value === 0,
-)
+const countdownSeconds = computed(() => Math.round(boothSetup.value.countdownMs / 1000))
 const pageSubtitle = computed(() => {
   if (joinError.value) return 'Booth tidak bisa dibuka.'
   if (!friendJoined.value) {
@@ -412,10 +413,12 @@ function publishSetup(next: BoothSessionSetup) {
   const normalized = normalizeBoothSetup(next)
   if (boothSetupsEqual(boothSetup.value, normalized) && peerSession?.getSetup()) {
     boothSetup.value = normalized
+    snapshotPendingHostSetup()
     return
   }
   peerBgStatus.value = null
   boothSetup.value = normalized
+  snapshotPendingHostSetup()
   if (role.value === 'host') {
     if (normalized.virtualBackgroundId === 'custom' && activeBackgroundBlob) {
       void peerSession?.setSetup(normalized, activeBackgroundBlob)
@@ -425,9 +428,43 @@ function publishSetup(next: BoothSessionSetup) {
   }
 }
 
-function handleSetupChange(next: BoothSessionSetup) {
-  if (!canChangeSetup.value) return
-  publishSetup(next)
+function applyPendingHostSetup(code: string) {
+  if (role.value !== 'host') return
+  const pending = readPendingBoothSetup(code)
+  if (!pending) return
+  boothSetup.value = normalizeBoothSetup({
+    layoutId: pending.layoutId,
+    templateId: pending.templateId,
+    slotCount: pending.slotCount,
+    countdownMs: pending.countdownSeconds * 1000,
+    autoCapture: pending.autoCapture,
+    filterId: pending.filterId,
+    cameraEffectId: pending.cameraEffectId,
+    virtualBackgroundId: pending.virtualBackgroundId,
+  })
+}
+
+function snapshotPendingHostSetup() {
+  if (role.value !== 'host' || !identity.value) return
+  writePendingBoothSetup({
+    code: identity.value.code,
+    layoutId: boothSetup.value.layoutId,
+    templateId: boothSetup.value.templateId,
+    slotCount: boothSetup.value.slotCount,
+    countdownSeconds: Math.round(boothSetup.value.countdownMs / 1000),
+    autoCapture: boothSetup.value.autoCapture,
+    filterId: boothSetup.value.filterId,
+    cameraEffectId: boothSetup.value.cameraEffectId,
+    virtualBackgroundId: boothSetup.value.virtualBackgroundId,
+  })
+}
+
+function openSessionConfig() {
+  if (!identity.value || !canChangeSetup.value) return
+  router.push({
+    path: '/config',
+    query: { source: 'booth', code: identity.value.code },
+  })
 }
 
 function handleFilterChange(filterId: string) {
@@ -1459,6 +1496,8 @@ function enterRoom() {
 
   identity.value = result.identity
   role.value = resolveRole(result.identity.code)
+  applyPendingHostSetup(result.identity.code)
+  snapshotPendingHostSetup()
   inviteUrl.value = buildInviteUrl(window.location.origin, result.identity)
   participantCount.value = 1
   currentMoment.value = 0
@@ -1521,7 +1560,7 @@ onUnmounted(() => {
           <p v-if="joinError" :class="ui.subtitle">{{ pageSubtitle }}</p>
         </div>
       </div>
-      <div v-if="!joinError" class="flex items-center gap-2">
+      <div v-if="!joinError" class="flex items-center gap-2 sm:gap-3">
         <input
           id="booth-invite-url"
           :value="inviteUrl"
@@ -1541,6 +1580,31 @@ onUnmounted(() => {
           {{ formattedCode }}
         </button>
         <span :class="ui.badge">{{ role === 'host' ? 'Host' : 'Tamu' }}</span>
+        <span :class="ui.badge">{{ countdownSeconds }}s</span>
+        <span v-if="boothSetup.autoCapture" :class="ui.pinkBadge">Otomatis</span>
+        <button
+          v-if="role === 'host' && stage === 'live'"
+          :class="ui.iconButton"
+          aria-label="Ubah setup sesi"
+          :disabled="!canChangeSetup"
+          @click="openSessionConfig"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06.06a2 2 0 0 1 2.83 2.83l-.06-.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -1744,14 +1808,6 @@ onUnmounted(() => {
               @select-effect="handleEffectChange"
               @select-background="handleBackgroundChange"
               @custom-file="handleCustomBackground"
-            />
-          </div>
-
-          <div v-if="showFullSetup" class="w-full max-w-5xl">
-            <BoothStripSetup
-              :setup="boothSetup"
-              :disabled="!canChangeSetup"
-              @change="handleSetupChange"
             />
           </div>
         </div>

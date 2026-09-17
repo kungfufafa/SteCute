@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { startHostBooth } from './booth-flow'
 
 test.use({
   baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
@@ -82,6 +83,28 @@ test.describe('Booth Bareng join paths', () => {
     await expectSideBySideTiles(page, 'booth-hub-local-tile', 'booth-hub-remote-tile')
 
     await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await expect(page).toHaveURL('/config?source=booth')
+    await expect(page.getByRole('heading', { name: 'Atur Sesi' })).toBeVisible()
+    await expect(page.getByText('Jumlah Foto', { exact: true })).toBeVisible()
+    await expect(page.getByRole('navigation', { name: 'Progress sesi Stecute' })).toContainText(
+      'Duet',
+    )
+    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 3 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Upload Frame' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    await page.getByRole('button', { name: 'Classic 4 foto' }).click()
+    await page.getByRole('button', { name: '5s' }).click()
+    await page.getByRole('button', { name: 'Otomatis' }).click()
+    await page.getByRole('button', { name: 'Buka Booth' }).filter({ visible: true }).click()
 
     const code = page.getByTestId('booth-code')
     await expect(code).toBeVisible()
@@ -105,22 +128,17 @@ test.describe('Booth Bareng join paths', () => {
       'Menunggu host memulai pose',
     )
     await expect(page.getByRole('navigation', { name: 'Progress sesi Stecute' })).toHaveCount(0)
-    await expect(page.getByText('Efek Kamera')).toBeVisible()
-    await expect(page.getByText('Overlay Kamera')).toBeVisible()
+    await expect(page.getByText('Efek', { exact: true })).toBeVisible()
+    await expect(page.getByText('Overlay', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Pilih efek Hangat' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Pilih overlay Hati' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 3 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 4 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Classic 6 foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Mono, 2/3/4/6 Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Classic 2 foto' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Youth, 2/3/4/6 Foto' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveCount(0)
+    await expect(page.getByText('5s', { exact: true })).toBeVisible()
+    await expect(page.getByText('Otomatis', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Ubah setup sesi' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Menunggu teman' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Otomatis' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Otomatis' })).toHaveAttribute(
-      'aria-pressed',
-      'false',
-    )
     await expect(page.getByRole('button', { name: 'Render strip' })).toHaveCount(0)
 
     const scratch = process.env.BOOTH_PARITY_SCRATCH
@@ -132,7 +150,7 @@ test.describe('Booth Bareng join paths', () => {
   test('guest can join by typing the host code', async ({ context, page }) => {
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()
 
@@ -159,7 +177,7 @@ test.describe('Booth Bareng join paths', () => {
 
     await host.goto('/')
     await cta(host, 'Foto Duet').click()
-    await host.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(host)
     const roomCode = (await host.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await host.getByTestId('booth-invite-url').inputValue()
 
@@ -175,7 +193,7 @@ test.describe('Booth Bareng join paths', () => {
   test('invite URL enters the same booth as the host code', async ({ context, page }) => {
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
 
     const roomCode = (await page.getByTestId('booth-code').innerText()).trim()
     const inviteUrl = await page.getByTestId('booth-invite-url').inputValue()
@@ -193,7 +211,7 @@ test.describe('Booth Bareng join paths', () => {
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
     await expectSideBySideTiles(page, 'booth-hub-local-tile', 'booth-hub-remote-tile')
-    await page.getByRole('button', { name: 'Buat Booth' }).click()
+    await startHostBooth(page)
 
     await expect(page.getByTestId('booth-stage')).toBeVisible()
     await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
