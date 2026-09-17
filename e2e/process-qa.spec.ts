@@ -42,7 +42,7 @@ test.describe('process QA empty and entry states', () => {
   test('review without a session shows recovery copy', async ({ page }) => {
     await page.goto('/review')
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
-    await expect(page.getByText('Sesi review tidak ditemukan')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Sesi Tidak Ditemukan' })).toBeVisible()
   })
 
   test('output without renderId shows empty recovery, not a fake success strip', async ({

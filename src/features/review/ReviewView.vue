@@ -26,7 +26,6 @@ import { useSessionStore } from '@/app/store/useSessionStore'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
-import FlowProgress from '@/components/common/FlowProgress.vue'
 
 interface ReplacementUpload {
   file: File
@@ -147,7 +146,7 @@ async function loadShotUrls() {
 
   if (!snapshot) {
     revokeShotUrls()
-    reviewError.value = 'Sesi review tidak ditemukan. Mulai sesi baru untuk membuat strip.'
+    reviewError.value = null
     isLoadingReview.value = false
     return
   }
@@ -391,23 +390,35 @@ function proceedToRender() {
 
   router.replace('/render')
 }
+
+function goBack() {
+  router.push(sessionStore.captureSource === 'upload' ? '/upload' : '/camera')
+}
 </script>
 
 <template>
   <div :class="ui.page">
     <div :class="ui.header">
-      <div class="min-w-0 flex-1">
-        <h3 :class="ui.title">Preview</h3>
-        <p :class="ui.subtitle">
-          Ketuk slot foto jika ingin mengulang tangkapan sebelum hasil akhir.
-        </p>
+      <div :class="ui.headerGroup">
+        <button :class="ui.iconButton" aria-label="Kembali" @click="goBack">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <h1 :class="ui.title">Preview</h1>
       </div>
-      <span :class="ui.badge">
-        {{ activeLayout?.printFormat.paperSize ?? `${sessionStore.slotCount} Foto` }}
-      </span>
+      <span v-if="hasReviewShots" :class="ui.badge">{{ sessionStore.slotCount }} Foto</span>
     </div>
-
-    <FlowProgress current="review" :source="sessionStore.captureSource" />
 
     <div :class="ui.content">
       <div
@@ -419,18 +430,15 @@ function proceedToRender() {
       >
         <div v-if="isLoadingReview" :class="ui.emptyPanel">
           <div
-            class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
+            class="border-stc-border border-t-stc-pink mx-auto size-6 animate-spin rounded-full border-2"
+            aria-label="Memuat"
           ></div>
-          <h4 class="text-stc-text text-[15px] font-medium">Memuat Review</h4>
-          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Mengambil ulang foto sesi dari penyimpanan lokal.
-          </p>
         </div>
 
         <div v-else-if="!hasReviewShots" :class="ui.emptyPanel">
-          <h4 class="text-stc-text text-[15px] font-medium">Sesi Tidak Ditemukan</h4>
-          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            {{ reviewError ?? 'Mulai sesi baru untuk membuat strip.' }}
+          <h2 class="text-stc-text text-[15px] font-medium">Sesi Tidak Ditemukan</h2>
+          <p v-if="reviewError" class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px]">
+            {{ reviewError }}
           </p>
           <button :class="[ui.primaryButton, 'mt-4']" @click="router.push('/')">Mulai Foto</button>
         </div>
@@ -449,12 +457,9 @@ function proceedToRender() {
         />
 
         <div v-if="replacementUpload" :class="[ui.panel, 'w-full max-w-xl p-4 text-left']">
-          <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p :class="ui.sectionLabel">Foto Pengganti</p>
-              <h4 class="text-stc-text mt-0.5 text-[15px] font-medium">{{ replacementLabel }}</h4>
-            </div>
-            <span :class="ui.badge">Atur Framing</span>
+          <div class="mb-3">
+            <p :class="ui.sectionLabel">Foto Pengganti</p>
+            <h2 class="text-stc-text mt-0.5 text-[15px] font-medium">{{ replacementLabel }}</h2>
           </div>
 
           <div
@@ -472,10 +477,6 @@ function proceedToRender() {
             ></div>
             <div class="pointer-events-none absolute inset-0 ring-1 ring-white/70 ring-inset"></div>
           </div>
-
-          <p class="text-stc-text-soft mt-3 text-center text-[13px]">
-            Seret foto di dalam frame sebelum menyimpan pengganti.
-          </p>
 
           <div class="mt-4 grid gap-2 sm:grid-cols-2">
             <button
