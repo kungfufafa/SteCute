@@ -37,6 +37,13 @@ export {
   type BoothPeerSession,
 } from './session'
 export {
+  boothHostPeerBackgroundLabel,
+  boothHostStartLabel,
+  isBoothCaptureBackgroundReady,
+  shouldConfirmGuestBackgroundReady,
+  type BoothLocalBackgroundStatus,
+} from './background-ready'
+export {
   BOOTH_COUNTDOWN_SECONDS,
   DEFAULT_BOOTH_COUNTDOWN_SECONDS,
   bundledBoothLayouts,

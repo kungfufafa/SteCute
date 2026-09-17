@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { sizeCanvasToSource } from '@/services/camera/cover-crop'
 import {
   CameraBackgroundProcessor,
   isVirtualBackgroundActive,
@@ -50,19 +51,9 @@ function setActive(active: boolean) {
 
 function updateCanvasSize() {
   const canvas = canvasRef.value
-  if (!canvas) return
-
-  const rect = canvas.getBoundingClientRect()
-  const width = rect.width > 0 ? rect.width : (canvas.parentElement?.clientWidth ?? 0)
-  const height = rect.height > 0 ? rect.height : (canvas.parentElement?.clientHeight ?? 0)
-  if (width <= 0 || height <= 0) return
-
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
-  const nextWidth = Math.max(1, Math.round(width * pixelRatio))
-  const nextHeight = Math.max(1, Math.round(height * pixelRatio))
-
-  if (canvas.width !== nextWidth) canvas.width = nextWidth
-  if (canvas.height !== nextHeight) canvas.height = nextHeight
+  const proc = activeProcessor.value
+  if (!canvas || !proc) return
+  sizeCanvasToSource(canvas, proc.canvas)
 }
 
 function startLoop() {
@@ -106,10 +97,9 @@ function renderFrame() {
     return
   }
 
-  // If processor is active and has rendered content
   if (proc.isActive() && proc.canvas.width > 0 && proc.canvas.height > 0) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.drawImage(proc.canvas, 0, 0, canvas.width, canvas.height)
+    sizeCanvasToSource(canvas, proc.canvas)
+    ctx.drawImage(proc.canvas, 0, 0)
     setActive(true)
     emit('status', proc.currentStatus)
     emit('error', proc.error)
@@ -149,7 +139,13 @@ async function syncProcessor() {
 }
 
 watch(
-  [normalizedId, () => props.customImage, () => props.mirrored, () => props.videoEl, () => props.processor],
+  [
+    normalizedId,
+    () => props.customImage,
+    () => props.mirrored,
+    () => props.videoEl,
+    () => props.processor,
+  ],
   () => {
     void syncProcessor()
   },
@@ -190,7 +186,7 @@ defineExpose({
     :data-virtual-background-id="normalizedId"
     :class="[
       'h-full w-full object-cover transition-opacity duration-150',
-      previewActive ? 'opacity-100' : 'opacity-0 pointer-events-none',
+      previewActive ? 'opacity-100' : 'pointer-events-none opacity-0',
     ]"
     aria-hidden="true"
   ></canvas>

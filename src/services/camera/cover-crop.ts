@@ -25,3 +25,13 @@ export function getObjectCoverCrop(
 
   return { sx, sy, sw, sh }
 }
+
+export function sizeCanvasToSource(
+  canvas: { width: number; height: number },
+  source: { width: number; height: number },
+) {
+  if (source.width <= 0 || source.height <= 0) return canvas
+  if (canvas.width !== source.width) canvas.width = source.width
+  if (canvas.height !== source.height) canvas.height = source.height
+  return canvas
+}

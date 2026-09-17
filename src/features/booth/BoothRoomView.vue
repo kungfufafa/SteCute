@@ -21,6 +21,7 @@ import {
   normalizeHostCustomBackground,
   resolveVirtualBackgroundSpec,
   validateCustomBackgroundFile,
+  type BackgroundProcessorStatus,
   type RgbaFrame,
 } from '@/services/virtual-background'
 import {
@@ -46,13 +47,17 @@ import {
   createBoothPeerSession,
   createBoothRoomTransport,
   createDefaultBoothSetup,
+  boothHostPeerBackgroundLabel,
+  boothHostStartLabel,
   createPeerId,
+  isBoothCaptureBackgroundReady,
   joinBoothByCode,
   isRemotePreviewReady,
   joinBoothByInvite,
   normalizeBoothCode,
   normalizeBoothSetup,
   pairSlotForLayout,
+  shouldConfirmGuestBackgroundReady,
   type BoothIdentity,
   type BoothJoinError,
   type BoothPeerRole,
@@ -116,6 +121,7 @@ const livePreviewUrl = ref('')
 const renderError = ref('')
 
 const backgroundProcessor = ref<CameraBackgroundProcessor | null>(null)
+const localBackgroundStatus = ref<BackgroundProcessorStatus>('off')
 const backgroundError = ref<string | null>(null)
 const showBackgroundErrorModal = ref(false)
 const guestBackgroundStatus = ref<'off' | 'loading' | 'ready' | 'error'>('off')
@@ -164,22 +170,28 @@ const canChangeSetup = computed(
     !rendering.value,
 )
 
-const isBackgroundReady = computed(() => {
-  if (boothSetup.value.virtualBackgroundId === 'off') return true
-  if (!backgroundProcessor.value || backgroundProcessor.value.currentStatus !== 'ready') {
-    return false
-  }
-  if (friendJoined.value) {
-    if (role.value === 'host') {
-      if (!peerBgStatus.value) return false
-      if (peerBgStatus.value.status !== 'ready') return false
-      if (peerBgStatus.value.revision !== (boothSetup.value.revision ?? 1)) return false
-    } else {
-      if (guestBackgroundStatus.value !== 'ready') return false
-    }
-  }
-  return true
-})
+const isBackgroundReady = computed(() =>
+  isBoothCaptureBackgroundReady({
+    backgroundId: boothSetup.value.virtualBackgroundId,
+    localStatus: localBackgroundStatus.value,
+    friendJoined: friendJoined.value,
+    role: role.value,
+    peerStatus: peerBgStatus.value,
+    setupRevision: boothSetup.value.revision ?? 1,
+    guestStatus: guestBackgroundStatus.value,
+  }),
+)
+const hostStartLabel = computed(() =>
+  boothHostStartLabel({
+    friendJoined: friendJoined.value,
+    captureReady: isBackgroundReady.value,
+    localReady:
+      boothSetup.value.virtualBackgroundId === 'off' || localBackgroundStatus.value === 'ready',
+  }),
+)
+const hostPeerBackgroundLabel = computed(() =>
+  boothHostPeerBackgroundLabel(peerBgStatus.value?.status),
+)
 
 const canStart = computed(
   () =>
@@ -386,6 +398,7 @@ async function handleBackgroundChange(virtualBackgroundId: string) {
       id: virtualBackgroundId,
       customImage: customBackgroundFrame.value,
     })
+    syncLocalBackgroundStatus()
     updateTransportStream()
   }
 }
@@ -415,6 +428,7 @@ async function handleCustomBackground(file: File) {
       revision: nextRev,
     }
     boothSetup.value = nextSetup
+    peerBgStatus.value = null
     if (role.value === 'host' && peerSession) {
       await peerSession.setSetup(nextSetup, normalized.blob)
     }
@@ -423,6 +437,7 @@ async function handleCustomBackground(file: File) {
         id: 'custom',
         customImage: frame,
       })
+      syncLocalBackgroundStatus()
       updateTransportStream()
     }
     statusMessage.value = 'Latar virtual diterapkan.'
@@ -440,17 +455,42 @@ function processCapturedBackground(canvas: HTMLCanvasElement, ctx: CanvasRenderi
   )
 }
 
+function syncLocalBackgroundStatus() {
+  localBackgroundStatus.value = backgroundProcessor.value?.currentStatus ?? 'off'
+}
+
+function reportGuestBackgroundIfReady() {
+  syncLocalBackgroundStatus()
+  if (
+    !shouldConfirmGuestBackgroundReady({
+      role: role.value,
+      processorStatus: localBackgroundStatus.value,
+      backgroundId: boothSetup.value.virtualBackgroundId,
+      hasCustomImage: Boolean(customBackgroundFrame.value),
+    })
+  ) {
+    return
+  }
+  guestBackgroundStatus.value = 'ready'
+  peerSession?.confirmBackgroundReady(
+    boothSetup.value.revision ?? 1,
+    boothSetup.value.virtualBackgroundAssetId ?? undefined,
+  )
+}
+
 function setupBackgroundProcessor() {
   if (!videoRef.value || !stream) return
   if (backgroundProcessor.value) {
     backgroundProcessor.value.dispose()
   }
 
+  localBackgroundStatus.value = 'off'
   backgroundProcessor.value = new CameraBackgroundProcessor({
     video: videoRef.value,
     rawStream: stream,
     mirrored: false,
     onStatusChange: (status, error) => {
+      localBackgroundStatus.value = status
       if (status === 'error') {
         backgroundError.value = error ?? 'Segmentasi latar belakang gagal.'
         if (role.value === 'guest') {
@@ -462,17 +502,7 @@ function setupBackgroundProcessor() {
         }
       } else if (status === 'ready') {
         backgroundError.value = null
-        if (
-          role.value === 'guest' &&
-          (boothSetup.value.virtualBackgroundId !== 'custom' ||
-            Boolean(customBackgroundFrame.value))
-        ) {
-          guestBackgroundStatus.value = 'ready'
-          peerSession?.confirmBackgroundReady(
-            boothSetup.value.revision ?? 1,
-            boothSetup.value.virtualBackgroundAssetId ?? undefined,
-          )
-        }
+        reportGuestBackgroundIfReady()
       } else if (status === 'off') {
         backgroundError.value = null
         if (role.value === 'guest') guestBackgroundStatus.value = 'off'
@@ -486,6 +516,7 @@ function setupBackgroundProcessor() {
       customImage: customBackgroundFrame.value,
     })
     .then(() => {
+      reportGuestBackgroundIfReady()
       updateTransportStream()
     })
 }
@@ -511,6 +542,7 @@ async function retryBackground() {
         id: boothSetup.value.virtualBackgroundId,
         customImage: customBackgroundFrame.value,
       })
+      syncLocalBackgroundStatus()
       updateTransportStream()
     }
   } else {
@@ -526,8 +558,7 @@ async function retryBackground() {
     } else if (backgroundProcessor.value) {
       await backgroundProcessor.value.configure({ id: boothSetup.value.virtualBackgroundId })
       updateTransportStream()
-      guestBackgroundStatus.value = 'ready'
-      peerSession?.confirmBackgroundReady(boothSetup.value.revision ?? 1)
+      reportGuestBackgroundIfReady()
     }
   }
 }
@@ -554,6 +585,7 @@ async function fallbackToNormalBackground() {
   }
   if (backgroundProcessor.value) {
     await backgroundProcessor.value.configure({ id: 'off' })
+    syncLocalBackgroundStatus()
     updateTransportStream()
   }
 }
@@ -884,6 +916,7 @@ function listenForRemoteSetup(session: BoothPeerSession) {
             }
             await backgroundProcessor.value.configure({ id: normalized.virtualBackgroundId })
             updateTransportStream()
+            reportGuestBackgroundIfReady()
           }
         } else if (role.value === 'guest') {
           guestBackgroundStatus.value = 'loading'
@@ -893,6 +926,7 @@ function listenForRemoteSetup(session: BoothPeerSession) {
             customImage: customBackgroundFrame.value,
           })
           updateTransportStream()
+          reportGuestBackgroundIfReady()
         }
       }
     } catch {
@@ -1249,8 +1283,7 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
           })
           updateTransportStream()
         }
-        guestBackgroundStatus.value = 'ready'
-        activePeerSession.confirmBackgroundReady(revision, assetId)
+        reportGuestBackgroundIfReady()
       } catch (err) {
         console.error('Failed to load guest background asset:', err)
         guestBackgroundStatus.value = 'error'
@@ -1502,20 +1535,14 @@ onUnmounted(() => {
                   <span
                     class="inline-flex size-2 rounded-full"
                     :class="
-                      peerBgStatus?.status === 'loading'
-                        ? 'animate-pulse bg-amber-400'
-                        : peerBgStatus?.status === 'ready'
-                          ? 'bg-emerald-400'
-                          : 'bg-zinc-400'
+                      peerBgStatus?.status === 'ready'
+                        ? 'bg-emerald-400'
+                        : peerBgStatus?.status === 'error'
+                          ? 'bg-rose-400'
+                          : 'animate-pulse bg-amber-400'
                     "
                   />
-                  <span>{{
-                    peerBgStatus?.status === 'loading'
-                      ? 'Teman memuat latar...'
-                      : peerBgStatus?.status === 'ready'
-                        ? 'Teman siap'
-                        : 'Menyiapkan latar...'
-                  }}</span>
+                  <span>{{ hostPeerBackgroundLabel }}</span>
                 </template>
               </div>
               <div class="grid h-full grid-cols-2">
@@ -1626,13 +1653,7 @@ onUnmounted(() => {
                 :disabled="!canStart"
                 @click="startPose"
               >
-                {{
-                  friendJoined
-                    ? isBackgroundReady
-                      ? 'Mulai pose'
-                      : 'Menyiapkan latar...'
-                    : 'Menunggu teman'
-                }}
+                {{ hostStartLabel }}
               </button>
               <p class="text-stc-text-soft text-xs font-medium">
                 {{ pageSubtitle }}

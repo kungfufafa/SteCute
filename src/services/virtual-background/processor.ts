@@ -15,6 +15,25 @@ import {
 
 export type BackgroundProcessorStatus = 'off' | 'loading' | 'ready' | 'error'
 
+export function configureActiveBackgroundStatus(options: {
+  active: boolean
+  alreadyReady: boolean
+}): BackgroundProcessorStatus {
+  if (!options.active) return 'off'
+  return options.alreadyReady ? 'ready' : 'loading'
+}
+
+export function shouldNotifyBackgroundStatus(options: {
+  current: BackgroundProcessorStatus
+  next: BackgroundProcessorStatus
+  errorChanged?: boolean
+  force?: boolean
+}): boolean {
+  if (options.force) return true
+  if (options.current !== options.next) return true
+  return Boolean(options.errorChanged)
+}
+
 export interface CameraBackgroundProcessorOptions {
   video: HTMLVideoElement
   rawStream?: MediaStream | null
@@ -136,8 +155,13 @@ export class CameraBackgroundProcessor implements CameraBackgroundProcessorLike 
       return
     }
 
-    // Background is active
-    this.setStatus('loading')
+    const alreadyReady = this.retainedSegmenter && this.status === 'ready'
+    this.setStatus(
+      configureActiveBackgroundStatus({
+        active: true,
+        alreadyReady,
+      }),
+    )
     let retainedForAttempt = false
     try {
       if (!this.retainedSegmenter) {
@@ -151,6 +175,9 @@ export class CameraBackgroundProcessor implements CameraBackgroundProcessorLike 
 
       this.isUsingWorker = await ensureWorkerSegmenter()
       this.startLoop()
+      if (alreadyReady && this.status === 'ready') {
+        this.setStatus('ready', null, { force: true })
+      }
     } catch (err) {
       if (retainedForAttempt) {
         if (this.retainedSegmenter) {
@@ -284,8 +311,22 @@ export class CameraBackgroundProcessor implements CameraBackgroundProcessorLike 
     this.setStatus('off')
   }
 
-  private setStatus(status: BackgroundProcessorStatus, error: string | null = null) {
-    if (this.status === status && this.errorMessage === error) return
+  private setStatus(
+    status: BackgroundProcessorStatus,
+    error: string | null = null,
+    options: { force?: boolean } = {},
+  ) {
+    const errorChanged = this.errorMessage !== error
+    if (
+      !shouldNotifyBackgroundStatus({
+        current: this.status,
+        next: status,
+        errorChanged,
+        force: options.force,
+      })
+    ) {
+      return
+    }
     this.status = status
     this.errorMessage = error
     this.onStatusChange?.(status, error)
@@ -407,7 +448,6 @@ export class CameraBackgroundProcessor implements CameraBackgroundProcessorLike 
       }
 
       if (!mask) {
-        // Segmentation returned null (e.g. offline/error), draw offscreen as passthrough
         prevCtx.drawImage(this.offscreenCanvas, 0, 0)
         return
       }

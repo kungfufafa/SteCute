@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import { createBoothRelayConnectMiddleware } from './server/booth-relay.mjs'
+import { createMediapipePublicWasmJsPlugin } from './src/vite/mediapipe-public-wasm'
 
 function boothRelayPlugin() {
   const middleware = createBoothRelayConnectMiddleware()
@@ -64,6 +65,7 @@ const devHttpsOptions = loadDevHttpsOptions()
 
 export default defineConfig({
   plugins: [
+    createMediapipePublicWasmJsPlugin(),
     boothRelayPlugin(),
     vue(),
     tailwindcss(),

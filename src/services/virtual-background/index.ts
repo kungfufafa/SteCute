@@ -50,8 +50,9 @@ export {
 } from './segment'
 export {
   CameraBackgroundProcessor,
+  configureActiveBackgroundStatus,
+  shouldNotifyBackgroundStatus,
   type BackgroundProcessorStatus,
   type CameraBackgroundProcessorLike,
   type CameraBackgroundProcessorOptions,
 } from './processor'
-

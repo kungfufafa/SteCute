@@ -55,7 +55,7 @@ self.onmessage = async (event: MessageEvent<SegmentWorkerInMessage>) => {
         segmenter = await ImageSegmenter.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: message.modelPath,
-            delegate: 'GPU',
+            delegate: 'CPU',
           },
           runningMode: 'VIDEO',
           outputCategoryMask: false,
@@ -65,7 +65,7 @@ self.onmessage = async (event: MessageEvent<SegmentWorkerInMessage>) => {
         segmenter = await ImageSegmenter.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: message.modelPath,
-            delegate: 'CPU',
+            delegate: 'GPU',
           },
           runningMode: 'VIDEO',
           outputCategoryMask: false,

@@ -20,6 +20,7 @@ export const WORKER_MAX_PREVIEW_SIDE = 720
 export const WORKER_MIN_FRAME_INTERVAL_MS = 1000 / 15 // 15 fps (~66.6 ms)
 export const MAIN_THREAD_MAX_PREVIEW_SIDE = 480
 export const MAIN_THREAD_MIN_FRAME_INTERVAL_MS = 1000 / 10 // 10 fps (100 ms)
+export const WORKER_SEGMENT_TIMEOUT_MS = 1500
 
 let imageSegmenter: ImageSegmenter | null = null
 let initPromise: Promise<ImageSegmenter | null> | null = null
@@ -215,42 +216,62 @@ export async function segmentPersonAsync(
     return { mask: null, configRevision: revision }
   }
 
-  // Try Worker first if available
   if (segmentWorker && typeof createImageBitmap === 'function') {
     try {
-      const bitmap = await createImageBitmap(source)
-      const frameId = ++workerFrameIdCounter
-      const now =
-        options.timestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now())
-
-      return await new Promise((resolve) => {
-        workerPendingCallbacks.set(frameId, (res) => {
-          if (res.success && res.mask) {
-            resolve({ mask: res.mask, configRevision: res.configRevision })
-          } else {
-            resolve({ mask: null, configRevision: revision })
-          }
-        })
-
-        segmentWorker!.postMessage(
-          {
-            type: 'segment',
-            frameId,
-            configRevision: revision,
-            bitmap,
-            timestamp: now,
-          },
-          [bitmap],
-        )
-      })
+      const workerResult = await segmentPersonViaWorker(source, revision, options.timestamp)
+      if (workerResult?.mask) {
+        return workerResult
+      }
     } catch {
       // Fallback to main thread
     }
   }
 
-  // Fallback to main thread
+  if (!imageSegmenter) {
+    await ensurePersonSegmenter()
+  }
+
   const syncMask = segmentPerson(source as SegmentableSource)
   return { mask: syncMask, configRevision: revision }
+}
+
+async function segmentPersonViaWorker(
+  source: CanvasImageSource,
+  revision: number,
+  timestamp?: number,
+): Promise<{ mask: PersonMask; configRevision: number } | null> {
+  if (!segmentWorker) return null
+
+  const bitmap = await createImageBitmap(source)
+  const frameId = ++workerFrameIdCounter
+  const now = timestamp ?? (typeof performance !== 'undefined' ? performance.now() : Date.now())
+
+  return await new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+      workerPendingCallbacks.delete(frameId)
+      resolve(null)
+    }, WORKER_SEGMENT_TIMEOUT_MS)
+
+    workerPendingCallbacks.set(frameId, (res) => {
+      clearTimeout(timeout)
+      if (res.success && res.mask) {
+        resolve({ mask: res.mask, configRevision: res.configRevision })
+        return
+      }
+      resolve(null)
+    })
+
+    segmentWorker!.postMessage(
+      {
+        type: 'segment',
+        frameId,
+        configRevision: revision,
+        bitmap,
+        timestamp: now,
+      },
+      [bitmap],
+    )
+  })
 }
 
 export function destroyPersonSegmenter(): void {

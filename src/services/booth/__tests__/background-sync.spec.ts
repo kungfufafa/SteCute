@@ -247,4 +247,38 @@ describe('booth background asset sync', () => {
     host.dispose()
     guest.dispose()
   })
+
+  it('delivers a new ready revision after the guest already confirmed the previous background', async () => {
+    const { host: hostTransport, guest: guestTransport } = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host-reconfirm',
+      role: 'host',
+      transport: hostTransport,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest-reconfirm',
+      role: 'guest',
+      transport: guestTransport,
+    })
+
+    const firstReady = new Promise<{ status: string; revision: number }>((resolve) => {
+      host.onPeerBackgroundStatus((event) => {
+        if (event.revision === 1) resolve(event)
+      })
+    })
+    guest.confirmBackgroundReady(1)
+    await expect(firstReady).resolves.toMatchObject({ status: 'ready', revision: 1 })
+
+    const secondReady = new Promise<{ status: string; revision: number }>((resolve) => {
+      host.onPeerBackgroundStatus((event) => {
+        if (event.revision === 2) resolve(event)
+      })
+    })
+    guest.confirmBackgroundReady(2)
+    await expect(secondReady).resolves.toMatchObject({ status: 'ready', revision: 2 })
+    expect(host.getPeerBackgroundStatus()).toMatchObject({ status: 'ready', revision: 2 })
+
+    host.dispose()
+    guest.dispose()
+  })
 })

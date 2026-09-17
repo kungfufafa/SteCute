@@ -10,6 +10,7 @@ import {
   initPersonSegmenter,
   isPersonSegmenterReady,
   segmentPerson,
+  segmentPersonAsync,
 } from '@/services/virtual-background'
 
 const mockedMediapipe = vi.hoisted(() => ({
@@ -98,12 +99,12 @@ describe('person segmenter MediaPipe assets', () => {
       .mockResolvedValueOnce(mockedMediapipe.segmenter)
 
     await expect(initPersonSegmenter()).resolves.toBe(true)
-    expect(vi.mocked(ImageSegmenter.createFromOptions).mock.calls[0]?.[1].baseOptions?.delegate).toBe(
-      'GPU',
-    )
-    expect(vi.mocked(ImageSegmenter.createFromOptions).mock.calls[1]?.[1].baseOptions?.delegate).toBe(
-      'CPU',
-    )
+    expect(
+      vi.mocked(ImageSegmenter.createFromOptions).mock.calls[0]?.[1].baseOptions?.delegate,
+    ).toBe('GPU')
+    expect(
+      vi.mocked(ImageSegmenter.createFromOptions).mock.calls[1]?.[1].baseOptions?.delegate,
+    ).toBe('CPU')
   })
 
   it('returns the original frame when the segmenter is unavailable or fails', async () => {
@@ -114,16 +115,77 @@ describe('person segmenter MediaPipe assets', () => {
     }
 
     expect(isPersonSegmenterReady()).toBe(false)
-    expect(
-      segmentPerson({ videoWidth: 8, videoHeight: 8 } as HTMLVideoElement),
-    ).toBeNull()
+    expect(segmentPerson({ videoWidth: 8, videoHeight: 8 } as HTMLVideoElement)).toBeNull()
     expect(applyVirtualBackgroundOrPassthrough(source, null, { id: 'pink' })).toBe(source)
 
     vi.mocked(FilesetResolver.forVisionTasks).mockRejectedValueOnce(new Error('offline'))
     await expect(initPersonSegmenter()).resolves.toBe(false)
     expect(isPersonSegmenterReady()).toBe(false)
-    expect(applyVirtualBackgroundOrPassthrough(source, segmentPerson({} as HTMLVideoElement), { id: 'blue' })).toBe(
-      source,
+    expect(
+      applyVirtualBackgroundOrPassthrough(source, segmentPerson({} as HTMLVideoElement), {
+        id: 'blue',
+      }),
+    ).toBe(source)
+  })
+
+  it('falls back to the main-thread segmenter when the worker returns no mask', async () => {
+    const listeners: Array<(event: MessageEvent) => void> = []
+
+    class FakeWorker {
+      onmessage: ((event: MessageEvent) => void) | null = null
+
+      addEventListener(type: string, listener: (event: MessageEvent) => void) {
+        if (type === 'message') listeners.push(listener)
+      }
+
+      removeEventListener(type: string, listener: (event: MessageEvent) => void) {
+        const index = listeners.indexOf(listener)
+        if (index >= 0) listeners.splice(index, 1)
+      }
+
+      postMessage(message: { type: string; frameId?: number; configRevision?: number }) {
+        queueMicrotask(() => {
+          if (message.type === 'init') {
+            const event = { data: { type: 'init-result', success: true } } as MessageEvent
+            for (const listener of listeners) listener(event)
+            return
+          }
+
+          if (message.type === 'segment') {
+            this.onmessage?.({
+              data: {
+                type: 'segment-result',
+                frameId: message.frameId,
+                configRevision: message.configRevision ?? 0,
+                success: false,
+              },
+            } as MessageEvent)
+          }
+        })
+      }
+
+      terminate() {}
+    }
+
+    vi.stubGlobal('Worker', FakeWorker)
+    vi.stubGlobal(
+      'createImageBitmap',
+      async () =>
+        ({
+          close() {},
+        }) as ImageBitmap,
     )
+
+    try {
+      await expect(initPersonSegmenter()).resolves.toBe(true)
+      const result = await segmentPersonAsync({ width: 8, height: 8 } as HTMLCanvasElement, {
+        configRevision: 3,
+      })
+      expect(result.mask).not.toBeNull()
+      expect(result.configRevision).toBe(3)
+      expect(ImageSegmenter.createFromOptions).toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
