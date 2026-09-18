@@ -24,6 +24,11 @@ import {
   writePendingSessionConfig,
 } from '@/services/session/persist'
 import { getTemplateById } from '@/templates'
+import type { CaptureSessionConfig } from '@/services/session/capture-config'
+import {
+  reconfigureCameraSession,
+  restartCameraSessionPhotos,
+} from '@/services/session/capture-reconfigure'
 import { useCameraStore } from '@/app/store/useCameraStore'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
@@ -59,6 +64,8 @@ import {
 } from '@/services/virtual-background'
 import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
+import CaptureWorkspace from '@/components/common/CaptureWorkspace.vue'
+import CaptureSessionSettings from '@/components/common/CaptureSessionSettings.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from '@/features/booth/BoothDecorationPicker.vue'
@@ -86,6 +93,8 @@ const cameraPickerOpen = ref(false)
 const isSwitchingCamera = ref(false)
 const isCapturing = ref(false)
 const cameraReady = ref(false)
+const sessionSettingsOpen = ref(false)
+const isApplyingSessionSettings = ref(false)
 const unavailableKind = ref<'missing' | 'in-use' | 'constraint'>('missing')
 let stream: MediaStream | null = null
 let setupGeneration = 0
@@ -98,6 +107,17 @@ const activeTemplate = computed(
   () =>
     customTemplateStore.getTemplateById(sessionStore.templateId) ??
     getTemplateById(sessionStore.templateId),
+)
+const captureSessionConfig = computed<CaptureSessionConfig>(() => ({
+  layoutId: sessionStore.layoutId,
+  templateId: sessionStore.templateId,
+  slotCount: sessionStore.slotCount,
+  countdownSeconds: sessionStore.countdownSeconds,
+  autoCapture: sessionStore.autoCapture,
+}))
+const capturedCount = computed(() => sessionStore.shotIds.filter(Boolean).length)
+const sessionSettingsDisabled = computed(
+  () => !cameraReady.value || countdownActive.value || isCapturing.value || isSwitchingCamera.value,
 )
 const shotProgressLabel = computed(
   () => `Foto ${sessionStore.currentShotIndex + 1} dari ${sessionStore.slotCount}`,
@@ -115,6 +135,8 @@ const canChangeFilter = computed(
   () =>
     !countdownActive.value &&
     !isCapturing.value &&
+    !sessionSettingsOpen.value &&
+    !isApplyingSessionSettings.value &&
     sessionStore.currentShotIndex === 0 &&
     !sessionStore.shotIds.some(Boolean),
 )
@@ -141,7 +163,9 @@ const canSwitchCamera = computed(
     cameraDevices.value.length > 1 &&
     !countdownActive.value &&
     !isSwitchingCamera.value &&
-    !isCapturing.value,
+    !isCapturing.value &&
+    !sessionSettingsOpen.value &&
+    !isApplyingSessionSettings.value,
 )
 const unavailableTitle = computed(() => {
   if (unavailableKind.value === 'in-use') return 'Kamera Sedang Dipakai'
@@ -157,6 +181,100 @@ const unavailableCopy = computed(() => {
   }
   return 'Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.'
 })
+
+watch(sessionSettingsOpen, (open) => {
+  if (!open) return
+  // Opening settings pauses the next automatic shot without replacing the live stream.
+  if (autoCaptureTimeout) {
+    clearTimeout(autoCaptureTimeout)
+    autoCaptureTimeout = null
+  }
+  autoCaptureRunning = false
+})
+
+function openSessionSettings() {
+  if (capturedCount.value > 0 || sessionSettingsDisabled.value || isApplyingSessionSettings.value)
+    return
+  sessionSettingsOpen.value = true
+}
+
+async function applySessionSettings(config: CaptureSessionConfig) {
+  const sessionId = sessionStore.sessionId
+  if (
+    !sessionId ||
+    capturedCount.value > 0 ||
+    sessionSettingsDisabled.value ||
+    isApplyingSessionSettings.value
+  )
+    return
+  const template =
+    customTemplateStore.getTemplateById(config.templateId) ?? getTemplateById(config.templateId)
+  if (!template) return
+
+  const generation = setupGeneration
+  isApplyingSessionSettings.value = true
+  cameraError.value = null
+  try {
+    const updated = await reconfigureCameraSession(sessionId, config, template)
+    if (generation !== setupGeneration || sessionStore.sessionId !== sessionId) return
+
+    sessionStore.restoreFromSession(updated.session, updated.shots)
+    sessionStore.countdownSeconds = config.countdownSeconds
+    sessionStore.autoCapture = config.autoCapture
+    sessionStore.setCapturing()
+    persistRetakeIndex(null)
+    writePendingSessionConfig({ ...config, source: 'camera' })
+    persistCameraFlow({
+      countdownSeconds: config.countdownSeconds,
+      autoCapture: config.autoCapture,
+    })
+    sessionSettingsOpen.value = false
+  } catch (error) {
+    if (generation !== setupGeneration) return
+    console.error('Failed to update camera session settings:', error)
+    cameraError.value = isStorageQuotaError(error)
+      ? getStorageErrorMessage(error)
+      : 'Pengaturan sesi gagal disimpan. Foto sebelumnya masih tersedia. Coba lagi.'
+  } finally {
+    isApplyingSessionSettings.value = false
+  }
+}
+
+async function restartSessionPhotos() {
+  const sessionId = sessionStore.sessionId
+  if (
+    !sessionId ||
+    capturedCount.value === 0 ||
+    sessionSettingsDisabled.value ||
+    isApplyingSessionSettings.value
+  )
+    return
+  if (
+    !window.confirm(
+      `Ulang semua foto? ${capturedCount.value} foto yang sudah diambil akan dihapus. Kamera dan pengaturan sesi tetap digunakan.`,
+    )
+  )
+    return
+
+  const generation = setupGeneration
+  isApplyingSessionSettings.value = true
+  cameraError.value = null
+  cancelCountdown()
+  try {
+    const updated = await restartCameraSessionPhotos(sessionId)
+    if (generation !== setupGeneration || sessionStore.sessionId !== sessionId) return
+    sessionStore.restoreFromSession(updated.session, updated.shots)
+    sessionStore.setCapturing()
+    persistRetakeIndex(null)
+    sessionSettingsOpen.value = false
+  } catch (error) {
+    if (generation !== setupGeneration || sessionStore.sessionId !== sessionId) return
+    console.error('Failed to restart camera session photos:', error)
+    cameraError.value = 'Foto belum bisa diulang. Foto sebelumnya masih tersedia. Coba lagi.'
+  } finally {
+    if (generation === setupGeneration) isApplyingSessionSettings.value = false
+  }
+}
 
 watch(videoRef, () => {
   void attachPreviewStream()
@@ -179,7 +297,9 @@ function handleGlobalKeydown(event: Event) {
   if (
     event.key === ' ' &&
     cameraStore.permissionState === 'granted' &&
-    !cameraPickerOpen.value
+    !cameraPickerOpen.value &&
+    !sessionSettingsOpen.value &&
+    !isApplyingSessionSettings.value
   ) {
     event.preventDefault()
     runCountdownAndCapture()
@@ -705,6 +825,8 @@ async function selectCameraDevice(deviceId: string) {
   } catch (error) {
     console.error('Failed to switch camera:', error)
     if (generation === setupGeneration) {
+      // setupCamera starts a new generation, so release this operation's busy flag first.
+      isSwitchingCamera.value = false
       await setupCamera()
       cameraError.value = 'Kamera itu belum bisa dibuka. Coba pilih kamera lain.'
     }
@@ -869,7 +991,9 @@ function runCountdownAndCapture() {
     !sessionStore.sessionId ||
     countdownActive.value ||
     isCapturing.value ||
-    isSwitchingCamera.value
+    isSwitchingCamera.value ||
+    sessionSettingsOpen.value ||
+    isApplyingSessionSettings.value
   ) {
     return
   }
@@ -977,14 +1101,14 @@ function goToUploadFallback() {
 <template>
   <div
     v-if="cameraStore.permissionState === 'granted'"
-    :class="[ui.page, 'max-md:min-h-dvh md:h-dvh md:overflow-hidden']"
+    :class="[ui.page, 'min-h-dvh lg:h-dvh lg:overflow-hidden']"
   >
     <div :class="ui.headerWide">
       <div :class="ui.headerGroup">
         <button
           :class="ui.iconButton"
           aria-label="Kembali ke setup sesi"
-          :disabled="countdownActive || isCapturing"
+          :disabled="countdownActive || isCapturing || isApplyingSessionSettings"
           @click="goBack"
         >
           <svg
@@ -1011,8 +1135,8 @@ function goToUploadFallback() {
         <button
           :class="ui.iconButton"
           aria-label="Ubah setup sesi"
-          :disabled="countdownActive || isCapturing"
-          @click="router.push({ path: '/config', query: { source: 'camera' } })"
+          :disabled="capturedCount > 0 || sessionSettingsDisabled || isApplyingSessionSettings"
+          @click="openSessionSettings"
         >
           <svg
             width="16"
@@ -1033,11 +1157,11 @@ function goToUploadFallback() {
       </div>
     </div>
 
-    <div :class="[ui.content, 'flex min-h-0 flex-1 flex-col !py-3']">
-      <div :class="[ui.pageContentWide, 'flex min-h-0 flex-1 flex-col items-center gap-3']">
-        <div class="flex min-h-0 w-full flex-col items-center gap-3">
+    <main class="mx-auto flex min-h-0 w-full flex-1 p-4 lg:p-6">
+      <CaptureWorkspace panel-label="Pengaturan foto Solo">
+        <template #preview>
           <div
-            class="camera-preview border-stc-border relative mx-auto aspect-[4/3] w-full max-w-5xl shrink-0 overflow-hidden rounded-lg border bg-black"
+            class="camera-preview border-stc-border relative mx-auto aspect-[4/3] w-full overflow-hidden rounded-lg border bg-black"
           >
             <video
               ref="videoRef"
@@ -1067,7 +1191,10 @@ function goToUploadFallback() {
               v-if="liveCamRecordingActive"
               class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
             >
-              <span class="bg-stc-pink inline-flex size-2 animate-pulse rounded-full" aria-hidden="true"></span>
+              <span
+                class="bg-stc-pink inline-flex size-2 animate-pulse rounded-full"
+                aria-hidden="true"
+              ></span>
               Rec
             </div>
 
@@ -1099,7 +1226,9 @@ function goToUploadFallback() {
               class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
               data-testid="camera-countdown"
             >
-              <div class="text-6xl leading-none font-semibold tabular-nums drop-shadow-2xl sm:text-7xl">
+              <div
+                class="text-6xl leading-none font-semibold tabular-nums drop-shadow-2xl sm:text-7xl"
+              >
                 {{ countdownValue }}
               </div>
               <button
@@ -1110,13 +1239,22 @@ function goToUploadFallback() {
               </button>
             </div>
           </div>
+        </template>
 
+        <template #actions>
           <div class="flex flex-col items-center gap-3">
             <div class="flex items-center justify-center gap-6">
               <button
                 class="camera-shutter group border-stc-border hover:border-stc-text relative inline-flex size-[72px] items-center justify-center rounded-full border-[4px] bg-white disabled:pointer-events-none disabled:opacity-60 sm:size-20"
                 aria-label="Ambil foto"
-                :disabled="!cameraReady || countdownActive || isCapturing"
+                :disabled="
+                  !cameraReady ||
+                  countdownActive ||
+                  isCapturing ||
+                  isSwitchingCamera ||
+                  sessionSettingsOpen ||
+                  isApplyingSessionSettings
+                "
                 @click="runCountdownAndCapture"
               >
                 <span
@@ -1195,22 +1333,36 @@ function goToUploadFallback() {
               </div>
             </div>
           </div>
-        </div>
+        </template>
 
-        <BoothDecorationPicker
-          class="w-full max-w-5xl"
-          kind="all"
-          :filter-id="sessionStore.filterId"
-          :camera-effect-id="sessionStore.cameraEffectId"
-          :virtual-background-id="sessionStore.virtualBackgroundId"
-          :disabled="!canChangeFilter"
-          @select-filter="selectFilter"
-          @select-effect="selectCameraEffect"
-          @select-background="selectVirtualBackground"
-          @custom-file="handleCustomBackground"
-        />
-      </div>
-    </div>
+        <template #settings>
+          <CaptureSessionSettings
+            v-model:open="sessionSettingsOpen"
+            :model-value="captureSessionConfig"
+            :disabled="sessionSettingsDisabled"
+            :busy="isApplyingSessionSettings"
+            :captured-count="capturedCount"
+            mode="solo"
+            @apply="applySessionSettings"
+            @restart="restartSessionPhotos"
+          />
+          <h2 class="text-stc-text mb-4 text-sm font-semibold">Tampilan foto</h2>
+          <BoothDecorationPicker
+            class="w-full"
+            kind="all"
+            stacked
+            :filter-id="sessionStore.filterId"
+            :camera-effect-id="sessionStore.cameraEffectId"
+            :virtual-background-id="sessionStore.virtualBackgroundId"
+            :disabled="!canChangeFilter"
+            @select-filter="selectFilter"
+            @select-effect="selectCameraEffect"
+            @select-background="selectVirtualBackground"
+            @custom-file="handleCustomBackground"
+          />
+        </template>
+      </CaptureWorkspace>
+    </main>
 
     <div
       v-if="cameraPickerOpen"
@@ -1384,17 +1536,3 @@ function goToUploadFallback() {
     </div>
   </div>
 </template>
-
-<style scoped>
-.camera-preview {
-  max-width: min(960px, calc((100dvh - 18rem) * 4 / 3));
-  max-height: calc(100dvh - 18rem);
-}
-
-@media (max-width: 767px) {
-  .camera-preview {
-    max-width: min(100%, calc((100dvh - 20rem) * 4 / 3));
-    max-height: calc(100dvh - 20rem);
-  }
-}
-</style>

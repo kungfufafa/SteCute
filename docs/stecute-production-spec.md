@@ -44,6 +44,7 @@ Fitur yang wajib ada:
 - preset overlay kamera lokal sebelum capture, yaitu `hearts`, `bluebirds`, `kicau-mania`, dan `windut`; overlay face-tracking tidak digambar jika tidak ada wajah terdeteksi
 - latar virtual kamera lokal sebelum capture untuk `Mulai Foto` dan Booth Bareng: off, warna studio solid (termasuk pink dan biru plus warna studio serupa), blur ruangan asli, atau unggah gambar JPG/PNG/WebP lokal maks. `10 MB`; orang tetap tajam dan hanya ruangan yang diganti. Ini bukan ganti kertas/blanko strip. Jika segmentasi orang tidak bisa jalan, capture tetap memakai ruangan asli.
 - countdown default `3` detik
+- panel `Pengaturan sesi` di layar kamera Solo dan ruang live Duet untuk mengubah frame, jumlah pose/layout, timer `3`/`5`/`10` detik, dan Otomatis sebelum foto pertama tanpa keluar dari kamera; Duet mengikuti perubahan host
 - review sesi
 - retake `seluruh sesi`
 - retake `per-shot` sebelum render final
@@ -86,10 +87,10 @@ Tidak masuk v1:
 - kiosk native wrapper
 - kustomisasi manual pasca-capture: frame color, sticker, toggle `date/time`, dan input `logo text`
 - `Reactions` berbasis gesture tangan; fitur ini disembunyikan dari v1 sampai kualitas visual, penempatan objek terhadap subjek, fallback manual, dan status aset/lisensi siap
-- audio, chat, atau screen share untuk Booth Bareng; mode ini 2 orang, still sebagai artefak, dengan preview video live kedua peserta
+- chat atau screen share untuk Booth Bareng; mode ini 2 orang, still sebagai artefak, dengan preview video+suara live kedua peserta. Suara tidak direkam dan bukan panggilan terpisah.
 - TURN berbayar sebagai syarat rilis v1; STUN/TURN publik gratis dan relay HTTPS ephemeral terenkripsi di origin aplikasi boleh dipakai agar Booth Bareng bisa join lintas jaringan (termasuk 4G vs Wi-Fi kantor) tanpa menyimpan foto
 
-Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
+Booth Bareng (undangan + kode unik, 2 orang, suara live) boleh ada sebagai mode online opsional. Mode ini **bukan** gate rilis v1 dan **tidak** boleh menahan `Mulai Foto` / `Upload Lokal` pada jaringan atau signaling.
 
 ### 2.4 Keputusan open questions yang dikunci
 
@@ -112,6 +113,7 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 4. User memilih jumlah foto dan dapat mengganti kamera aktif sebelum capture.
    Jika perangkat mengekspos beberapa lensa, app menampilkan pilihan eksplisit seperti depan, belakang, 0.5x, atau tele sesuai label browser.
    Kamera belakang tidak di-mirror; mirror hanya dipakai untuk kamera depan/selfie.
+   Sebelum foto pertama, panel `Pengaturan sesi` dapat dibuka langsung di layar kamera untuk menyesuaikan frame, jumlah pose/layout, timer, dan Otomatis dengan aturan penerapan pada bagian 3.6.
 5. App menjalankan capture berurutan sesuai slot layout dan merekam klip Live Cam singkat per-shot bila capability browser tersedia.
 6. User dapat retake per-shot dari layar review sebelum render final.
 7. User melakukan render final.
@@ -139,10 +141,18 @@ Booth Bareng (undangan + kode unik, 2 orang, tanpa audio) boleh ada sebagai mode
 2. Host menekan `Buat Booth`, lalu mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi tanpa login (tanpa upload frame custom).
 3. Host menekan `Buka Booth` dan masuk ruang live dengan kode unik plus URL undangan yang memakai kode yang sama.
 4. Tamu gabung dengan mengetik kode itu atau membuka URL undangan. Kode kosong, rusak, atau tidak dikenal ditolak.
-5. Di ruang live, host memilih efek kamera, overlay, dan latar virtual. Tamu memakai pilihan host (termasuk gambar latar unggahan host yang disinkronkan). Progress Atur Sesi mengikuti `Format` / `Duet` / `Review` / `Hasil`.
-6. Kedua peserta melihat kamera sendiri dan kamera teman secara live (host kiri, tamu kanan, tanpa mirror). Filter, overlay, dan latar virtual tampil di preview. Setelah 2 peserta hadir, host memulai countdown bersama. Jika Otomatis nyala, pose pertama tetap diklik host lalu pose berikutnya lanjut sendiri; Batal menghentikan rantai. Jumlah pose sama dengan slot layout. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
+5. Sebelum foto pertama di ruang live, host memilih efek kamera, overlay, dan latar virtual. Host juga dapat membuka `Pengaturan sesi` untuk memperbarui frame, jumlah pose/layout, timer, dan Otomatis tanpa meninggalkan ruang, sesuai bagian 3.6. Seluruh pengaturan sesi terkunci setelah foto pertama; perubahan berikutnya membutuhkan aksi terpisah `Ulang semua foto` dengan konfirmasi. Tamu memakai pilihan host (termasuk gambar latar unggahan host yang disinkronkan). Progress Atur Sesi mengikuti `Format` / `Duet` / `Review` / `Hasil`.
+6. Kedua peserta melihat kamera sendiri dan kamera teman secara live (host kiri, tamu kanan, tanpa mirror). Filter, overlay, dan latar virtual tampil di preview. Setelah 2 peserta hadir dan kamera serta latar keduanya siap, host memulai countdown bersama. Tombol mulai terkunci sampai foto kedua peserta selesai dipertukarkan/disusun atau percobaan dibatalkan. Jika Otomatis nyala, pose pertama tetap diklik host lalu pose berikutnya lanjut sendiri; Batal menghentikan rantai. Jumlah pose sama dengan slot layout. Tiap momen mengambil still dari kedua kamera; video hanya untuk preview kehadiran, bukan artefak.
 7. Still disusun side-by-side `host | tamu` per momen. Setelah lengkap, review dengan retake per-shot atau seluruh sesi, lalu render PNG lewat pipeline lokal yang sama.
 8. Hasil masuk gallery lokal. Masing-masing memakai `Unduh PNG` plus save/share/print bila didukung. Ruang booth bersifat ephemeral dan tidak menahan still di server setelah sesi.
+
+Kontrol suara tersedia untuk host dan tamu selama berada di ruang, termasuk saat menunggu teman, mengambil foto, review, dan hasil:
+
+- Mikrofon lokal aktif secara default jika izin diberikan. Masing-masing dapat mute atau menyalakan mikrofon sendiri; host tidak mengendalikan mikrofon tamu, begitu juga sebaliknya.
+- Kontrol suara teman membisukan atau mengaktifkan playback pada perangkat sendiri, tanpa mengubah mikrofon teman. Preview lokal selalu mute agar tidak echo.
+- Penolakan izin mikrofon tidak menghalangi foto. Aksi nyalakan mikrofon mencoba akses audio saja, mempertahankan kamera, konfigurasi, dan foto sesi. Request audio yang selesai setelah keluar ruang langsung dihentikan.
+- Jika browser memblokir autoplay, tampilkan aksi pengguna untuk mengaktifkan suara. Pergantian tahap dan pemulihan koneksi tetap menghormati pilihan mute pengguna selama ruang masih terbuka.
+- Suara hanya live selama sesi; PNG dan Live Cam hasil ekspor tidak memuat audio.
 
 ### 3.4 Flow error
 
@@ -163,6 +173,29 @@ Setiap error wajib memiliki:
 - penjelasan non-teknis
 - aksi utama
 - aksi fallback bila ada
+
+### 3.5 Tata layar kamera Solo dan Duet
+
+Layar pengambilan foto memakai ruang horizontal pada desktop agar preview dan kontrol dapat digunakan bersama tanpa menumpuk semua pengaturan di bawah kamera.
+
+- Pada viewport selebar `1024 px` atau lebih, area capture memakai dua kolom dengan lebar konten maksimum `1600 px`: preview di kiri, panel kontrol di kanan. Panel kanan memuat pengaturan perangkat, efek/overlay/latar, status sesi, dan aksi pengambilan foto. Di Duet, kontrol mikrofon serta suara teman ikut tersedia di panel ini.
+- Pada desktop dengan viewport pendek, daftar pengaturan dapat di-scroll di dalam panel. Aksi utama pengambilan foto tetap mudah dijangkau saat memilih efek; panel tidak boleh menutup preview atau memotong kontrol.
+- Pada viewport di bawah `1024 px`, gunakan satu kolom dengan scroll halaman alami: preview, aksi pengambilan foto, lalu pengaturan efek. Kontrol audio Duet tetap dapat dijangkau oleh host maupun tamu.
+- Rasio area preview tetap `4:3`, termasuk area gabungan dua peserta pada Duet. Perubahan ukuran panel tidak meregangkan gambar atau mengubah aturan crop, mirror, koordinat overlay, dan hasil capture.
+- Kontrol audio Duet tetap tersedia saat review dan hasil, sesuai aturan pada bagian 3.3.
+
+Perubahan ini terbatas pada tata layar capture kamera. Tata layar Atur Sesi, Review, dan Hasil serta cakupan fitur Solo/Duet tetap mengikuti baseline masing-masing; kesetaraan fitur yang masih menjadi target pada `stecute-user-flow.md` tidak otomatis masuk dalam perubahan ini.
+
+### 3.6 Pengaturan sesi langsung di kamera
+
+- Layar kamera Solo dan ruang live Duet menyediakan panel inline `Pengaturan sesi` yang dapat dibuka/tutup. Sebelum foto pertama, pengguna dapat mengedit frame, jumlah pose/layout yang kompatibel, timer `3`, `5`, atau `10` detik, serta toggle Otomatis. Katalog yang tersedia tetap mengikuti batas mode; panel ini tidak menambahkan upload frame custom ke Duet.
+- Nilai yang dipilih masih berupa draft sampai pengguna menekan `Terapkan`. `Batal` membuang perubahan draft dan mempertahankan konfigurasi aktif. Penerapan pengaturan tidak sekaligus menghapus foto.
+- Setelah foto pertama diambil, seluruh konfigurasi sesi terkunci untuk menjaga konsistensi: frame, jumlah pose/layout, timer, Otomatis, efek, overlay, dan latar. Retake per-shot tetap memakai konfigurasi yang sama dan tidak membuka kunci ini.
+- Untuk membuka pengaturan kembali, tersedia aksi terpisah `Ulang semua foto` dengan konfirmasi bahwa seluruh foto sesi akan dihapus. Konfirmasi menghapus foto serta klip capture, mengembalikan pose ke awal, dan membuka kembali pengaturan. Membatalkan konfirmasi mempertahankan foto dan pengaturan tanpa perubahan.
+- `Ulang semua foto` mempertahankan konfigurasi aktif, latar beserta asetnya, dan stream kamera. Pada Duet, hanya host yang dapat menjalankannya; reset foto berlaku bagi kedua peserta dalam kode ruang yang sama, dengan koneksi serta audio tetap berjalan. Setelah reset selesai, pengguna dapat mengedit pengaturan lalu menekan `Terapkan` secara terpisah.
+- Membuka, membatalkan, atau menerapkan pengaturan tidak mematikan kamera. Di Duet, kode ruang, koneksi peserta, dan audio tetap berjalan; hanya host yang mengedit pengaturan bersama dan konfigurasi yang diterapkan disinkronkan ke tamu. Kunci konfigurasi sesi tidak menonaktifkan kontrol mikrofon atau suara teman.
+- Pengaturan tidak dapat diubah saat countdown, capture/pertukaran foto, atau penerapan perubahan sedang berlangsung. Capture tidak boleh dimulai ketika perubahan sedang diterapkan.
+- Efek, overlay, dan latar memakai kontrol tersendiri di luar editor `Pengaturan sesi`, dengan aturan kunci setelah foto pertama yang sama.
 
 ---
 
@@ -276,6 +309,7 @@ App harus menolak file jika:
 - App menyediakan kontrol framing lokal sebelum masuk review agar foto portrait, square, dan ultrawide tetap dapat disesuaikan ke rasio slot aktif.
 - Kontrol framing minimum: clip crop dengan frame tetap, auto crop awal, drag foto langsung di dalam frame, kembalikan posisi untuk foto aktif, ganti foto per slot, dan rapikan semua foto di panel terpisah dari editor foto aktif.
 - Hasil framing disimpan sebagai raw shot sesi lokal dan tetap diproses tanpa backend.
+- Foto asli, urutan slot, dan pengaturan framing disimpan sebagai draft lokal. Kembali dari review atau reload memulihkan editor; ganti per-shot juga memperbarui draft. Draft dibersihkan ketika hasil berhasil disimpan, sesi di-reset, atau sesi stale dibersihkan.
 - Framing upload bukan kustomisasi manual pasca-capture seperti sticker, frame color, date/time, atau logo text. Preset filter kamera tetap dipilih sebelum capture dan disimpan sebagai konfigurasi sesi.
 
 ---
@@ -371,7 +405,7 @@ Wajib:
 
 - HTTPS untuk semua environment non-local
 - strict CSP
-- Permissions-Policy untuk membatasi camera hanya ke origin sendiri
+- Permissions-Policy untuk membatasi camera dan microphone hanya ke origin sendiri
 - tidak ada inline remote script pihak ketiga di production
 - tidak ada input teks kustom pada v1 process-first; jika fitur teks diaktifkan kembali, sanitasi dan batas panjang wajib diterapkan sebelum rilis
 
@@ -426,6 +460,8 @@ Jika estimasi storage melebihi threshold:
 - tampilkan warning
 - sarankan hapus gallery lama
 - jika simpan gagal, jangan hilangkan render di memori sampai user memilih aksi lain
+- layar hasil tetap menyediakan unduh dari Blob saat galeri gagal disimpan, dengan pesan jelas bahwa hasil belum tersimpan dan perlu diunduh sebelum menutup/memuat ulang halaman. Jangan menampilkan status berhasil tersimpan untuk hasil tersebut.
+- meninggalkan proses render tidak boleh menyebabkan job lama mengambil alih navigasi atau menghapus draft/shot sesi yang kembali diedit
 - persistence API aplikasi tetap mengembalikan `Blob`, tetapi storage internal boleh memakai `ArrayBuffer` binary sebagai jalur utama untuk menghindari perbedaan IndexedDB Blob/File di Safari/WebKit dan browser lain
 
 ### 10.3 Database versioning
@@ -579,6 +615,11 @@ Produk dianggap `production-ready` jika:
 
 ## 16. Changelog keputusan
 
+- 2026-09-18: `Pengaturan sesi` dapat diedit langsung di kamera Solo dan oleh host di ruang Duet sebelum foto pertama, dengan draft `Terapkan`/`Batal`. Setelah foto pertama, semua konfigurasi sesi dan efek terkunci. Aksi terpisah `Ulang semua foto` dengan konfirmasi menghapus foto dan membuka pengaturan kembali, sambil mempertahankan konfigurasi, latar, kamera, ruang Duet, dan audio.
+- 2026-09-18: Layar capture Solo dan Duet memakai dua kolom mulai lebar `1024 px`, dengan area konten maksimum `1600 px`, preview `4:3` di kiri, dan kontrol di kanan. Pengaturan pada desktop pendek dapat di-scroll tanpa menghilangkan aksi utama; layar lebih sempit mempertahankan satu kolom dengan scroll alami.
+- 2026-09-18: Kontrol audio Foto Duet tersedia untuk host dan tamu di semua tahap ruang: mute/nyalakan mikrofon sendiri serta matikan/nyalakan suara teman secara lokal. Penolakan mikrofon dapat dicoba ulang dengan audio-only tanpa mengulang kamera; audio live tetap tidak direkam atau diekspor.
+- 2026-09-18: Perbaikan flow sesi: draft upload pulih setelah Back/reload, capture Duet memakai identitas percobaan dan kesiapan dua kamera, request media/koneksi terlambat dibersihkan, serta output unduh tetap tersedia ketika galeri penuh. Render yang ditinggalkan tidak boleh mengubah sesi aktif.
+- 2026-09-18: Foto Duet mengirim suara mikrofon bersama preview WebRTC. Video lokal tetap di-mute untuk mencegah echo; tile teman diputar bersuara, dengan ketuk-untuk-dengar jika autoplay diblokir. Mikrofon yang ditolak tidak membatalkan kamera. Live Cam output tetap WebM tanpa audio.
 - 2026-09-17: Host Foto Duet mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi sebelum masuk `/j/:code`, sama seperti `Mulai Foto`. Efek/overlay/latar tetap di ruang live.
 - 2026-09-17: Foto Duet memakai toggle Otomatis yang sama dengan `Mulai Foto` (default mati). Pose pertama tetap diklik host; pose berikutnya auto countdown dengan jeda 800ms. Batal, putus, error latar, atau review menghentikan rantai.
 - 2026-09-16: Latar virtual kamera (warna studio, blur ruangan, unggah gambar lokal) masuk `Mulai Foto` dan Booth Bareng sebagai pengganti ruangan di belakang orang, terpisah dari kertas/blanko strip.

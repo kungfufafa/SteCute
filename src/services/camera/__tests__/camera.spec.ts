@@ -113,4 +113,58 @@ describe('camera device normalization', () => {
 
     expect(useCameraStore().activeFacingMode).toBe('user')
   })
+
+  it('requests camera without a microphone by default', async () => {
+    mockMediaDevices({ deviceId: 'front-camera' })
+
+    await initCamera()
+
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ audio: false }),
+    )
+  })
+
+  it('asks for echo-cancelled voice when audio is requested', async () => {
+    mockMediaDevices({ deviceId: 'front-camera' })
+
+    await initCamera({ audio: true })
+
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
+      expect.objectContaining({
+        audio: expect.objectContaining({
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }),
+      }),
+    )
+  })
+
+  it('falls back to video-only if the microphone is blocked', async () => {
+    mockMediaDevices({ deviceId: 'front-camera' })
+    const getUserMedia = navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>
+    getUserMedia.mockImplementation(async (constraints: MediaStreamConstraints) => {
+      if (constraints.audio) {
+        throw new DOMException('Permission denied', 'NotAllowedError')
+      }
+
+      return {
+        getVideoTracks: () => [
+          {
+            label: '',
+            getSettings: () => ({
+              deviceId: 'front-camera',
+              facingMode: 'user',
+            }),
+          },
+        ],
+      }
+    })
+
+    const stream = await initCamera({ audio: true })
+
+    expect(stream.getVideoTracks()).toHaveLength(1)
+    expect(getUserMedia).toHaveBeenCalledTimes(2)
+    expect(getUserMedia).toHaveBeenLastCalledWith(expect.objectContaining({ audio: false }))
+  })
 })

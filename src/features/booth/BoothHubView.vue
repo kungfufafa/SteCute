@@ -13,6 +13,7 @@ const joinError = ref('')
 const cameraLive = ref(false)
 const videoRef = ref<HTMLVideoElement | null>(null)
 let stream: MediaStream | null = null
+let disposed = false
 const shouldMirrorLocalCamera = computed(() => shouldMirrorCamera(cameraStore.activeFacingMode))
 
 const ROLE_KEY = 'stecute.booth.role'
@@ -56,11 +57,17 @@ async function attachPreview() {
 
 async function startPreview() {
   try {
-    stream = await initCamera()
+    const nextStream = await initCamera()
+    if (disposed) {
+      stopCamera(nextStream)
+      return
+    }
+    stream = nextStream
     cameraLive.value = true
     await nextTick()
     await attachPreview()
   } catch {
+    if (disposed) return
     cameraLive.value = false
   }
 }
@@ -74,6 +81,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  disposed = true
   if (stream) {
     stopCamera(stream)
     stream = null
@@ -107,7 +115,7 @@ onUnmounted(() => {
     </nav>
 
     <main
-      class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)] lg:items-center lg:gap-12"
+      class="mx-auto grid w-full max-w-5xl flex-1 grid-cols-1 content-start items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)] lg:items-center lg:gap-12"
     >
       <section class="flex min-w-0 flex-col">
         <p :class="ui.sectionLabel">Photo booth 2 perangkat</p>
@@ -117,8 +125,8 @@ onUnmounted(() => {
           Foto Duet
         </h1>
         <p class="text-stc-text-soft mt-3 max-w-[36em] text-[13px] leading-normal sm:text-sm">
-          Bagikan kode, lihat teman live, lalu ambil foto bersama dari 2 perangkat berbeda. Tanpa
-          akun dan tanpa audio.
+          Bagikan kode, ngobrol sambil lihat teman live, lalu ambil foto bersama dari 2 perangkat
+          berbeda. Tanpa akun.
         </p>
 
         <div class="mt-6 flex flex-wrap items-center gap-2">
@@ -176,15 +184,21 @@ onUnmounted(() => {
               v-if="!cameraLive"
               class="absolute inset-0 flex items-center justify-center bg-zinc-950 px-3 text-center"
             >
-              <p class="text-[11px] leading-normal text-white/70">Izinkan kamera untuk preview live.</p>
+              <p class="text-[11px] leading-normal text-white/70">
+                Izinkan kamera untuk preview live.
+              </p>
             </div>
-            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Kamu</p>
+            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">
+              Kamu
+            </p>
           </article>
           <article
             class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
             data-testid="booth-hub-remote-tile"
           >
-            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">Teman</p>
+            <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">
+              Teman
+            </p>
           </article>
         </div>
       </section>

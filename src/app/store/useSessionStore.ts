@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { Session, Shot } from '@/db/schema'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { persistActiveSessionId, persistRetakeIndex } from '@/services/session/persist'
+import { clearSessionOutput } from '@/services/session/output-cache'
 import { normalizeVirtualBackgroundId } from '@/services/virtual-background'
 
 export type SessionStatus =
@@ -35,6 +36,7 @@ export const useSessionStore = defineStore('session', () => {
   const errorMessage = ref<string | null>(null)
 
   function startSession(id: string, source: 'camera' | 'upload', slots: number) {
+    clearSessionOutput()
     persistRetakeIndex(null)
     sessionId.value = id
     captureSource.value = source
@@ -151,6 +153,7 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   function reset() {
+    clearSessionOutput()
     sessionId.value = null
     sessionStatus.value = 'idle'
     captureSource.value = null

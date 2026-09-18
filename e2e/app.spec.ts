@@ -36,7 +36,7 @@ test.describe('Stecute app smoke', () => {
 
     await expect(page).toHaveURL('/upload')
     await expect(page.getByRole('heading', { name: 'Upload Foto' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Pilih Foto' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Pilih Foto Lokal/ })).toBeVisible()
   })
 
   test('shows gallery empty state on fresh app', async ({ page }) => {

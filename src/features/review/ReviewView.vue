@@ -20,6 +20,7 @@ import {
   validateFile,
 } from '@/services/upload'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
+import { saveUploadDraftPhoto } from '@/services/upload/draft'
 import { getTemplateById, resolveTemplateLayout } from '@/templates'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
@@ -344,6 +345,7 @@ async function saveUploadReplacement() {
       adjustment: replacement.adjustment,
     })
 
+    await saveUploadDraftPhoto(sessionId, replacement.index, replacement)
     await saveShot({
       sessionId,
       order: replacement.index,

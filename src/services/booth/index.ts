@@ -1,4 +1,5 @@
 export { createBoothRoomTransport } from './room'
+export { canBeginBoothCapture, type BoothCapturePhase } from './capture-state'
 export { identityFromNormalizedCode } from './identity'
 export {
   BOOTH_CODE_ALPHABET,
@@ -64,7 +65,13 @@ export {
   pairSlotForLayout,
   type BoothSessionSetup,
 } from './setup'
-export { isRemotePreviewReady, pickLiveVideoTrack } from './preview'
+export {
+  collectBoothMediaTracks,
+  composeBoothMediaStream,
+  isRemotePreviewReady,
+  pickLiveAudioTrack,
+  pickLiveVideoTrack,
+} from './preview'
 export {
   boothChannelName,
   createBroadcastBoothTransport,

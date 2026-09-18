@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { shallowRef, computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { shallowRef, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { abandonIncompleteSession, getRenderById, getSessionSnapshot } from '@/services/session'
 import { useSessionStore } from '@/app/store/useSessionStore'
+import { clearSessionOutput, readSessionOutput } from '@/services/session/output-cache'
 import {
   detectOutputCapabilities,
   downloadBlob,
@@ -21,6 +22,8 @@ const capabilities = detectOutputCapabilities()
 const isBusy = ref(false)
 const isLoadingOutput = ref(true)
 const outputError = ref<string | null>(null)
+const storageWarning = ref<string | null>(null)
+const savedToGallery = ref(false)
 const outputActionNotice = ref<string | null>(null)
 const outputActionError = ref<string | null>(null)
 const showMoreActions = ref(false)
@@ -31,6 +34,7 @@ const outputBlob = shallowRef<Blob | null>(null)
 const liveOutputBlob = shallowRef<Blob | null>(null)
 const liveOutputMimeType = ref<string | null>(null)
 const hasLiveCamOutput = computed(() => Boolean(liveOutputBlob.value && livePreviewUrl.value))
+let loadGeneration = 0
 
 function revokePreviewUrl() {
   if (previewUrl.value) {
@@ -207,8 +211,11 @@ function getActiveRenderId() {
 }
 
 async function loadOutputRender() {
+  const generation = ++loadGeneration
   isLoadingOutput.value = true
   outputError.value = null
+  storageWarning.value = null
+  savedToGallery.value = false
   outputBlob.value = null
   liveOutputBlob.value = null
   liveOutputMimeType.value = null
@@ -224,24 +231,31 @@ async function loadOutputRender() {
   }
 
   try {
-    const render = await getRenderById(renderId)
+    const inMemory = readSessionOutput(renderId)
+    // Persisted results must still exist in the gallery; a cached copy must not
+    // resurrect an output the user has deleted since leaving this screen.
+    const render = inMemory && !inMemory.persisted ? inMemory.render : await getRenderById(renderId)
+    if (generation !== loadGeneration) return
 
     if (!render) {
+      if (inMemory) clearSessionOutput()
       outputError.value = 'Hasil akhir tidak ditemukan di penyimpanan lokal.'
       return
     }
 
-    const snapshot = await getSessionSnapshot(render.sessionId)
+    const snapshot = inMemory ? null : await getSessionSnapshot(render.sessionId)
+    if (generation !== loadGeneration) return
 
     sessionStore.layoutId = render.layoutId
     sessionStore.templateId = render.templateId
 
     if (snapshot) {
       sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
-    } else {
-      sessionStore.setRenderId(renderId)
-      sessionStore.setCompleted()
     }
+    sessionStore.setRenderId(renderId)
+    sessionStore.setCompleted()
+    savedToGallery.value = inMemory?.persisted ?? true
+    storageWarning.value = inMemory?.storageWarning ?? null
 
     outputBlob.value = render.blob
     previewUrl.value = URL.createObjectURL(render.blob)
@@ -249,10 +263,11 @@ async function loadOutputRender() {
     liveOutputMimeType.value = render.liveMimeType ?? null
     livePreviewUrl.value = render.liveBlob ? URL.createObjectURL(render.liveBlob) : null
   } catch (error) {
+    if (generation !== loadGeneration) return
     console.error('Failed to load output render:', error)
     outputError.value = 'Gagal memuat hasil akhir. Coba buka dari galeri.'
   } finally {
-    isLoadingOutput.value = false
+    if (generation === loadGeneration) isLoadingOutput.value = false
   }
 }
 
@@ -260,7 +275,13 @@ onMounted(async () => {
   await loadOutputRender()
 })
 
+watch(
+  () => route.query.renderId,
+  () => void loadOutputRender(),
+)
+
 onBeforeUnmount(() => {
+  loadGeneration += 1
   revokePreviewUrl()
   revokeLivePreviewUrl()
 })
@@ -309,6 +330,12 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-else :class="[ui.pageContent, 'items-center gap-6']">
+        <p v-if="storageWarning" :class="[ui.alert, 'w-full max-w-xl']" role="status">
+          {{ storageWarning }}
+        </p>
+        <p v-else-if="savedToGallery" :class="ui.sectionLabel">
+          Tersimpan di galeri perangkat ini.
+        </p>
         <div
           class="grid w-full max-w-4xl grid-cols-1 items-start justify-items-center gap-6 md:grid-cols-2"
           :class="{ 'md:grid-cols-1': !hasLiveCamOutput }"

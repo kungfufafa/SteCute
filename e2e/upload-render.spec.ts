@@ -23,7 +23,7 @@ test.describe('real browser upload flow', () => {
     await writeFile(invalidFile, 'not an image')
 
     const chooserPromise = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: /Pilih Foto/ }).click()
+    await page.getByRole('button', { name: /^Pilih Foto Lokal/ }).click()
     const chooser = await chooserPromise
     await chooser.setFiles([invalidFile])
 
@@ -42,7 +42,7 @@ test.describe('real browser upload flow', () => {
     await openUploadFlow(page)
 
     const chooserPromise = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: /Pilih Foto/ }).click()
+    await page.getByRole('button', { name: /^Pilih Foto Lokal/ }).click()
     const chooser = await chooserPromise
     await chooser.setFiles(uploadFixtures)
 
@@ -85,7 +85,7 @@ test.describe('real browser upload flow', () => {
     await expect(page.getByRole('heading', { name: 'Preview' })).toBeVisible()
     await expect(page.getByText('Ganti Foto')).toHaveCount(3)
 
-    await page.getByRole('button', { name: 'Buat Hasil' }).click()
+    await page.getByRole('button', { name: 'Buat Hasil Akhir', exact: true }).click()
 
     await expect(page).toHaveURL(/\/output\?renderId=.+/, { timeout: 20_000 })
     const renderedStrip = page.getByRole('img', { name: 'Photo strip hasil render' })

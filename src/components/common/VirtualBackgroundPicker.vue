@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import {
-  VIRTUAL_BACKGROUNDS,
-  getVirtualBackgroundById,
-} from '@/services/virtual-background'
+import { VIRTUAL_BACKGROUNDS, getVirtualBackgroundById } from '@/services/virtual-background'
 import { openImagePicker } from '@/services/upload'
 import { ui } from '@/ui/styles'
 import DecorationSwatch from '@/components/common/DecorationSwatch.vue'
@@ -82,12 +79,12 @@ onUnmounted(() => {
 <template>
   <div>
     <p :class="[ui.sectionLabel, 'mb-1.5']">Latar</p>
-    <div class="flex gap-2 overflow-x-auto pb-1">
+    <div :class="['flex gap-2 pb-1', stacked ? 'flex-wrap' : 'overflow-x-auto']">
       <DecorationSwatch
         v-for="background in inlineOptions"
         :key="background.id"
         :label="background.label"
-        :aria-label="`Pilih latar ${background.label}`"
+        :accessible-label="`Pilih latar ${background.label}`"
         :title="background.description"
         :selected="background.id === backgroundId"
         :disabled="disabled && background.id !== backgroundId"
@@ -97,13 +94,13 @@ onUnmounted(() => {
       </DecorationSwatch>
       <DecorationSwatch
         v-if="hiddenOptions.length > 0"
-        aria-label="Buka semua latar"
+        accessible-label="Buka semua latar"
         title="Semua latar"
         :disabled="disabled"
         @click="pickerOpen = true"
       >
         <span
-          class="text-stc-pink flex size-full items-center justify-center bg-stc-bg-2 text-lg font-semibold"
+          class="text-stc-pink bg-stc-bg-2 flex size-full items-center justify-center text-lg font-semibold"
           aria-hidden="true"
         >
           +

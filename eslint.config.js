@@ -3,6 +3,8 @@ import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
 const browserGlobals = {
+  AbortController: 'readonly',
+  AbortSignal: 'readonly',
   Blob: 'readonly',
   CanvasRenderingContext2D: 'readonly',
   CanvasImageSource: 'readonly',
@@ -11,10 +13,13 @@ const browserGlobals = {
   File: 'readonly',
   FileList: 'readonly',
   HTMLCanvasElement: 'readonly',
+  HTMLFormElement: 'readonly',
   HTMLInputElement: 'readonly',
+  HTMLSelectElement: 'readonly',
   HTMLVideoElement: 'readonly',
   Image: 'readonly',
   ImageBitmap: 'readonly',
+  KeyboardEvent: 'readonly',
   BroadcastChannel: 'readonly',
   localStorage: 'readonly',
   sessionStorage: 'readonly',

@@ -45,6 +45,10 @@ describe('booth bundled strip parity', () => {
     expect(source.match(/shouldMirrorLocalCamera \? 'scale-x-\[-1\]' : ''/g)).toHaveLength(2)
     expect(source).toContain('data-testid="booth-local-video"')
     expect(source).toContain('data-testid="booth-remote-video"')
+    expect(source).toContain('initCamera({ audio: true })')
+    expect(source).toContain('composeBoothMediaStream')
+    expect(source).toContain(':muted="remotePlaybackMuted"')
+    expect(source).toContain('data-testid="booth-remote-audio-unlock"')
     expect(source).toContain('remoteMirrored: shouldMirrorLocalCamera.value')
     expect(source).toContain(':mirrored="shouldMirrorLocalCamera"')
 
@@ -59,6 +63,8 @@ describe('booth bundled strip parity', () => {
     expect(hub).toContain('data-testid="booth-hub-local-video"')
     expect(hub).toContain('data-testid="booth-hub-local-tile"')
     expect(hub).toContain('data-testid="booth-hub-remote-tile"')
+    expect(hub).toContain('ngobrol sambil lihat teman live')
+    expect(hub).not.toContain('tanpa audio')
     expect(source).toContain('faceBounds: latestOverlayFaces.value.map')
     expect(source).toContain('cameraEffectFrameMs: shot.cameraEffectFrameMs')
     expect(decoration).toContain('Pilih efek ${filter.label}')
@@ -114,9 +120,7 @@ describe('booth bundled strip parity', () => {
       cameraEffectId: 'hearts',
     })
 
-    expect(
-      normalizeBoothSetup({ virtualBackgroundId: 'not-real' }).virtualBackgroundId,
-    ).toBe('off')
+    expect(normalizeBoothSetup({ virtualBackgroundId: 'not-real' }).virtualBackgroundId).toBe('off')
 
     const decoration = createDefaultDecorationConfig(youthTemplate, {
       filterId: 'warm',
@@ -171,6 +175,7 @@ describe('booth bundled strip parity', () => {
       const guestStart = guest.waitForStart()
       host.startMoment(momentIndex, setup.countdownMs)
       await expect(guestStart).resolves.toEqual({
+        captureId: expect.any(String),
         momentIndex,
         countdownMs: setup.countdownMs,
       })
@@ -292,7 +297,11 @@ describe('booth bundled strip parity', () => {
 
     const guestRetake = guest.waitForStart()
     host.startMoment(1, setup.countdownMs)
-    await expect(guestRetake).resolves.toEqual({ momentIndex: 1, countdownMs: setup.countdownMs })
+    await expect(guestRetake).resolves.toEqual({
+      momentIndex: 1,
+      countdownMs: setup.countdownMs,
+      captureId: expect.any(String),
+    })
     expect(isSessionComplete(host.getComposedByOrder(), strip4Config.slotCount)).toBe(false)
     expect(host.getComposedByOrder()).toHaveLength(strip4Config.slotCount - 1)
 
@@ -392,6 +401,7 @@ describe('booth bundled strip parity', () => {
       slot: PAIR_SLOT,
     })
 
+    host.startMoment(0)
     await Promise.all([host.submitStill(0, hostStill), guest.submitStill(0, guestStill)])
     const composed = await host.waitForComposed(0)
     const direct = await composePairRow(hostStill, guestStill, PAIR_SLOT)

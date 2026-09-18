@@ -4,13 +4,14 @@ withDefaults(
     label?: string
     selected?: boolean
     disabled?: boolean
-    ariaLabel: string
+    accessibleLabel: string
     title?: string
   }>(),
   {
     label: '',
     selected: false,
     disabled: false,
+    title: '',
   },
 )
 </script>
@@ -18,7 +19,7 @@ withDefaults(
 <template>
   <button
     type="button"
-    :aria-label="ariaLabel"
+    :aria-label="accessibleLabel"
     :aria-pressed="label ? selected : undefined"
     :disabled="disabled"
     :title="title || label"
