@@ -114,7 +114,7 @@ Booth Bareng (undangan + kode unik, 2 orang, suara live) boleh ada sebagai mode 
    Jika perangkat mengekspos beberapa lensa, app menampilkan pilihan eksplisit seperti depan, belakang, 0.5x, atau tele sesuai label browser.
    Kamera belakang tidak di-mirror; mirror hanya dipakai untuk kamera depan/selfie.
    Sebelum foto pertama, panel `Pengaturan sesi` dapat dibuka langsung di layar kamera untuk menyesuaikan frame, jumlah pose/layout, timer, dan Otomatis dengan aturan penerapan pada bagian 3.6.
-5. App menjalankan capture berurutan sesuai slot layout dan merekam klip Live Cam singkat per-shot bila capability browser tersedia.
+5. App menjalankan capture berurutan sesuai slot layout dan merekam klip Live Cam per-shot dari awal countdown sampai shutter bila capability browser tersedia.
 6. User dapat retake per-shot dari layar review sebelum render final.
 7. User melakukan render final.
 8. User memilih download PNG dan, bila tersedia, download Live Cam; `Save`, `Share`, atau `Print` tetap mengikuti capability browser.
@@ -266,7 +266,7 @@ Aturan:
 
 Live Cam adalah output tambahan untuk flow kamera:
 
-- klip direkam lokal dari camera stream memakai `MediaRecorder`
+- klip direkam lokal dari camera stream memakai `MediaRecorder`, mulai saat countdown berjalan sampai shutter, mengikuti timer sesi (`3`/`5`/`10` detik)
 - render video akhir memakai canvas lokal dan layout/template yang sama dengan PNG
 - output video menampilkan strip bergerak, sedangkan PNG tetap menjadi hasil cetak utama
 - kamera depan/selfie tetap di-mirror pada Live Cam agar konsisten dengan foto statis
@@ -615,6 +615,7 @@ Produk dianggap `production-ready` jika:
 
 ## 16. Changelog keputusan
 
+- 2026-09-20: Live Cam merekam dari awal countdown sampai shutter, bukan hanya 3 detik terakhir, agar timer `5`/`10` detik ikut ke video strip.
 - 2026-09-18: `Pengaturan sesi` dapat diedit langsung di kamera Solo dan oleh host di ruang Duet sebelum foto pertama, dengan draft `Terapkan`/`Batal`. Setelah foto pertama, semua konfigurasi sesi dan efek terkunci. Aksi terpisah `Ulang semua foto` dengan konfirmasi menghapus foto dan membuka pengaturan kembali, sambil mempertahankan konfigurasi, latar, kamera, ruang Duet, dan audio.
 - 2026-09-18: Layar capture Solo dan Duet memakai dua kolom mulai lebar `1024 px`, dengan area konten maksimum `1600 px`, preview `4:3` di kiri, dan kontrol di kanan. Pengaturan pada desktop pendek dapat di-scroll tanpa menghilangkan aksi utama; layar lebih sempit mempertahankan satu kolom dengan scroll alami.
 - 2026-09-18: Kontrol audio Foto Duet tersedia untuk host dan tamu di semua tahap ruang: mute/nyalakan mikrofon sendiri serta matikan/nyalakan suara teman secara lokal. Penolakan mikrofon dapat dicoba ulang dengan audio-only tanpa mengulang kamera; audio live tetap tidak direkam atau diekspor.

@@ -309,7 +309,7 @@ Acceptance criteria:
 - Countdown kamera memakai default 3 detik.
 - Sebelum foto pertama, panel inline `Pengaturan sesi` di layar kamera memungkinkan pengguna Solo atau host Duet mengubah frame, jumlah pose/layout, timer `3`/`5`/`10` detik, dan Otomatis melalui draft `Terapkan`/`Batal`, tanpa mematikan kamera atau keluar ruang Duet. Perubahan host disinkronkan ke tamu.
 - Sistem memberi feedback visual yang jelas pada setiap pengambilan.
-- Jika browser mendukung, flow kamera merekam klip singkat lokal untuk tiap shot agar bisa dibuat output Live Cam.
+- Jika browser mendukung, flow kamera merekam klip lokal untuk tiap shot dari awal countdown sampai shutter agar bisa dibuat output Live Cam. Durasi klip mengikuti timer sesi (`3`/`5`/`10` detik), bukan dipotong ke 3 detik terakhir.
 
 Acceptance criteria:
 

@@ -5,9 +5,13 @@ import { useAppStore } from '@/app/store/useAppStore'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
 import { useGalleryStore } from '@/app/store/useGalleryStore'
 import { useSessionStore } from '@/app/store/useSessionStore'
+import type { Render } from '@/db/schema'
+import { GALLERY_RETENTION_LIMIT } from '@/db/repositories/render'
+import { getLayoutById } from '@/layouts'
+import { getTemplateById } from '@/templates'
 import { downloadBlob, generateFilename, getExtensionForMimeType } from '@/services/output'
 import { clearAllLocalData, getStorageState, type StorageState } from '@/services/storage'
-import { formatBytes, formatDate } from '@/utils/format'
+import { formatBytes, formatGalleryDate } from '@/utils/format'
 import { ui } from '@/ui/styles'
 
 const router = useRouter()
@@ -16,7 +20,6 @@ const galleryStore = useGalleryStore()
 const sessionStore = useSessionStore()
 const customTemplateStore = useCustomTemplateStore()
 const renderUrls = ref<Record<string, string>>({})
-const liveUrls = ref<Record<string, string>>({})
 const storageState = ref<StorageState | null>(null)
 const localDataMessage = ref<string | null>(null)
 const showLocalDataOptions = ref(false)
@@ -27,6 +30,16 @@ onMounted(() => {
 
 function goBack() {
   router.push('/')
+}
+
+function galleryCaption(render: Render) {
+  const template = getTemplateById(render.templateId)?.name ?? 'Strip'
+  const layout = getLayoutById(render.layoutId)?.name
+  return layout ? `${template} · ${layout}` : template
+}
+
+function hasLiveCam(render: Render) {
+  return Boolean(render.liveBlob)
 }
 
 function handleDelete(id: string) {
@@ -43,9 +56,7 @@ function handleClearAll() {
 
 function revokeRenderUrls() {
   Object.values(renderUrls.value).forEach((url) => URL.revokeObjectURL(url))
-  Object.values(liveUrls.value).forEach((url) => URL.revokeObjectURL(url))
   renderUrls.value = {}
-  liveUrls.value = {}
 }
 
 async function loadGallery() {
@@ -55,11 +66,6 @@ async function loadGallery() {
 
   renderUrls.value = Object.fromEntries(
     galleryStore.recentRenders.map((render) => [render.id, URL.createObjectURL(render.blob)]),
-  )
-  liveUrls.value = Object.fromEntries(
-    galleryStore.recentRenders
-      .filter((render) => render.liveBlob)
-      .map((render) => [render.id, URL.createObjectURL(render.liveBlob!)]),
   )
 }
 
@@ -148,11 +154,11 @@ onBeforeUnmount(() => {
         </button>
         <h1 :class="ui.title">Galeri</h1>
       </div>
-      <span :class="ui.badge">{{ galleryStore.recentRenders.length }} item</span>
+      <span :class="ui.pinkBadge"> {{ galleryStore.recentRenders.length }} item </span>
     </div>
 
     <div :class="ui.content">
-      <div :class="[ui.pageContentWide, ui.stack]">
+      <div :class="[ui.pageContentWide, 'flex flex-col gap-8']">
         <div
           v-if="storageState?.shouldWarn || localDataMessage"
           :class="storageState?.shouldWarn ? ui.alertWarning : ui.alert"
@@ -170,92 +176,157 @@ onBeforeUnmount(() => {
           </template>
         </div>
 
-        <div v-if="galleryStore.recentRenders.length === 0" :class="[ui.emptyPanel, 'max-w-none']">
-          <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil</h4>
-          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Strip yang sudah dirender akan muncul di sini dan tetap tersedia saat offline.
-          </p>
-          <button :class="[ui.primaryButton, 'mt-4']" @click="router.push('/')">Mulai Foto</button>
-        </div>
-
-        <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div
-            v-for="(render, index) in galleryStore.recentRenders"
-            :key="render.id"
-            class="border-stc-border overflow-hidden rounded-lg border bg-white"
-          >
-            <button
-              class="bg-stc-bg-2 block w-full overflow-hidden"
-              :style="{ aspectRatio: `${render.width} / ${render.height}` }"
-              :aria-label="`Buka hasil ${index + 1}`"
-              @click="openOutput(render.id)"
-            >
-              <img
-                :src="renderUrls[render.id]"
-                :alt="`Render ${index + 1}`"
-                class="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
-            </button>
-            <div
-              class="border-stc-border flex items-center justify-between gap-2 border-t px-3 py-2.5"
-            >
-              <div class="min-w-0">
-                <div class="text-stc-text truncate text-[13px] font-medium">
-                  {{ formatDate(render.createdAt) }}
-                </div>
-                <div class="text-stc-text-faint text-[13px]">
-                  {{ formatBytes(render.sizeBytes) }}
-                </div>
-              </div>
-              <div class="flex shrink-0 items-center gap-1">
-                <button
-                  :class="ui.ghostButton"
-                  :aria-label="`Unduh render ${index + 1}`"
-                  @click="handleDownload(render.id)"
-                >
-                  Unduh
-                </button>
-                <button
-                  :class="[
-                    ui.ghostButton,
-                    'text-stc-error hover:bg-stc-error-soft hover:text-stc-error',
-                  ]"
-                  :aria-label="`Hapus render ${index + 1}`"
-                  @click="handleDelete(render.id)"
-                >
-                  Hapus
-                </button>
-              </div>
-            </div>
-            <div v-if="liveUrls[render.id]" class="border-stc-border border-t px-3 py-2">
-              <button
-                :class="[ui.ghostButton, 'w-full']"
-                :aria-label="`Unduh Live Cam ${index + 1}`"
-                @click="handleDownloadLive(render.id)"
-              >
-                Unduh Live Cam
-              </button>
-            </div>
+        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div class="min-w-0">
+            <p :class="ui.sectionLabel">Tersimpan di perangkat</p>
+            <h2 :class="[ui.sectionTitle, 'mt-1']">Hasil terakhir</h2>
+            <p :class="[ui.sectionCopy, 'mt-1']">
+              Maksimal {{ GALLERY_RETENTION_LIMIT }} strip. Yang lama terhapus otomatis.
+            </p>
           </div>
-        </div>
-
-        <div v-if="galleryStore.recentRenders.length > 0" class="flex justify-end">
           <button
-            :class="[ui.ghostButton, 'text-stc-error hover:bg-stc-error-soft']"
+            v-if="galleryStore.recentRenders.length > 0"
+            :class="[
+              ui.ghostButton,
+              'text-stc-error hover:bg-stc-error-soft self-start sm:self-auto',
+            ]"
             @click="handleClearAll"
           >
             Kosongkan Galeri
           </button>
         </div>
 
-        <div class="border-stc-border divide-stc-border divide-y border-t">
-          <div class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          v-if="galleryStore.recentRenders.length === 0"
+          :class="[ui.emptyPanel, 'max-w-none py-12']"
+        >
+          <div :class="ui.surfaceIcon" aria-hidden="true">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+          </div>
+          <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil</h4>
+          <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
+            Strip yang sudah dirender akan muncul di sini dan tetap tersedia saat offline.
+          </p>
+          <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button :class="ui.primaryButton" @click="router.push('/')">Mulai Foto</button>
+            <button :class="ui.secondaryButton" @click="router.push('/booth')">Foto Duet</button>
+          </div>
+        </div>
+
+        <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          <article
+            v-for="(render, index) in galleryStore.recentRenders"
+            :key="render.id"
+            class="border-stc-border group shadow-stc-xs hover:shadow-stc-sm overflow-hidden rounded-lg border bg-white transition duration-150 hover:-translate-y-0.5"
+          >
+            <div class="relative">
+              <button
+                class="bg-stc-bg-2 flex aspect-[3/4] w-full items-center justify-center px-3 pt-4 pb-3"
+                :aria-label="`Buka hasil ${index + 1}`"
+                @click="openOutput(render.id)"
+              >
+                <img
+                  :src="renderUrls[render.id]"
+                  :alt="`Render ${index + 1}`"
+                  class="shadow-stc-sm max-h-full w-auto max-w-full object-contain"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </button>
+              <div class="absolute top-2 right-2 flex gap-1">
+                <button
+                  class="shadow-stc-xs text-stc-text focus-visible:ring-stc-pink/40 flex size-7 items-center justify-center rounded-md bg-white/90 backdrop-blur-sm outline-none hover:bg-white focus-visible:ring-2"
+                  :aria-label="`Unduh render ${index + 1}`"
+                  @click="handleDownload(render.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                </button>
+                <button
+                  v-if="hasLiveCam(render)"
+                  class="shadow-stc-xs text-stc-text focus-visible:ring-stc-pink/40 flex size-7 items-center justify-center rounded-md bg-white/90 backdrop-blur-sm outline-none hover:bg-white focus-visible:ring-2"
+                  :aria-label="`Unduh Live Cam ${index + 1}`"
+                  title="Unduh video"
+                  @click="handleDownloadLive(render.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </button>
+                <button
+                  class="shadow-stc-xs text-stc-error hover:bg-stc-error-soft focus-visible:ring-stc-pink/40 flex size-7 items-center justify-center rounded-md bg-white/90 backdrop-blur-sm outline-none focus-visible:ring-2"
+                  :aria-label="`Hapus render ${index + 1}`"
+                  @click="handleDelete(render.id)"
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="3 6 5 6 21 6" />
+                    <path
+                      d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="px-3 py-2.5">
+              <p class="text-stc-text truncate text-[13px] font-medium">
+                {{ formatGalleryDate(render.createdAt) }}
+              </p>
+              <p class="text-stc-text-faint truncate text-[12px]">
+                {{ galleryCaption(render) }}
+              </p>
+            </div>
+          </article>
+        </div>
+
+        <div :class="[ui.panelSoft, 'px-4']">
+          <div class="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div class="min-w-0">
               <p class="text-stc-text text-[13px] font-medium">Data lokal aplikasi</p>
               <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-                Opsi lanjutan untuk reset cache offline, sesi, blanko upload, dan setting.
+                Reset cache offline, sesi, blanko upload, dan setting.
               </p>
             </div>
             <button
@@ -271,7 +342,7 @@ onBeforeUnmount(() => {
           <div
             v-if="showLocalDataOptions"
             id="local-data-options"
-            class="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+            class="border-stc-border flex flex-col gap-3 border-t py-3 sm:flex-row sm:items-center sm:justify-between"
           >
             <p class="text-stc-text-soft text-[13px] leading-normal">
               Pakai ini hanya jika ingin mengulang aplikasi dari awal. Galeri dan cache offline ikut

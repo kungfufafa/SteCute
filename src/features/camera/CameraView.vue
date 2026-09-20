@@ -1001,10 +1001,7 @@ function runCountdownAndCapture() {
   cameraError.value = null
   countdownValue.value = Math.max(1, sessionStore.countdownSeconds)
   countdownActive.value = true
-
-  if (countdownValue.value <= 3) {
-    startLiveCamClip()
-  }
+  startLiveCamClip()
 
   // Mark auto-capture as running on the first manual trigger
   if (sessionStore.autoCapture) {
@@ -1013,10 +1010,6 @@ function runCountdownAndCapture() {
 
   countdownTimer = setInterval(async () => {
     countdownValue.value -= 1
-
-    if (countdownValue.value === 3 && !liveCamRecordingActive.value) {
-      startLiveCamClip()
-    }
 
     if (countdownValue.value <= 0) {
       if (countdownTimer) {
@@ -1189,6 +1182,7 @@ function goToUploadFallback() {
 
             <div
               v-if="liveCamRecordingActive"
+              data-testid="live-cam-recording"
               class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
             >
               <span

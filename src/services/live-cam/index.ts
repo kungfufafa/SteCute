@@ -23,7 +23,7 @@ const LIVE_CAM_RENDER_MIME_TYPES = [
 ] as const
 const LIVE_STRIP_MAX_WIDTH = 720
 const LIVE_STRIP_FPS = 24
-const LIVE_STRIP_MAX_DURATION_MS = 4_000
+const LIVE_STRIP_MAX_DURATION_MS = 12_000
 const LIVE_STRIP_MIN_DURATION_MS = 1_200
 
 export interface LiveCamClip {

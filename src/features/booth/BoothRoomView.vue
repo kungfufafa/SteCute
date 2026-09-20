@@ -1188,7 +1188,7 @@ function runCountdown(
   countdownValue.value = totalSeconds
   currentMoment.value = momentIndex
   statusMessage.value = `Pose ${momentIndex + 1} dari ${slotCount.value}`
-  if (totalSeconds <= 3) startBoothLiveCamClip()
+  startBoothLiveCamClip()
 
   return new Promise((resolve) => {
     countdownResolve = resolve
@@ -1222,7 +1222,6 @@ function runCountdown(
         return
       }
       countdownValue.value -= 1
-      if (countdownValue.value === 3) startBoothLiveCamClip()
     }, 1000)
   })
 }
@@ -1933,6 +1932,7 @@ onUnmounted(() => {
             >
               <div
                 v-if="liveCamRecordingActive"
+                data-testid="live-cam-recording"
                 class="absolute top-3 left-3 z-20 inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold text-white"
               >
                 <span class="bg-stc-pink inline-flex size-2 animate-pulse rounded-full" />

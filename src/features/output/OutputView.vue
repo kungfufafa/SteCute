@@ -329,7 +329,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div v-else :class="[ui.pageContent, 'items-center gap-6']">
+      <div
+        v-else
+        :class="[ui.pageContent, 'items-center gap-6', { 'justify-center': !hasLiveCamOutput }]"
+      >
         <p v-if="storageWarning" :class="[ui.alert, 'w-full max-w-xl']" role="status">
           {{ storageWarning }}
         </p>
@@ -337,10 +340,10 @@ onBeforeUnmount(() => {
           Tersimpan di galeri perangkat ini.
         </p>
         <div
-          class="grid w-full max-w-4xl grid-cols-1 items-start justify-items-center gap-6 md:grid-cols-2"
-          :class="{ 'md:grid-cols-1': !hasLiveCamOutput }"
+          class="flex w-full flex-wrap items-start justify-center gap-6"
+          :class="hasLiveCamOutput ? 'max-w-4xl' : 'max-w-md'"
         >
-          <figure class="flex w-full flex-col items-center gap-3">
+          <figure class="flex max-w-full flex-col items-center gap-3">
             <figcaption :class="ui.sectionLabel">Foto</figcaption>
             <img
               v-if="previewUrl"
@@ -351,7 +354,7 @@ onBeforeUnmount(() => {
             />
           </figure>
 
-          <figure v-if="hasLiveCamOutput" class="flex w-full flex-col items-center gap-3">
+          <figure v-if="hasLiveCamOutput" class="flex max-w-full flex-col items-center gap-3">
             <figcaption :class="ui.sectionLabel">Live Cam</figcaption>
             <video
               v-if="livePreviewUrl"

@@ -157,7 +157,7 @@ Penjelasan:
 - UI mengatur flow dan interaksi pengguna.
 - Pinia menyimpan state runtime.
 - Camera Controller mengelola preview, switch camera, dan permission.
-- Live Cam Controller merekam klip singkat per-shot secara lokal jika browser mendukung `MediaRecorder`.
+- Live Cam Controller merekam klip per-shot secara lokal dari awal countdown jika browser mendukung `MediaRecorder`.
 - Upload Controller mengelola file lokal sebagai source alternatif.
 - Session Orchestrator membaca layout aktif dan menjalankan sesi sesuai jumlah slot.
 - Render Worker menyusun hasil akhir dan visual template di background thread bila tersedia.
@@ -219,7 +219,7 @@ API internal utama:
 Tanggung jawab:
 
 - mendeteksi dukungan `MediaRecorder` untuk stream kamera aktif
-- merekam klip singkat lokal per-shot selama countdown/capture
+- merekam klip lokal per-shot dari awal countdown sampai capture, mengikuti timer sesi (`3`/`5`/`10` detik)
 - menyimpan metadata video seperti mime type, durasi, dimensi, dan status mirror kamera
 - menghentikan rekaman saat countdown dibatalkan, retake, reset, atau komponen kamera keluar
 - gagal secara lunak agar capture foto statis tetap berhasil
