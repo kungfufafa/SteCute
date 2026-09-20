@@ -7,6 +7,7 @@ describe('booth relay seal', () => {
     const hello: BoothWireMessage = { type: 'hello', peerId: 'host-1', role: 'host' }
     const still: BoothWireMessage = {
       type: 'still',
+      captureId: 'capture-1',
       momentIndex: 0,
       peerId: 'guest-1',
       role: 'guest',

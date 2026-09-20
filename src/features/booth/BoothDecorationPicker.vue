@@ -109,15 +109,17 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
+  <div
+    :class="['flex min-w-0 gap-4', stacked ? 'flex-col' : 'flex-col sm:flex-row sm:items-start']"
+  >
     <div v-if="kind === 'filter' || kind === 'all'">
       <p :class="[ui.sectionLabel, 'mb-1.5']">Efek</p>
-      <div class="flex gap-2 overflow-x-auto pb-1">
+      <div :class="['flex gap-2 pb-1', stacked ? 'flex-wrap' : 'overflow-x-auto']">
         <DecorationSwatch
           v-for="filter in inlineFilterOptions"
           :key="filter.id"
           :label="chipLabel(filter)"
-          :aria-label="`Pilih efek ${filter.label}`"
+          :accessible-label="`Pilih efek ${filter.label}`"
           :title="filter.label"
           :selected="filter.id === filterId"
           :disabled="disabled && filter.id !== filterId"
@@ -127,12 +129,12 @@ onUnmounted(() => {
         </DecorationSwatch>
         <DecorationSwatch
           v-if="hiddenFilterOptions.length > 0"
-          aria-label="Buka semua efek"
+          accessible-label="Buka semua efek"
           title="Semua efek"
           @click="activeOptionPicker = 'filter'"
         >
           <span
-            class="text-stc-pink flex size-full items-center justify-center bg-stc-bg-2 text-lg font-semibold"
+            class="text-stc-pink bg-stc-bg-2 flex size-full items-center justify-center text-lg font-semibold"
             aria-hidden="true"
           >
             +
@@ -143,12 +145,12 @@ onUnmounted(() => {
 
     <div v-if="kind === 'overlay' || kind === 'all'">
       <p :class="[ui.sectionLabel, 'mb-1.5']">Overlay</p>
-      <div class="flex gap-2 overflow-x-auto pb-1">
+      <div :class="['flex gap-2 pb-1', stacked ? 'flex-wrap' : 'overflow-x-auto']">
         <DecorationSwatch
           v-for="effect in inlineCameraEffectOptions"
           :key="effect.id"
           :label="chipLabel(effect)"
-          :aria-label="`Pilih overlay ${effect.label}`"
+          :accessible-label="`Pilih overlay ${effect.label}`"
           :title="effect.description"
           :selected="effect.id === cameraEffectId"
           :disabled="disabled && effect.id !== cameraEffectId"
@@ -165,12 +167,12 @@ onUnmounted(() => {
         </DecorationSwatch>
         <DecorationSwatch
           v-if="hiddenCameraEffectOptions.length > 0"
-          aria-label="Buka semua overlay"
+          accessible-label="Buka semua overlay"
           title="Semua overlay"
           @click="activeOptionPicker = 'overlay'"
         >
           <span
-            class="text-stc-pink flex size-full items-center justify-center bg-stc-bg-2 text-lg font-semibold"
+            class="text-stc-pink bg-stc-bg-2 flex size-full items-center justify-center text-lg font-semibold"
             aria-hidden="true"
           >
             +

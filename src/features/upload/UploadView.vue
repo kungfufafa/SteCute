@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import type { SlotConfig } from '@/db/schema'
 import {
-  abandonIncompleteSession,
   createDefaultDecorationConfig,
-  createSession,
-  resetSessionData,
+  ensureSession,
+  getSessionSnapshot,
   saveShot,
 } from '@/services/session'
 import { useCustomTemplateStore } from '@/app/store/useCustomTemplateStore'
@@ -22,7 +21,14 @@ import {
   validateFile,
   validateFiles,
 } from '@/services/upload'
-import { readPendingSessionConfig } from '@/services/session/persist'
+import { readPendingSessionConfig, readStoredSessionId } from '@/services/session/persist'
+import {
+  loadUploadDraft,
+  saveUploadDraft,
+  saveUploadDraftPhoto,
+  updateUploadDraftAdjustments,
+  type UploadDraftPhoto,
+} from '@/services/upload/draft'
 import { getStorageErrorMessage, isStorageQuotaError } from '@/services/storage'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
@@ -81,8 +87,9 @@ const uploadItems = ref<UploadItem[]>([])
 const activeIndex = ref(0)
 const dragState = ref<DragState | null>(null)
 
-const isPreparing = ref(false)
+const isPreparing = ref(true)
 const isProcessing = ref(false)
+let draftSaveQueue = Promise.resolve()
 const isBusy = computed(() => isPreparing.value || isProcessing.value)
 const hasUploads = computed(() => uploadItems.value.length > 0)
 const activeItem = computed(() => uploadItems.value[activeIndex.value] ?? null)
@@ -188,8 +195,42 @@ async function createUploadItems(files: File[], firstSlotIndex = 0): Promise<Upl
 
 async function setSelectedFiles(files: File[]) {
   const items = await createUploadItems(files)
-  resetUploadItems()
-  uploadItems.value = items
+  try {
+    const sessionId = await prepareUploadSession()
+    await draftSaveQueue
+    await saveUploadDraft(sessionId, items)
+    resetUploadItems()
+    uploadItems.value = items
+  } catch (error) {
+    items.forEach((item) => URL.revokeObjectURL(item.url))
+    throw error
+  }
+}
+
+async function prepareUploadSession(): Promise<string> {
+  const sessionId = await ensureSession(sessionStore.sessionId ?? readStoredSessionId(), {
+    layoutId: sessionStore.layoutId,
+    templateId: sessionStore.templateId,
+    slotCount: sessionStore.slotCount,
+    captureSource: 'upload',
+    decoration: createDefaultDecorationConfig(activeTemplate.value),
+  })
+  if (sessionStore.sessionId !== sessionId) {
+    sessionStore.startSession(sessionId, 'upload', sessionStore.slotCount)
+  }
+  return sessionId
+}
+
+function persistAdjustments() {
+  const sessionId = sessionStore.sessionId
+  if (!sessionId) return
+  const adjustments = uploadItems.value.map((item) => ({ ...item.adjustment }))
+  draftSaveQueue = draftSaveQueue
+    .then(() => updateUploadDraftAdjustments(sessionId, adjustments))
+    .catch((error) => {
+      console.error('Failed to save upload framing:', error)
+      errors.value = [getStorageErrorMessage(error)]
+    })
 }
 
 async function handleFileSelect() {
@@ -213,7 +254,11 @@ async function handleFileSelect() {
     errors.value = []
   } catch (error) {
     console.error(`Upload preview failed: ${describeError(error)}`)
-    errors.value = ['Satu atau lebih foto gagal dibaca. Pilih file lain dan coba lagi.']
+    errors.value = [
+      isStorageQuotaError(error)
+        ? getStorageErrorMessage(error)
+        : 'Satu atau lebih foto gagal dibaca. Pilih file lain dan coba lagi.',
+    ]
   } finally {
     isPreparing.value = false
   }
@@ -237,6 +282,7 @@ function setActiveAdjustment(adjustment: Partial<UploadImageAdjustment>) {
     ...item.adjustment,
     ...adjustment,
   })
+  persistAdjustments()
 }
 
 function resetActiveAdjustment() {
@@ -268,6 +314,7 @@ function applyAutoCropToAll() {
     )
   })
   dragState.value = null
+  persistAdjustments()
 }
 
 function beginPhotoDrag(event: globalThis.PointerEvent) {
@@ -336,6 +383,14 @@ async function replaceActiveFile() {
 
   try {
     const [replacement] = await createUploadItems([file], activeIndex.value)
+    try {
+      const sessionId = await prepareUploadSession()
+      await draftSaveQueue
+      await saveUploadDraftPhoto(sessionId, activeIndex.value, replacement)
+    } catch (error) {
+      URL.revokeObjectURL(replacement.url)
+      throw error
+    }
     const previous = uploadItems.value[activeIndex.value]
     if (previous) URL.revokeObjectURL(previous.url)
     uploadItems.value.splice(activeIndex.value, 1, replacement)
@@ -349,27 +404,17 @@ async function replaceActiveFile() {
 }
 
 async function processUpload() {
+  if (isBusy.value) return
   if (!isReadyToProcess.value) {
     errors.value = [`Layout ini membutuhkan tepat ${sessionStore.slotCount} foto.`]
     return
   }
 
   isProcessing.value = true
-  let sessionId: string | undefined
 
   try {
-    await abandonIncompleteSession(sessionStore.sessionId)
-    sessionStore.reset()
-
-    sessionId = await createSession({
-      layoutId: sessionStore.layoutId,
-      templateId: sessionStore.templateId,
-      slotCount: sessionStore.slotCount,
-      captureSource: 'upload',
-      decoration: createDefaultDecorationConfig(activeTemplate.value),
-    })
-
-    sessionStore.startSession(sessionId, 'upload', sessionStore.slotCount)
+    await draftSaveQueue
+    const sessionId = await prepareUploadSession()
 
     for (const [index, item] of uploadItems.value.entries()) {
       const slot = getSlotForIndex(index)
@@ -386,17 +431,14 @@ async function processUpload() {
         width: adjusted.width,
         height: adjusted.height,
       })
-      sessionStore.addShotId(shotId)
+      sessionStore.setShotIdAt(index, shotId)
     }
 
     sessionStore.setReviewing()
+    isProcessing.value = false
     router.push('/review')
   } catch (error) {
     console.error(`Upload failed: ${describeError(error)}`)
-    if (sessionId) {
-      await resetSessionData(sessionId).catch(() => {})
-    }
-    sessionStore.reset()
     errors.value = [
       isStorageQuotaError(error)
         ? getStorageErrorMessage(error)
@@ -410,17 +452,72 @@ async function processUpload() {
 onMounted(async () => {
   try {
     await customTemplateStore.loadPersistedTemplates()
-  } catch (error) {
-    console.warn('Failed to load custom blanko templates:', error)
-  }
-  const pending = readPendingSessionConfig('upload')
-  if (!pending) return
+    const pending = readPendingSessionConfig('upload')
+    if (pending) {
+      sessionStore.layoutId = pending.layoutId
+      sessionStore.templateId = pending.templateId
+      sessionStore.slotCount = pending.slotCount
+      sessionStore.countdownSeconds = pending.countdownSeconds
+      sessionStore.autoCapture = pending.autoCapture
+    }
 
-  sessionStore.layoutId = pending.layoutId
-  sessionStore.templateId = pending.templateId
-  sessionStore.slotCount = pending.slotCount
-  sessionStore.countdownSeconds = pending.countdownSeconds
-  sessionStore.autoCapture = pending.autoCapture
+    const sessionId = sessionStore.sessionId ?? readStoredSessionId()
+    const snapshot = sessionId ? await getSessionSnapshot(sessionId) : null
+    if (
+      !snapshot ||
+      snapshot.session.captureSource !== 'upload' ||
+      snapshot.session.status !== 'idle' ||
+      snapshot.session.finalRenderId ||
+      (pending &&
+        (snapshot.session.layoutId !== pending.layoutId ||
+          snapshot.session.templateId !== pending.templateId ||
+          snapshot.session.slotCount !== pending.slotCount))
+    ) {
+      return
+    }
+
+    sessionStore.restoreFromSession(snapshot.session, snapshot.shots)
+    const savedDraft = await loadUploadDraft(snapshot.session.id)
+    const draft: UploadDraftPhoto[] = []
+    const sourcesByOrder = new Map(savedDraft.map((photo) => [photo.order, photo]))
+    const shotsByOrder = new Map(snapshot.shots.map((shot) => [shot.order, shot]))
+    for (let order = 0; order < snapshot.session.slotCount; order++) {
+      const source = sourcesByOrder.get(order)
+      if (source) {
+        draft.push(source)
+        continue
+      }
+      // Older sessions only have adjusted shots; keep each in its original slot.
+      const shot = shotsByOrder.get(order)
+      if (shot) {
+        draft.push({
+          file: new File([shot.blob], `foto-${shot.order + 1}.png`, { type: shot.blob.type }),
+          width: shot.width,
+          height: shot.height,
+          adjustment: clampUploadImageAdjustment(undefined),
+        })
+      } else if (savedDraft.length || snapshot.shots.length) {
+        throw new Error('Upload draft is incomplete')
+      }
+    }
+    if (draft.length > savedDraft.length) {
+      await saveUploadDraft(snapshot.session.id, draft)
+    }
+    uploadItems.value = draft.map((photo) => ({
+      ...photo,
+      url: URL.createObjectURL(photo.file),
+    }))
+  } catch (error) {
+    console.error('Failed to restore upload draft:', error)
+    errors.value = ['Draft foto belum bisa dimuat. Muat ulang atau pilih foto lagi.']
+  } finally {
+    isPreparing.value = false
+  }
+})
+
+onBeforeRouteLeave(async () => {
+  if (isBusy.value) return false
+  await draftSaveQueue
 })
 
 onBeforeUnmount(() => resetUploadItems())
@@ -430,7 +527,12 @@ onBeforeUnmount(() => resetUploadItems())
   <div :class="ui.page">
     <div :class="ui.header">
       <div :class="ui.headerGroup">
-        <button :class="ui.iconButton" aria-label="Kembali ke setup sesi" @click="goBack">
+        <button
+          :class="ui.iconButton"
+          aria-label="Kembali ke setup sesi"
+          :disabled="isBusy"
+          @click="goBack"
+        >
           <svg
             width="16"
             height="16"

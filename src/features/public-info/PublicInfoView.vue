@@ -104,14 +104,15 @@ function startWithCamera() {
                     class="text-stc-text flex cursor-pointer list-none items-center justify-between gap-4 py-3 text-[13px] font-medium sm:text-sm"
                   >
                     <span>{{ item.question }}</span>
-                    <span class="text-stc-text-faint shrink-0 group-open:hidden" aria-hidden="true"
-                      >+</span
-                    >
+                    <span class="text-stc-text-faint shrink-0 group-open:hidden" aria-hidden="true">
+                      +
+                    </span>
                     <span
                       class="text-stc-text-faint hidden shrink-0 group-open:inline"
                       aria-hidden="true"
-                      >−</span
                     >
+                      −
+                    </span>
                   </summary>
                   <div
                     class="text-stc-text-soft max-w-3xl space-y-2 pb-4 text-[13px] leading-normal sm:text-sm"

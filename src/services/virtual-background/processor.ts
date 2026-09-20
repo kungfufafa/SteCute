@@ -396,40 +396,22 @@ export class CameraBackgroundProcessor implements CameraBackgroundProcessorLike 
     const prevCtx = this.previewCtx
     if (!offCtx || !prevCtx) return
 
-    // 1. Crop video to target preview aspect ratio
+    // Crop to the 4:3 preview bitmap. Keep camera-native orientation so
+    // WebRTC captureStream matches Asli; CSS (not this bitmap) does selfie flip.
     const crop = getObjectCoverCrop(vWidth, vHeight, targetWidth, targetHeight)
 
-    // 2. Mirror camera if front-facing
     offCtx.clearRect(0, 0, targetWidth, targetHeight)
-    if (this.mirrored) {
-      offCtx.save()
-      offCtx.translate(targetWidth, 0)
-      offCtx.scale(-1, 1)
-      offCtx.drawImage(
-        this.video,
-        crop.sx,
-        crop.sy,
-        crop.sw,
-        crop.sh,
-        0,
-        0,
-        targetWidth,
-        targetHeight,
-      )
-      offCtx.restore()
-    } else {
-      offCtx.drawImage(
-        this.video,
-        crop.sx,
-        crop.sy,
-        crop.sw,
-        crop.sh,
-        0,
-        0,
-        targetWidth,
-        targetHeight,
-      )
-    }
+    offCtx.drawImage(
+      this.video,
+      crop.sx,
+      crop.sy,
+      crop.sw,
+      crop.sh,
+      0,
+      0,
+      targetWidth,
+      targetHeight,
+    )
 
     const currentRev = this.configRevision
     this.isInferring = true

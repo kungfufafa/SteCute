@@ -186,6 +186,7 @@ defineExpose({
     :data-virtual-background-id="normalizedId"
     :class="[
       'h-full w-full object-cover transition-opacity duration-150',
+      mirrored ? 'scale-x-[-1]' : '',
       previewActive ? 'opacity-100' : 'pointer-events-none opacity-0',
     ]"
     aria-hidden="true"

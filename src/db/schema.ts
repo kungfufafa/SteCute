@@ -172,7 +172,7 @@ export interface TemplateConfig {
 
 export interface AssetRecord {
   id: string
-  type: 'frame' | 'sticker' | 'overlay' | 'filter-preview' | 'virtual-background'
+  type: 'frame' | 'sticker' | 'overlay' | 'filter-preview' | 'virtual-background' | 'upload-source'
   name: string
   path: string
   packId: string

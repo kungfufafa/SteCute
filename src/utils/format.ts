@@ -16,3 +16,26 @@ export function formatDate(timestamp: number): string {
     minute: '2-digit',
   }).format(new Date(timestamp))
 }
+
+export function formatGalleryDate(timestamp: number): string {
+  const date = new Date(timestamp)
+  const time = new Intl.DateTimeFormat('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+
+  const now = new Date()
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const dayDiff = Math.round((startOfToday - startOfDate) / 86_400_000)
+
+  if (dayDiff === 0) return `Hari ini · ${time}`
+  if (dayDiff === 1) return `Kemarin · ${time}`
+
+  return new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}

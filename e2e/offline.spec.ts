@@ -119,6 +119,6 @@ test.describe('offline behavior', () => {
     await page.getByRole('button', { name: 'Galeri', exact: true }).click()
 
     await expect(page).toHaveURL('/gallery')
-    await expect(page.getByText('1 item')).toBeVisible()
+    await expect(page.getByText('1/10')).toBeVisible()
   })
 })

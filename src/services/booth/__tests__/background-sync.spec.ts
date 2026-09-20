@@ -132,14 +132,17 @@ describe('booth background asset sync', () => {
       })
     })
 
-    const countdownPromise = guest.waitForCountdown(0)
+    const captureId = host.startMoment(0)
+    const composeCancelled = expect(guest.waitForComposed(0, 1000, captureId)).rejects.toThrow(
+      'background_error',
+    )
     host.cancelMoment(0, 'background_error')
 
     const cancelled = await cancelPromise
     expect(cancelled.momentIndex).toBe(0)
     expect(cancelled.reason).toBe('background_error')
 
-    await expect(countdownPromise).rejects.toThrow('background_error')
+    await composeCancelled
 
     // Also confirm startedMoments for 0 is cleared
     expect(guest.getSetup()).toBeDefined()

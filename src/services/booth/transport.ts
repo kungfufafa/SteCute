@@ -4,6 +4,7 @@ export type BoothWireMessage =
   | { type: 'hello'; peerId: string; role: BoothPeerRole }
   | { type: 'welcome'; peerId: string; role: BoothPeerRole }
   | { type: 'bye'; peerId: string }
+  | { type: 'camera-ready'; peerId: string; ready: boolean }
   | { type: 'reject'; peerId: string; toPeerId: string; reason: 'full' }
   | {
       type: 'session-setup'
@@ -22,6 +23,7 @@ export type BoothWireMessage =
   | { type: 'session-reset'; nonce?: string }
   | {
       type: 'start-moment'
+      captureId: string
       momentIndex: number
       countdownMs: number
       revision?: number
@@ -29,12 +31,14 @@ export type BoothWireMessage =
     }
   | {
       type: 'cancel-moment'
-      momentIndex?: number
+      captureId: string
+      momentIndex: number
       reason?: string
       nonce?: string
     }
   | {
       type: 'still'
+      captureId: string
       momentIndex: number
       peerId: string
       role: BoothPeerRole
@@ -77,6 +81,7 @@ export type BoothWireMessage =
 
 export type BoothMediaSession = {
   attachLocalStream(stream: MediaStream | null): void
+  setMicrophoneEnabled?(enabled: boolean): void
   subscribeRemoteStream(handler: (stream: MediaStream | null) => void): () => void
 }
 
@@ -153,6 +158,7 @@ export function createFanoutBoothTransport(): BoothTransport & {
   const mediaUnsubscribers: Array<() => void> = []
   let localStream: MediaStream | null = null
   let remoteStream: MediaStream | null = null
+  let microphoneEnabled = true
 
   function emitRemote(stream: MediaStream | null) {
     remoteStream = stream
@@ -162,7 +168,14 @@ export function createFanoutBoothTransport(): BoothTransport & {
   const media: BoothMediaSession = {
     attachLocalStream(stream) {
       localStream = stream
-      for (const transport of transports) transport.media?.attachLocalStream(stream)
+      for (const transport of transports) {
+        transport.media?.setMicrophoneEnabled?.(microphoneEnabled)
+        transport.media?.attachLocalStream(stream)
+      }
+    },
+    setMicrophoneEnabled(enabled) {
+      microphoneEnabled = enabled
+      for (const transport of transports) transport.media?.setMicrophoneEnabled?.(enabled)
     },
     subscribeRemoteStream(handler) {
       remoteHandlers.add(handler)
@@ -175,6 +188,7 @@ export function createFanoutBoothTransport(): BoothTransport & {
     media,
     add(transport) {
       transports.push(transport)
+      transport.media?.setMicrophoneEnabled?.(microphoneEnabled)
       if (localStream) transport.media?.attachLocalStream(localStream)
       if (transport.media) {
         mediaUnsubscribers.push(transport.media.subscribeRemoteStream(emitRemote))

@@ -38,6 +38,164 @@ beforeAll(() => {
 })
 
 describe('booth two-peer capture protocol', () => {
+  it('rejects delayed stills and duplicate starts from an earlier retake attempt', async () => {
+    const transports = createInProcessTransportPair()
+    const sent: BoothWireMessage[] = []
+    for (const transport of [transports.host, transports.guest]) {
+      const send = transport.send
+      transport.send = (message) => {
+        sent.push(message)
+        send(message)
+      }
+    }
+    const host = createBoothPeerSession({
+      peerId: 'host',
+      role: 'host',
+      transport: transports.host,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest',
+      role: 'guest',
+      transport: transports.guest,
+      slot: PAIR_SLOT,
+    })
+    const firstId = host.startMoment(0)
+    await Promise.all([
+      host.submitStill(0, stillFromColor([220, 24, 32, 255])),
+      guest.submitStill(0, stillFromColor([32, 64, 220, 255])),
+    ])
+    await host.waitForComposed(0)
+    const oldMessages = sent.filter(
+      (message) =>
+        (message.type === 'still' || message.type === 'start-moment') &&
+        message.captureId === firstId,
+    )
+    const secondId = host.startMoment(0)
+    for (const message of oldMessages) {
+      if (message.type === 'still' && message.peerId === 'guest') transports.guest.send(message)
+      else transports.host.send(message)
+    }
+    expect(host.isCaptureActive(0, secondId)).toBe(true)
+    expect(guest.isCaptureActive(0, secondId)).toBe(true)
+    await Promise.all([
+      host.submitStill(0, stillFromColor([16, 200, 64, 255]), secondId),
+      guest.submitStill(0, stillFromColor([240, 200, 32, 255]), secondId),
+    ])
+    for (const session of [host, guest]) {
+      const image = await readPng((await session.waitForComposed(0)).blob)
+      expect(pixelAt(image, 1, 4)).toEqual([16, 200, 64, 255])
+      expect(pixelAt(image, 14, 4)).toEqual([240, 200, 32, 255])
+      session.dispose()
+    }
+  })
+
+  it('cancels waiters and excludes late stills and cancellation from a new attempt', async () => {
+    const transports = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host',
+      role: 'host',
+      transport: transports.host,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest',
+      role: 'guest',
+      transport: transports.guest,
+      slot: PAIR_SLOT,
+    })
+    const firstId = host.startMoment(0)
+    await host.submitStill(0, stillFromColor([220, 24, 32, 255]), firstId)
+    const cancelled = expect(host.waitForComposed(0, 1000, firstId)).rejects.toThrow('cancelled')
+    host.cancelMoment(undefined, 'cancelled')
+    await cancelled
+    const nextId = host.startMoment(0)
+    transports.host.send({ type: 'cancel-moment', nonce: 'legacy-global' } as BoothWireMessage)
+    transports.host.send({
+      type: 'cancel-moment',
+      momentIndex: 0,
+      captureId: firstId,
+      reason: 'cancelled',
+      nonce: 'delayed-cancel',
+    })
+    await expect(guest.submitStill(0, stillFromColor([32, 64, 220, 255]), firstId)).rejects.toThrow(
+      'no longer active',
+    )
+    expect(guest.isCaptureActive(0, nextId)).toBe(true)
+    await Promise.all([
+      host.submitStill(0, stillFromColor([16, 200, 64, 255]), nextId),
+      guest.submitStill(0, stillFromColor([240, 200, 32, 255]), nextId),
+    ])
+    expect(host.getComposedShots()).toHaveLength(1)
+    host.dispose()
+    guest.dispose()
+  })
+
+  it('keeps camera readiness distinct from presence and clears readiness on departure', () => {
+    const transports = createInProcessTransportPair()
+    const host = createBoothPeerSession({
+      peerId: 'host',
+      role: 'host',
+      transport: transports.host,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest',
+      role: 'guest',
+      transport: transports.guest,
+    })
+    expect(host.getRemotePeerId()).toBe('guest')
+    expect(host.getRemoteCameraReady()).toBe(false)
+    guest.setCameraReady(true)
+    expect(host.getRemoteCameraReady()).toBe(true)
+    guest.setCameraReady(false)
+    expect(host.getRemoteCameraReady()).toBe(false)
+    guest.setCameraReady(true)
+    guest.dispose()
+    expect(host.getRemoteCameraReady()).toBe(false)
+    host.dispose()
+  })
+
+  it('does not send a local still that finishes encoding after cancellation', async () => {
+    const transports = createInProcessTransportPair()
+    const sent: BoothWireMessage[] = []
+    const send = transports.host.send
+    transports.host.send = (message) => {
+      sent.push(message)
+      send(message)
+    }
+    const host = createBoothPeerSession({
+      peerId: 'host',
+      role: 'host',
+      transport: transports.host,
+      slot: PAIR_SLOT,
+    })
+    const guest = createBoothPeerSession({
+      peerId: 'guest',
+      role: 'guest',
+      transport: transports.guest,
+      slot: PAIR_SLOT,
+    })
+    const still = stillFromColor([220, 24, 32, 255])
+    const bytes = await still.blob.arrayBuffer()
+    let finishEncoding!: (buffer: ArrayBuffer) => void
+    still.blob.arrayBuffer = () =>
+      new Promise((resolve) => {
+        finishEncoding = resolve
+      })
+    const oldId = host.startMoment(0)
+    const pending = expect(host.submitStill(0, still, oldId)).rejects.toThrow('no longer active')
+    host.cancelMoment(0)
+    const nextId = host.startMoment(0)
+    finishEncoding(bytes)
+    await pending
+    expect(sent.some((message) => message.type === 'still' && message.captureId === oldId)).toBe(
+      false,
+    )
+    expect(host.isCaptureActive(0, nextId)).toBe(true)
+    host.dispose()
+    guest.dispose()
+  })
+
   it('runs a shared countdown, composes pair-row stills, and renders a PNG strip', async () => {
     const hostStill = stillFromColor([220, 24, 32, 255])
     const guestStill = stillFromColor([32, 64, 220, 255])
@@ -80,6 +238,7 @@ describe('booth two-peer capture protocol', () => {
     expect(pixelAt(composedPixels, 1, 4)).not.toEqual(pixelAt(composedPixels, 14, 4))
     expect(pixelAt(composedPixels, 1, 4)).toEqual(pixelAt(swappedPixels, 14, 4))
 
+    host.startMoment(1)
     await Promise.all([host.submitStill(1, hostStill), guest.submitStill(1, guestStill)])
     const second = await host.waitForComposed(1)
 
@@ -173,9 +332,11 @@ describe('booth two-peer capture protocol', () => {
       slot: PAIR_SLOT,
     })
 
+    const captureId = host.startMoment(0)
     await host.submitStill(0, hostStill)
     guestTransport.send({
       type: 'still',
+      captureId,
       momentIndex: 0,
       peerId: 'guest-peer',
       role: 'host',
@@ -209,11 +370,19 @@ describe('booth two-peer capture protocol', () => {
 
     const first = guest.waitForStart()
     host.startMoment(0, 3000)
-    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+    await expect(first).resolves.toEqual({
+      momentIndex: 0,
+      countdownMs: 3000,
+      captureId: expect.any(String),
+    })
 
     const second = guest.waitForStart()
     host.startMoment(0, 2500)
-    await expect(second).resolves.toEqual({ momentIndex: 0, countdownMs: 2500 })
+    await expect(second).resolves.toEqual({
+      momentIndex: 0,
+      countdownMs: 2500,
+      captureId: expect.any(String),
+    })
 
     host.dispose()
     guest.dispose()
@@ -264,6 +433,7 @@ describe('booth two-peer capture protocol', () => {
     const first = guest.waitForStart()
     const duplicate = {
       type: 'start-moment' as const,
+      captureId: 'same-start',
       momentIndex: 0,
       countdownMs: 3000,
       nonce: 'same-start',
@@ -273,7 +443,11 @@ describe('booth two-peer capture protocol', () => {
       handler(duplicate)
     }
 
-    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+    await expect(first).resolves.toEqual({
+      momentIndex: 0,
+      countdownMs: 3000,
+      captureId: expect.any(String),
+    })
 
     const second = guest.waitForStart()
     const raced = await Promise.race([
@@ -305,7 +479,11 @@ describe('booth two-peer capture protocol', () => {
 
     const first = host.waitForStart()
     host.startMoment(0, 3000)
-    await expect(first).resolves.toEqual({ momentIndex: 0, countdownMs: 3000 })
+    await expect(first).resolves.toEqual({
+      momentIndex: 0,
+      countdownMs: 3000,
+      captureId: expect.any(String),
+    })
 
     const second = host.waitForStart()
     const raced = await Promise.race([
@@ -337,13 +515,14 @@ describe('booth two-peer capture protocol', () => {
 
     const first = guest.waitForStart()
     host.startMoment(0, 3000)
-    await first
+    const { captureId } = await first
     await Promise.all([host.submitStill(0, hostStill), guest.submitStill(0, guestStill)])
     await guest.waitForComposed(0)
 
     const second = guest.waitForStart()
     guestTransport.send({
       type: 'start-moment',
+      captureId,
       momentIndex: 0,
       countdownMs: 3000,
       nonce: 'host-peer:1',

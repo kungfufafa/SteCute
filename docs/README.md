@@ -21,6 +21,7 @@ Dokumentasi utama proyek Stecute ada di folder ini. Paket dokumen ini sudah disu
 - [stecute-release-checklist.md](./stecute-release-checklist.md): checklist go/no-go sebelum rilis.
 - [stecute-qa-findings.md](./stecute-qa-findings.md): catatan hasil QA real browser dan status perbaikan.
 - [stecute-prototype.html](./stecute-prototype.html): referensi visual dan flow UI.
+- [stecute-user-flow.md](./stecute-user-flow.md): rancangan UX target Solo/Duet, diagram alur, kesetaraan fitur, koordinasi peserta, dan recovery. Belum diimplementasikan; perluasan dari baseline ditandai eksplisit.
 
 ## Source of truth
 
@@ -36,6 +37,7 @@ Dokumentasi utama proyek Stecute ada di folder ini. Paket dokumen ini sudah disu
 - Scope v1 sudah dikunci.
 - Asset baseline sudah didefinisikan.
 - Prototype sudah diselaraskan dengan keputusan v1.
+- Rancangan penyederhanaan Solo/Duet terbaru ada di [stecute-user-flow.md](./stecute-user-flow.md). Status target dan selisih implementasi dicatat di sana; baseline produksi dan prototype belum mencerminkan seluruh rancangan tersebut.
 
 ## Catatan penggunaan
 

@@ -13,6 +13,18 @@ export interface CameraOptions {
   width?: { ideal: number }
   height?: { ideal: number }
   aspectRatio?: { ideal: number }
+  audio?: boolean
+}
+
+const CAMERA_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  echoCancellation: true,
+  noiseSuppression: true,
+  autoGainControl: true,
+}
+
+// Retry microphone permission without replacing an already usable camera stream.
+export function initMicrophone(): Promise<MediaStream> {
+  return navigator.mediaDevices.getUserMedia({ video: false, audio: CAMERA_AUDIO_CONSTRAINTS })
 }
 
 export interface CapturedFrame {
@@ -210,12 +222,7 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
       videoConstraints.facingMode = options.facingMode
     }
 
-    const constraints: MediaStreamConstraints = {
-      video: videoConstraints,
-      audio: false,
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    const stream = await getCameraMediaStream(videoConstraints, options?.audio === true)
     cameraStore.setPermissionState('granted')
     cameraStore.setStreamReady(true)
 
@@ -399,6 +406,27 @@ export function captureCoverFrame(
       0.92,
     )
   })
+}
+
+async function getCameraMediaStream(
+  videoConstraints: MediaTrackConstraints,
+  withAudio: boolean,
+): Promise<MediaStream> {
+  const constraints: MediaStreamConstraints = {
+    video: videoConstraints,
+    audio: withAudio ? CAMERA_AUDIO_CONSTRAINTS : false,
+  }
+
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints)
+  } catch (error) {
+    if (!withAudio) throw error
+
+    return await navigator.mediaDevices.getUserMedia({
+      video: videoConstraints,
+      audio: false,
+    })
+  }
 }
 
 function applyCaptureProcess(

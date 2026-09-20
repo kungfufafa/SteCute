@@ -1,13 +1,19 @@
 import type { DecorationConfig, Render, Session, Shot } from '@/db/schema'
 import { type LayoutConfig, type TemplateConfig } from '@/db/schema'
 import { db } from '@/db/schema'
-import { AssetRepository, RenderRepository, SessionRepository, ShotRepository } from '@/db/repositories'
+import {
+  AssetRepository,
+  RenderRepository,
+  SessionRepository,
+  ShotRepository,
+} from '@/db/repositories'
 import { normalizeCameraEffectId } from '@/services/camera-effects'
 import { normalizePhotoFilterId } from '@/services/filter'
 import { normalizeVirtualBackgroundId } from '@/services/virtual-background'
 import type { LiveCamClip } from '@/services/live-cam'
 import { renderLiveStrip } from '@/services/live-cam'
 import { renderStrip } from '@/services/render'
+import { getStorageErrorMessage } from '@/services/storage'
 
 export interface SessionFlowConfig {
   layoutId: string
@@ -254,17 +260,66 @@ export async function deleteSessionBackgroundAssets(sessionId: string): Promise<
   await assetRepo.deleteBySessionId(sessionId)
 }
 
-export async function renderAndStoreSession(params: {
+export interface SessionRenderParams {
   sessionId: string
+  // Duet already owns its composed snapshots in memory; rendering must not require
+  // storing a second copy of every source image first.
+  shots?: Shot[]
+  signal?: AbortSignal
   layout: LayoutConfig
   template: TemplateConfig
   decoration: DecorationConfig
   format?: 'image/png' | 'image/jpeg'
-}): Promise<string> {
-  const shots = await getSessionShots(params.sessionId)
-  const decoration = normalizeDecorationConfig(params.decoration)
-  await sessionRepo.updateDecorationConfig(params.sessionId, decoration)
+}
 
+export interface SessionRenderResult {
+  render: Render
+  persisted: boolean
+  storageWarning: string | null
+}
+
+// A cancelled view no longer owns the session or any later edits to its photos.
+const activeRenderJobs = new Map<
+  string,
+  { promise: Promise<SessionRenderResult>; signal?: AbortSignal }
+>()
+
+function throwIfRenderAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException('Render dibatalkan.', 'AbortError')
+}
+
+export function renderSessionForOutput(params: SessionRenderParams): Promise<SessionRenderResult> {
+  const active = activeRenderJobs.get(params.sessionId)
+  if (active && !active.signal?.aborted) return active.promise
+
+  const job = createSessionOutput(params).finally(() => {
+    if (activeRenderJobs.get(params.sessionId)?.promise === job) {
+      activeRenderJobs.delete(params.sessionId)
+    }
+  })
+  activeRenderJobs.set(params.sessionId, { promise: job, signal: params.signal })
+  return job
+}
+
+async function createSessionOutput(params: SessionRenderParams): Promise<SessionRenderResult> {
+  const assertActive = () => throwIfRenderAborted(params.signal)
+  const discardAbortedRender = async (renderId: string) => {
+    if (!params.signal?.aborted) return
+    try {
+      // Only remove this job's artifact, never the source session being edited.
+      await renderRepo.delete(renderId)
+    } catch (error) {
+      console.warn('Could not remove the cancelled render.', error)
+    }
+    assertActive()
+  }
+  assertActive()
+  const shots = params.shots ?? (await getSessionShots(params.sessionId))
+  assertActive()
+  if (!isSessionComplete(shots, params.layout.slotCount)) {
+    throw new Error('Foto sesi belum lengkap. Lengkapi foto sebelum membuat hasil.')
+  }
+  const decoration = normalizeDecorationConfig(params.decoration)
   const result = await renderStrip({
     layout: params.layout,
     template: params.template,
@@ -272,6 +327,7 @@ export async function renderAndStoreSession(params: {
     decoration,
     format: params.format ?? 'image/png',
   })
+  assertActive()
   let liveResult: Awaited<ReturnType<typeof renderLiveStrip>> = null
 
   if (shots.some((shot) => shot.liveClipBlob)) {
@@ -284,69 +340,128 @@ export async function renderAndStoreSession(params: {
         baseImageBlob: result.blob,
       })
     } catch (error) {
-      console.warn('Live Cam render failed; saving photo output only.', error)
+      console.warn('Live Cam render failed; keeping photo output.', error)
+    }
+  }
+  assertActive()
+
+  let render: Render = {
+    id: `memory-${crypto.randomUUID()}`,
+    sessionId: params.sessionId,
+    layoutId: params.layout.id,
+    templateId: params.template.id,
+    mimeType: params.format ?? 'image/png',
+    variant: 'default',
+    blob: result.blob,
+    width: result.width,
+    height: result.height,
+    sizeBytes: result.blob.size,
+    liveBlob: liveResult?.blob,
+    liveMimeType: liveResult?.mimeType,
+    liveSizeBytes: liveResult?.blob.size,
+    liveWidth: liveResult?.width,
+    liveHeight: liveResult?.height,
+    liveDurationMs: liveResult?.durationMs,
+    createdAt: Date.now(),
+    savedToDeviceAt: null,
+  }
+  let storageWarning: string | null = null
+
+  // Rendering has succeeded. A storage failure must not discard the downloadable artifact.
+  try {
+    let renderId: string
+    try {
+      renderId = await renderRepo.create(render)
+    } catch (error) {
+      assertActive()
+      if (!render.liveBlob) throw error
+      const photoOnly: Render = {
+        ...render,
+        liveBlob: undefined,
+        liveMimeType: undefined,
+        liveSizeBytes: undefined,
+        liveWidth: undefined,
+        liveHeight: undefined,
+        liveDurationMs: undefined,
+      }
+      renderId = await renderRepo.create(photoOnly)
+      render = photoOnly
+      storageWarning = 'Live Cam belum dapat disimpan. Foto PNG tetap tersedia.'
+    }
+    render = { ...render, id: renderId }
+    await discardAbortedRender(renderId)
+    assertActive()
+  } catch (error) {
+    assertActive()
+    return {
+      render,
+      persisted: false,
+      storageWarning: `Hasil belum tersimpan di galeri. ${getStorageErrorMessage(error)} Unduh hasil sebelum menutup halaman.`,
     }
   }
 
-  let renderId: string
-
+  // Finalization/retention errors do not turn an already saved output into a failed render.
+  let finalized = false
   try {
-    renderId = await renderRepo.create({
-      sessionId: params.sessionId,
-      layoutId: params.layout.id,
-      templateId: params.template.id,
-      mimeType: params.format ?? 'image/png',
-      variant: 'default',
-      blob: result.blob,
-      width: result.width,
-      height: result.height,
-      liveBlob: liveResult?.blob,
-      liveMimeType: liveResult?.mimeType,
-      liveWidth: liveResult?.width,
-      liveHeight: liveResult?.height,
-      liveDurationMs: liveResult?.durationMs,
-      createdAt: Date.now(),
-      savedToDeviceAt: null,
+    await db.transaction('rw', db.sessions, db.shots, db.renders, db.assets, async () => {
+      assertActive()
+      if (params.shots) {
+        await db.sessions.put({
+          id: params.sessionId,
+          status: 'completed',
+          captureSource: shots[0]?.sourceType ?? 'camera',
+          layoutId: params.layout.id,
+          templateId: params.template.id,
+          slotCount: params.layout.slotCount,
+          decorationConfig: decoration,
+          startedAt: Math.min(...shots.map((shot) => shot.createdAt)),
+          completedAt: Date.now(),
+          finalRenderId: render.id,
+        })
+      } else {
+        await sessionRepo.updateDecorationConfig(params.sessionId, decoration)
+        assertActive()
+        await sessionRepo.setFinalRender(params.sessionId, render.id)
+        assertActive()
+        await sessionRepo.updateStatus(params.sessionId, 'completed')
+      }
+      assertActive()
+      await shotRepo.deleteBySession(params.sessionId)
+      assertActive()
+      await assetRepo.deleteBySessionId(params.sessionId)
+      // Throwing inside the transaction rolls back cleanup if navigation aborted it.
+      assertActive()
     })
+    finalized = true
+
+    assertActive()
+    const deletedRenders = await renderRepo.deleteOldRenders()
+    const deletedSessionIds = Array.from(
+      new Set(deletedRenders.map((item) => item.sessionId).filter(Boolean)),
+    )
+    if (deletedSessionIds.length > 0) {
+      await db.transaction('rw', db.sessions, db.shots, db.assets, async () => {
+        await Promise.all(deletedSessionIds.map((id) => shotRepo.deleteBySession(id)))
+        await Promise.all(deletedSessionIds.map((id) => assetRepo.deleteBySessionId(id)))
+        await db.sessions.bulkDelete(deletedSessionIds)
+      })
+    }
   } catch (error) {
-    if (!liveResult) throw error
-
-    console.warn('Live Cam output could not be stored; retrying photo output only.', error)
-    renderId = await renderRepo.create({
-      sessionId: params.sessionId,
-      layoutId: params.layout.id,
-      templateId: params.template.id,
-      mimeType: params.format ?? 'image/png',
-      variant: 'default',
-      blob: result.blob,
-      width: result.width,
-      height: result.height,
-      createdAt: Date.now(),
-      savedToDeviceAt: null,
-    })
+    if (!finalized) await discardAbortedRender(render.id)
+    assertActive()
+    console.warn('Output saved, but session cleanup failed.', error)
+    storageWarning = 'Hasil tersimpan di galeri, tetapi pembersihan data sesi belum selesai.'
   }
 
-  await db.transaction('rw', db.sessions, db.shots, db.renders, db.assets, async () => {
-    await sessionRepo.setFinalRender(params.sessionId, renderId)
-    await sessionRepo.updateStatus(params.sessionId, 'completed')
-    await shotRepo.deleteBySession(params.sessionId)
-    await assetRepo.deleteBySessionId(params.sessionId)
-  })
+  assertActive()
+  return { render, persisted: true, storageWarning }
+}
 
-  const deletedRenders = await renderRepo.deleteOldRenders()
-  const deletedSessionIds = Array.from(
-    new Set(deletedRenders.map((render) => render.sessionId).filter(Boolean)),
-  )
-
-  if (deletedSessionIds.length > 0) {
-    await db.transaction('rw', db.sessions, db.shots, db.assets, async () => {
-      await Promise.all(deletedSessionIds.map((sessionId) => shotRepo.deleteBySession(sessionId)))
-      await Promise.all(deletedSessionIds.map((sessionId) => assetRepo.deleteBySessionId(sessionId)))
-      await db.sessions.bulkDelete(deletedSessionIds)
-    })
-  }
-
-  return renderId
+// Compatibility for callers that explicitly require a persisted render ID.
+export async function renderAndStoreSession(params: SessionRenderParams): Promise<string> {
+  const output = await renderSessionForOutput(params)
+  if (!output.persisted) throw new Error(output.storageWarning ?? 'Gagal menyimpan hasil.')
+  return output.render.id
 }
 
 export async function getRenderById(renderId: string): Promise<Render | null> {

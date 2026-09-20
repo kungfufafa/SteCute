@@ -88,7 +88,7 @@ Menjadi aplikasi photo booth web offline-first tanpa login yang paling cepat, ny
 - Marketplace creator.
 - Login, profil, atau histori lintas device.
 - AI retouch berat.
-- Kolaborasi real-time 3+ orang, audio/panggilan, akun, atau backend wajib untuk alur lokal. Booth Bareng 2 orang adalah mode online opsional, bukan syarat alur kamera/upload v1.
+- Kolaborasi real-time 3+ orang, panggilan terpisah, akun, atau backend wajib untuk alur lokal. Booth Bareng 2 orang adalah mode online opsional, bukan syarat alur kamera/upload v1.
 - Cloud sync wajib.
 - Pembayaran dan template berbayar.
 - Native print driver.
@@ -207,12 +207,14 @@ Kebutuhan utama:
 
 ### 8.4 Mode opsional: Booth Bareng
 
-Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login dan tanpa audio. Kedua peserta melihat kamera sendiri dan kamera teman secara live dalam dua kotak seperti video call (`host | tamu`), tanpa mirror. Host mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi sebelum masuk ruang, sama dengan `Mulai Foto` (layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown default `3` detik, toggle Otomatis default mati, pose pertama tetap diklik lalu pose berikutnya auto countdown). Di ruang live, host memilih preset `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual` (warna studio, blur, atau gambar unggahan host yang dinormalisasi dan diterapkan ke kedua peserta), seperti layar kamera lokal. Jumlah momen capture mengikuti jumlah slot layout. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang mengisi satu slot strip. Setelah semua slot terisi, kedua peserta masuk review (retake per-shot atau seluruh sesi) lalu merender PNG lewat pipeline strip lokal yang sama, menyimpan ke galeri (retensi `10`), dan memakai aksi output `Unduh PNG` plus save/share/print berbasis capability.
+Booth Bareng adalah photobooth virtual 2 orang yang berdiri di luar alur lokal v1. Pengguna masuk lewat **link undangan** atau **kode unik** (hyphen opsional, tidak peka huruf), tanpa login. Kedua peserta melihat kamera sendiri dan kamera teman secara live dalam dua kotak seperti video call (`host | tamu`), plus suara live dari mikrofon, tanpa mirror. Host mengatur Jumlah Foto, Frame, Timer, dan Otomatis di Atur Sesi sebelum masuk ruang, sama dengan `Mulai Foto` (layout bundled `2`/`3`/`4`/`6`, template `Classic`/`Youth`/`Mono`, countdown default `3` detik, toggle Otomatis default mati, pose pertama tetap diklik lalu pose berikutnya auto countdown). Di ruang live, host memilih preset `Efek Kamera`, `Overlay Kamera`, dan `Latar Virtual` (warna studio, blur, atau gambar unggahan host yang dinormalisasi dan diterapkan ke kedua peserta), seperti layar kamera lokal. Jumlah momen capture mengikuti jumlah slot layout. Satu countdown bersama menghasilkan still dari tiap peserta per momen, lalu disusun jadi pair-row `host | tamu` yang mengisi satu slot strip. Setelah semua slot terisi, kedua peserta masuk review (retake per-shot atau seluruh sesi) lalu merender PNG lewat pipeline strip lokal yang sama, menyimpan ke galeri (retensi `10`), dan memakai aksi output `Unduh PNG` plus save/share/print berbasis capability.
 
 Batasan yang dikunci:
 
 - Tepat 2 peserta. Late join setelah capture, 3+ orang, dan waiting room admit tidak termasuk mode ini.
-- Tidak ada mic, chat, atau screen share. Preview kehadiran memakai dua kotak video live (host kiri, tamu kanan) tanpa audio; stream video tidak disimpan.
+- Tidak ada chat atau screen share. Preview kehadiran memakai dua kotak video live (host kiri, tamu kanan) plus suara mikrofon; stream video/audio tidak disimpan. Jika browser memblokir autoplay bersuara, pengguna mengetuk tile teman untuk mendengar. Jika mikrofon ditolak, booth tetap jalan video-only.
+- Host dan tamu masing-masing memiliki kontrol mikrofon sendiri serta kontrol suara teman, tersedia selama berada di ruang, termasuk review dan hasil. Mikrofon aktif saat izin diberikan; mute menghentikan pengiriman suara pengguna, sedangkan mematikan suara teman hanya membisukan playback pada perangkat sendiri. Tidak ada kontrol untuk menyalakan mikrofon peserta lain.
+- Jika izin mikrofon ditolak atau perangkat tidak tersedia, foto tetap berjalan. Tombol nyalakan mikrofon dapat meminta ulang akses audio tanpa memulai ulang kamera atau menghapus foto. Suara live tidak ikut direkam ke Live Cam maupun file hasil.
 - Signaling boleh online; still tidak disimpan di server dan ruang bersifat ephemeral. Dua perangkat tidak wajib satu jaringan.
 - `Mulai Foto` dan `Upload Lokal` tetap jalan tanpa booth, tanpa signaling, dan tanpa jaringan setelah cache awal.
 
@@ -249,7 +251,7 @@ Batasan yang dikunci:
 3. Host menekan `Buka Booth`, masuk ruang live, dan mendapat satu kode unik plus URL undangan yang memuat kode yang sama.
 4. Tamu gabung dengan mengetik kode itu atau membuka URL undangan.
 5. Di ruang live, host memilih efek kamera, overlay, dan latar virtual. Tamu memakai pilihan host yang sama untuk warna studio atau blur; gambar unggahan hanya dipakai di perangkat yang menyimpan file itu.
-6. Kedua peserta melihat preview kamera diri sendiri dan teman secara live, disusun seperti video call (host kiri, tamu kanan, tanpa mirror); tidak ada audio. Filter, overlay, dan latar virtual tampil di preview live.
+6. Kedua peserta melihat preview kamera diri sendiri dan teman secara live, disusun seperti video call (host kiri, tamu kanan, tanpa mirror), dan bisa bicara lewat mikrofon. Masing-masing dapat mute/nyalakan mikrofon sendiri serta matikan/nyalakan suara teman. Kontrol suara tetap tersedia saat review dan hasil. Filter, overlay, dan latar virtual tampil di preview live.
 7. Host memulai countdown bersama. Jumlah pose sama dengan slot layout. Jika Otomatis nyala, pose pertama tetap diklik host lalu pose berikutnya lanjut sendiri setelah jeda singkat; Batal menghentikan rantai. Tiap momen mengambil still dari kedua perangkat dan menyusun pair-row `host | tamu`.
 8. Setelah slot lengkap, review per-shot atau ulang seluruh sesi, lalu render PNG lewat pipeline lokal yang sama.
 9. Hasil masuk galeri lokal (retensi `10`). Masing-masing mengunduh PNG, plus save/share/print bila browser mendukung. Ruang booth berakhir bersama sesi.
@@ -305,8 +307,9 @@ Acceptance criteria:
 
 - Aplikasi mengambil foto berurutan sesuai jumlah slot layout aktif.
 - Countdown kamera memakai default 3 detik.
+- Sebelum foto pertama, panel inline `Pengaturan sesi` di layar kamera memungkinkan pengguna Solo atau host Duet mengubah frame, jumlah pose/layout, timer `3`/`5`/`10` detik, dan Otomatis melalui draft `Terapkan`/`Batal`, tanpa mematikan kamera atau keluar ruang Duet. Perubahan host disinkronkan ke tamu.
 - Sistem memberi feedback visual yang jelas pada setiap pengambilan.
-- Jika browser mendukung, flow kamera merekam klip singkat lokal untuk tiap shot agar bisa dibuat output Live Cam.
+- Jika browser mendukung, flow kamera merekam klip lokal untuk tiap shot dari awal countdown sampai shutter agar bisa dibuat output Live Cam. Durasi klip mengikuti timer sesi (`3`/`5`/`10` detik), bukan dipotong ke 3 detik terakhir.
 
 Acceptance criteria:
 
@@ -314,6 +317,7 @@ Acceptance criteria:
 - Jeda antar shot konsisten.
 - Hasil cetak standar dan template-defined menghasilkan jumlah shot yang benar dan tinggi output sesuai layout aktif.
 - Kegagalan atau ketidaktersediaan Live Cam tidak boleh menggagalkan capture foto statis.
+- Setelah foto pertama, frame, jumlah pose/layout, timer, Otomatis, efek, overlay, dan latar semuanya terkunci, termasuk saat retake per-shot. Aksi terpisah `Ulang semua foto` dengan konfirmasi menghapus seluruh foto/klip dan membuka kembali pengaturan; pembatalan mempertahankan sesi. Reset menjaga konfigurasi, latar, serta kamera, dan hanya host yang dapat mereset kedua peserta Duet tanpa mengakhiri ruang/audio. Pengaturan juga terkunci sementara selama countdown/capture/apply.
 
 ### FR-05 Upload local images
 
@@ -409,7 +413,7 @@ Acceptance criteria:
 
 - Landing tetap menampilkan `Mulai Foto` dan `Upload Lokal`, plus entri Booth Bareng.
 - Join lewat URL dan join lewat kode resolve ke booth id yang sama.
-- Tidak ada login, audio, atau penyimpanan still/video di server.
+- Tidak ada login atau penyimpanan still/video/audio di server. Suara Foto Duet hanya live di WebRTC, bukan artefak.
 - Copy produk tidak menyuruh pengguna memakai jaringan yang sama atau hotspot.
 
 ---
@@ -527,7 +531,7 @@ Acceptance criteria:
 - Idle screen dan auto-reset.
 - Gallery terbatas.
 - Upload opsional saat online.
-- Booth Bareng 2 orang (invite + kode, tanpa audio) sebagai mode online opsional, bukan pengganti booth lokal.
+- Booth Bareng 2 orang (invite + kode, suara live) sebagai mode online opsional, bukan pengganti booth lokal.
 
 ### Phase 3 - Revenue features
 
@@ -628,7 +632,7 @@ Mitigasi:
 - Print ringan diperlakukan sebagai capability bonus, bukan blocker rilis.
 - Kustomisasi manual pasca-capture selain preset filter kamera ditunda dari v1 agar tim fokus pada alur capture-review-render-output yang paling nyaman.
 - Gallery lokal menyimpan final render, bukan raw shots jangka panjang.
-- Booth Bareng adalah mode online opsional 2 orang (undangan + kode unik, tanpa audio, ephemeral). Kolaborasi real-time bukan lagi non-goal MVP yang tanpa kualifikasi; alur lokal v1 tetap tidak wajib memakainya.
+- Booth Bareng adalah mode online opsional 2 orang (undangan + kode unik, suara live, ephemeral). Kolaborasi real-time bukan lagi non-goal MVP yang tanpa kualifikasi; alur lokal v1 tetap tidak wajib memakainya.
 
 ---
 

@@ -5,6 +5,7 @@ import type { BoothPeerRole, BoothTransport, BoothWireMessage } from './transpor
 export type { BoothPeerRole, BoothStill, ComposedPairShot }
 
 export type BoothStartEvent = {
+  captureId: string
   momentIndex: number
   countdownMs: number
 }
@@ -12,10 +13,17 @@ export type BoothStartEvent = {
 export type BoothPeerSession = {
   peerId: string
   role: BoothPeerRole
-  startMoment(momentIndex: number, countdownMs?: number): void
+  startMoment(momentIndex: number, countdownMs?: number): string
   cancelMoment(momentIndex?: number, reason?: string): void
-  submitStill(momentIndex: number, still: BoothStill): Promise<void>
-  waitForComposed(momentIndex: number, timeoutMs?: number): Promise<ComposedPairShot>
+  submitStill(momentIndex: number, still: BoothStill, captureId?: string): Promise<void>
+  waitForComposed(
+    momentIndex: number,
+    timeoutMs?: number,
+    captureId?: string,
+  ): Promise<ComposedPairShot>
+  isCaptureActive(momentIndex: number, captureId: string): boolean
+  setCameraReady(ready: boolean): void
+  getRemoteCameraReady(): boolean
   waitForCountdown(momentIndex: number): Promise<number>
   waitForStart(): Promise<BoothStartEvent>
   waitForSetup(): Promise<BoothSessionSetup>
@@ -105,7 +113,9 @@ export function createBoothPeerSession(options: {
     reject: (error: unknown) => void
   }> = []
   const startedMoments = new Map<number, number>()
-  const startedNonces = new Map<number, string>()
+  const activeCaptureIds = new Map<number, string>()
+  const seenCaptureIds = new Set<string>()
+  const cancelledCaptureIds = new Set<string>()
   const composeJobs = new Map<number, Promise<void>>()
   const composeGeneration = new Map<number, number>()
   const recentMessageAt = new Map<string, number>()
@@ -118,6 +128,8 @@ export function createBoothPeerSession(options: {
     : null
   if (sessionSetup && !pairSlot) pairSlot = pairSlotForLayout(sessionSetup.layoutId)
   let remotePeerId: string | null = null
+  let localCameraReady = false
+  let remoteCameraReady = false
   let remoteRole: BoothPeerRole | null = null
   let lastRemoteAt = 0
   let rejectedReason: 'full' | null = null
@@ -166,6 +178,7 @@ export function createBoothPeerSession(options: {
   options.transport.send({ type: 'hello', peerId: options.peerId, role: options.role })
 
   async function handleMessage(message: BoothWireMessage) {
+    if (disposed) return
     if (message.type === 'reject') {
       if (message.toPeerId !== options.peerId) return
       rejectedReason = message.reason
@@ -177,6 +190,7 @@ export function createBoothPeerSession(options: {
     if (message.type === 'bye') {
       if (message.peerId === remotePeerId) {
         remotePeerId = null
+        remoteCameraReady = false
         remoteRole = null
         lastRemoteAt = 0
       }
@@ -198,16 +212,25 @@ export function createBoothPeerSession(options: {
         return
       }
       const isNewRemote = remotePeerId !== message.peerId
+      if (isNewRemote) remoteCameraReady = false
       remotePeerId = message.peerId
       remoteRole = message.role === 'host' || message.role === 'guest' ? message.role : remoteRole
       lastRemoteAt = Date.now()
       if (message.type === 'hello') {
         options.transport.send({ type: 'welcome', peerId: options.peerId, role: options.role })
+        publishCameraReady()
         if (isNewRemote) {
           replaySetup()
           replayStartedMoments()
         }
       }
+      return
+    }
+
+    if (message.type === 'camera-ready') {
+      if (message.peerId !== remotePeerId) return
+      remoteCameraReady = message.ready
+      lastRemoteAt = Date.now()
       return
     }
 
@@ -217,7 +240,7 @@ export function createBoothPeerSession(options: {
         : `setup:${message.layoutId}:${message.templateId}:${message.slotCount}:${message.countdownMs}:${message.autoCapture}:${message.filterId}:${message.cameraEffectId}:${message.virtualBackgroundId}:${message.revision}`
       if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
       lastRemoteAt = Date.now()
-      applySetup({
+      const applied = applySetup({
         layoutId: message.layoutId,
         templateId: message.templateId,
         slotCount: message.slotCount,
@@ -229,6 +252,7 @@ export function createBoothPeerSession(options: {
         virtualBackgroundAssetId: message.virtualBackgroundAssetId,
         revision: message.revision ?? 1,
       })
+      if (!applied) return
       if (
         options.role === 'guest' &&
         message.virtualBackgroundId === 'custom' &&
@@ -256,39 +280,27 @@ export function createBoothPeerSession(options: {
     }
 
     if (message.type === 'start-moment') {
-      const duplicateKey = message.nonce
-        ? `start:${message.nonce}`
-        : `start:${message.momentIndex}:${message.countdownMs}`
-      if (isDuplicate(duplicateKey, message.nonce ? 10_000 : 400)) return
+      if (
+        !message.captureId ||
+        seenCaptureIds.has(message.captureId) ||
+        cancelledCaptureIds.has(message.captureId)
+      )
+        return
       lastRemoteAt = Date.now()
-      emitStart(message.momentIndex, message.countdownMs, { nonce: message.nonce })
+      emitStart(message.momentIndex, message.countdownMs, message.captureId)
       return
     }
 
     if (message.type === 'cancel-moment') {
+      if (!message.captureId || message.momentIndex == null) return
       const duplicateKey = message.nonce
         ? `cancel:${message.nonce}`
         : `cancel:${message.momentIndex}:${message.reason}`
       if (isDuplicate(duplicateKey, 2000)) return
       lastRemoteAt = Date.now()
-      if (message.momentIndex != null) {
-        startedMoments.delete(message.momentIndex)
-        startedNonces.delete(message.momentIndex)
-        const waiters = countdownWaiters.get(message.momentIndex) ?? []
-        countdownWaiters.delete(message.momentIndex)
-        for (const waiter of waiters) {
-          waiter.reject(new Error(message.reason || 'Moment cancelled'))
-        }
-      } else {
-        startedMoments.clear()
-        startedNonces.clear()
-        for (const [, waiters] of countdownWaiters) {
-          for (const waiter of waiters) {
-            waiter.reject(new Error(message.reason || 'Moment cancelled'))
-          }
-        }
-        countdownWaiters.clear()
-      }
+      cancelledCaptureIds.add(message.captureId)
+      if (activeCaptureIds.get(message.momentIndex) !== message.captureId) return
+      cancelCapture(message.momentIndex, message.reason)
       for (const handler of momentCancelledHandlers) {
         handler({ momentIndex: message.momentIndex, reason: message.reason })
       }
@@ -391,6 +403,7 @@ export function createBoothPeerSession(options: {
     }
 
     if (message.type === 'still') {
+      if (!message.captureId || !isCaptureActive(message.momentIndex, message.captureId)) return
       if (message.peerId === remotePeerId) lastRemoteAt = Date.now()
       if (remotePeerId && message.peerId !== remotePeerId && message.peerId !== options.peerId) {
         return
@@ -423,6 +436,40 @@ export function createBoothPeerSession(options: {
   function storeStill(role: BoothPeerRole, momentIndex: number, still: BoothStill) {
     const bucket = role === 'host' ? hostStills : guestStills
     bucket.set(momentIndex, still)
+  }
+
+  function isCaptureActive(momentIndex: number, captureId: string) {
+    return (
+      !disposed &&
+      activeCaptureIds.get(momentIndex) === captureId &&
+      !cancelledCaptureIds.has(captureId)
+    )
+  }
+
+  function publishCameraReady() {
+    options.transport.send({
+      type: 'camera-ready',
+      peerId: options.peerId,
+      ready: localCameraReady,
+    })
+  }
+
+  function cancelCapture(momentIndex?: number, reason = 'Moment cancelled') {
+    const moments = momentIndex == null ? [...activeCaptureIds.keys()] : [momentIndex]
+    for (const index of moments) {
+      const captureId = activeCaptureIds.get(index)
+      if (captureId) cancelledCaptureIds.add(captureId)
+      startedMoments.delete(index)
+      activeCaptureIds.delete(index)
+      clearMoment(index)
+      rejectComposed(index, new Error(reason))
+      const waiters = countdownWaiters.get(index) ?? []
+      countdownWaiters.delete(index)
+      for (const waiter of waiters) waiter.reject(new Error(reason))
+    }
+    for (let i = startQueue.length - 1; i >= 0; i--) {
+      if (momentIndex == null || startQueue[i]?.momentIndex === momentIndex) startQueue.splice(i, 1)
+    }
   }
 
   function clearAssetTimers() {
@@ -535,9 +582,10 @@ export function createBoothPeerSession(options: {
       if (composed.has(momentIndex)) continue
       options.transport.send({
         type: 'start-moment',
+        captureId: activeCaptureIds.get(momentIndex)!,
         momentIndex,
         countdownMs,
-        nonce: startedNonces.get(momentIndex) ?? nextStartNonce(),
+        nonce: activeCaptureIds.get(momentIndex) ?? nextStartNonce(),
       })
     }
   }
@@ -565,7 +613,9 @@ export function createBoothPeerSession(options: {
   async function broadcastSetup(setup: BoothSessionSetup, assetBlob?: Blob | null) {
     const generation = ++setupBroadcastGeneration
     const normalized = normalizeBoothSetup(setup)
-    applySetup(normalized)
+    if (!applySetup(normalized)) {
+      throw new Error('Session settings are locked after capture starts. Reset all photos first.')
+    }
 
     if (normalized.virtualBackgroundId === 'custom' && assetBlob) {
       cachedAssetBlob = assetBlob
@@ -612,12 +662,30 @@ export function createBoothPeerSession(options: {
   }
 
   function applySetup(input: BoothSessionSetup) {
-    sessionSetup = normalizeBoothSetup(input)
+    const next = normalizeBoothSetup(input)
+    const configChanged =
+      sessionSetup &&
+      (sessionSetup.layoutId !== next.layoutId ||
+        sessionSetup.templateId !== next.templateId ||
+        sessionSetup.slotCount !== next.slotCount ||
+        sessionSetup.countdownMs !== next.countdownMs ||
+        sessionSetup.autoCapture !== next.autoCapture)
+    if (
+      configChanged &&
+      (composed.size > 0 ||
+        hostStills.size > 0 ||
+        guestStills.size > 0 ||
+        activeCaptureIds.size > 0)
+    ) {
+      return false
+    }
+    sessionSetup = next
     if (!slotLocked) pairSlot = pairSlotForLayout(sessionSetup.layoutId)
     const event = { ...sessionSetup }
     const waiter = setupWaiters.shift()
     if (waiter) waiter.resolve(event)
     else setupQueue.push(event)
+    return true
   }
 
   function clearMoment(momentIndex: number) {
@@ -629,12 +697,13 @@ export function createBoothPeerSession(options: {
   }
 
   function clearAllMoments() {
+    cancelCapture(undefined, 'Capture reset')
     hostStills.clear()
     guestStills.clear()
     composed.clear()
     composeJobs.clear()
     startedMoments.clear()
-    startedNonces.clear()
+    activeCaptureIds.clear()
     startQueue.length = 0
     for (const momentIndex of composeGeneration.keys()) {
       composeGeneration.set(momentIndex, (composeGeneration.get(momentIndex) ?? 0) + 1)
@@ -660,15 +729,17 @@ export function createBoothPeerSession(options: {
     return false
   }
 
-  function emitStart(momentIndex: number, countdownMs: number, start?: { nonce?: string }) {
+  function emitStart(momentIndex: number, countdownMs: number, captureId: string) {
+    rejectComposed(momentIndex, new Error('Capture replaced'))
     clearMoment(momentIndex)
+    seenCaptureIds.add(captureId)
     startedMoments.set(momentIndex, countdownMs)
-    if (start?.nonce) startedNonces.set(momentIndex, start.nonce)
+    activeCaptureIds.set(momentIndex, captureId)
     const waiters = countdownWaiters.get(momentIndex) ?? []
     countdownWaiters.delete(momentIndex)
     for (const waiter of waiters) waiter.resolve(countdownMs)
 
-    const event = { momentIndex, countdownMs }
+    const event = { momentIndex, countdownMs, captureId }
     const startWaiter = startWaiters.shift()
     if (startWaiter) {
       startWaiter.resolve(event)
@@ -739,41 +810,32 @@ export function createBoothPeerSession(options: {
         throw new Error('Only the booth host can start a shared countdown.')
       }
 
-      const nonce = nextStartNonce()
-      isDuplicate(`start:${nonce}`, 10_000)
+      const captureId = `${nextStartNonce()}:${createPeerId()}`
+      emitStart(momentIndex, countdownMs, captureId)
       options.transport.send({
         type: 'start-moment',
+        captureId,
         momentIndex,
         countdownMs,
         revision: sessionSetup?.revision,
-        nonce,
+        nonce: captureId,
       })
-      emitStart(momentIndex, countdownMs, { nonce })
+      return captureId
     },
     cancelMoment(momentIndex, reason = 'cancelled') {
       if (disposed) return
+      if (momentIndex == null) {
+        for (const index of [...activeCaptureIds.keys()]) session.cancelMoment(index, reason)
+        return
+      }
+      const captureId = activeCaptureIds.get(momentIndex)
+      if (!captureId) return
       const nonce = nextStartNonce()
       isDuplicate(`cancel:${nonce}`, 2000)
-      if (momentIndex != null) {
-        startedMoments.delete(momentIndex)
-        startedNonces.delete(momentIndex)
-        const waiters = countdownWaiters.get(momentIndex) ?? []
-        countdownWaiters.delete(momentIndex)
-        for (const waiter of waiters) {
-          waiter.reject(new Error(reason))
-        }
-      } else {
-        startedMoments.clear()
-        startedNonces.clear()
-        for (const [, waiters] of countdownWaiters) {
-          for (const waiter of waiters) {
-            waiter.reject(new Error(reason))
-          }
-        }
-        countdownWaiters.clear()
-      }
+      cancelCapture(momentIndex, reason)
       options.transport.send({
         type: 'cancel-moment',
+        captureId,
         momentIndex,
         reason,
         nonce,
@@ -805,14 +867,18 @@ export function createBoothPeerSession(options: {
         nonce: `${options.peerId}:reset:${nextStartNonce()}`,
       })
     },
-    async submitStill(momentIndex, still) {
+    async submitStill(momentIndex, still, captureId = activeCaptureIds.get(momentIndex)) {
       if (disposed) {
         throw new Error('Booth session disposed')
       }
-      storeStill(options.role, momentIndex, still)
+      if (!captureId || !isCaptureActive(momentIndex, captureId))
+        throw new Error('Capture is no longer active')
       const bytes = await still.blob.arrayBuffer()
+      if (!isCaptureActive(momentIndex, captureId)) throw new Error('Capture is no longer active')
+      storeStill(options.role, momentIndex, still)
       options.transport.send({
         type: 'still',
+        captureId,
         momentIndex,
         peerId: options.peerId,
         role: options.role,
@@ -825,8 +891,10 @@ export function createBoothPeerSession(options: {
       })
       await maybeCompose(momentIndex)
     },
-    waitForComposed(momentIndex, timeoutMs = 30_000) {
+    waitForComposed(momentIndex, timeoutMs = 30_000, captureId) {
       if (disposed) return Promise.reject(new Error('Booth session disposed'))
+      if (captureId && !isCaptureActive(momentIndex, captureId))
+        return Promise.reject(new Error('Capture is no longer active'))
       const existing = composed.get(momentIndex)
       if (existing) return Promise.resolve(existing)
 
@@ -942,6 +1010,7 @@ export function createBoothPeerSession(options: {
     getRemotePeerId() {
       if (remotePeerId && lastRemoteAt > 0 && Date.now() - lastRemoteAt > REMOTE_TIMEOUT_MS) {
         remotePeerId = null
+        remoteCameraReady = false
         remoteRole = null
       }
       return remotePeerId
@@ -952,6 +1021,16 @@ export function createBoothPeerSession(options: {
     announce() {
       if (disposed) return
       options.transport.send({ type: 'hello', peerId: options.peerId, role: options.role })
+      publishCameraReady()
+    },
+    isCaptureActive,
+    setCameraReady(ready) {
+      if (disposed) return
+      localCameraReady = ready
+      publishCameraReady()
+    },
+    getRemoteCameraReady() {
+      return Boolean(session.getRemotePeerId()) && remoteCameraReady
     },
     dispose() {
       if (!disposed) {

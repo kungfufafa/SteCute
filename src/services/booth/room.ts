@@ -13,6 +13,7 @@ const WEBRTC_RETRY_DELAY_MS = 1_500
 export async function createBoothRoomTransport(
   normalizedCode: string,
   role: BoothPeerRole,
+  signal?: AbortSignal,
 ): Promise<BoothTransport> {
   const fanout = createFanoutBoothTransport()
   let disposed = false
@@ -21,10 +22,19 @@ export async function createBoothRoomTransport(
   fanout.dispose = () => {
     disposed = true
     abort.abort()
+    signal?.removeEventListener('abort', onAbort)
     originalDispose?.()
   }
 
+  const onAbort = () => fanout.dispose?.()
+  signal?.addEventListener('abort', onAbort, { once: true })
+  if (signal?.aborted) onAbort()
+
   const http = await createHttpBoothTransport(normalizedCode, abort.signal)
+  if (disposed) {
+    http?.dispose?.()
+    throw new Error('Booth connection aborted')
+  }
   if (http) fanout.add(http)
 
   if (typeof BroadcastChannel !== 'undefined') {
@@ -36,7 +46,12 @@ export async function createBoothRoomTransport(
     return fanout
   }
 
-  fanout.add(await createWebRtcBoothTransport(normalizedCode, role, abort.signal))
+  const rtc = await createWebRtcBoothTransport(normalizedCode, role, abort.signal)
+  if (disposed) {
+    rtc.dispose?.()
+    throw new Error('Booth connection aborted')
+  }
+  fanout.add(rtc)
   return fanout
 }
 

@@ -422,9 +422,9 @@ async function handleUploadTemplate() {
                 ]"
                 @click="selectLayout(layout)"
               >
-                <span class="text-stc-text text-base font-semibold"
-                  >{{ layout.slotCount }} Foto</span
-                >
+                <span class="text-stc-text text-base font-semibold">
+                  {{ layout.slotCount }} Foto
+                </span>
               </button>
             </div>
           </div>

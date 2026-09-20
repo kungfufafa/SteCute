@@ -190,7 +190,7 @@ export const publicPages = {
             question: 'Apakah foto saya diupload ke server?',
             answer: [
               'Tidak untuk fitur inti. Foto dari kamera atau upload lokal diproses di browser untuk preview, review, render, dan output lokal.',
-              'Foto Duet adalah mode opsional dua orang. Kedua peserta melihat kamera teman secara live seperti video call, tanpa audio; stream itu tidak disimpan. Foto still tidak disimpan di server. Kedua perangkat boleh beda jaringan, termasuk 4G vs Wi-Fi kantor. Stecute memakai signaling ephemeral, STUN/TURN publik bila tersedia, dan relay HTTPS ephemeral terenkripsi di origin aplikasi agar kedua browser tetap bisa bertemu. Payload relay bukan galeri dan dihapus setelah sesi. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
+              'Foto Duet adalah mode opsional dua orang. Kedua peserta melihat kamera teman secara live seperti video call dan bisa bicara lewat mikrofon; stream video/audio itu tidak disimpan. Foto still tidak disimpan di server. Kedua perangkat boleh beda jaringan, termasuk 4G vs Wi-Fi kantor. Stecute memakai signaling ephemeral, STUN/TURN publik bila tersedia, dan relay HTTPS ephemeral terenkripsi di origin aplikasi agar kedua browser tetap bisa bertemu. Payload relay bukan galeri dan dihapus setelah sesi. Jika nanti ada cloud atau share link, fitur itu harus opsional dan dijelaskan sebelum dipakai.',
             ],
           },
           {

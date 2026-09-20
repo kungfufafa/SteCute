@@ -1,6 +1,6 @@
 import type { DataConnection, MediaConnection, Peer } from 'peerjs'
 import { boothPeerRtcConfig, getBoothIceServers } from './ice'
-import { pickLiveVideoTrack } from './preview'
+import { collectBoothMediaTracks, pickLiveAudioTrack, pickLiveVideoTrack } from './preview'
 import type { BoothTransport, BoothWireMessage } from './transport'
 
 const PEER_OPEN_TIMEOUT_MS = 10_000
@@ -25,6 +25,8 @@ export async function createWebRtcBoothTransport(
   let disposed = false
   let localStream: MediaStream | null = null
   let outboundStream: MediaStream | null = null
+  let microphoneEnabled = true
+  const pendingOutboundTracks = new Set<MediaStreamTrack>()
   let remoteStream: MediaStream | null = null
   let mediaCall: MediaConnection | null = null
   let pendingIncoming: MediaConnection | null = null
@@ -140,33 +142,49 @@ export async function createWebRtcBoothTransport(
     for (const handler of remoteHandlers) handler(stream)
   }
 
-  function videoOnly(stream: MediaStream) {
-    return new MediaStream(stream.getVideoTracks())
+  function remoteMediaStream(stream: MediaStream) {
+    const tracks = collectBoothMediaTracks(stream, stream)
+    return new MediaStream(tracks)
   }
 
   function isLocalCameraTrack(track: MediaStreamTrack) {
     return Boolean(localStream?.getTracks().some((item) => item.id === track.id))
   }
 
-  function stopOutboundTracks(except?: MediaStreamTrack | null) {
+  function stopOutboundTracks(except: MediaStreamTrack[] = []) {
     if (!outboundStream) return
     for (const track of outboundStream.getTracks()) {
-      if (track === except || isLocalCameraTrack(track)) continue
+      if (except.includes(track) || isLocalCameraTrack(track)) continue
       track.stop()
     }
-    if (!except) outboundStream = null
+    if (!except.length) outboundStream = null
   }
 
   function prepareOutbound(source: MediaStream | null) {
-    const nextTrack = clonePreviewTrack(source)
-    if (!nextTrack) {
+    const nextTracks = cloneOutboundTracks(source)
+    if (!nextTracks) {
       stopOutboundTracks()
       outboundStream = null
       return null
     }
-    stopOutboundTracks(nextTrack)
-    outboundStream = new MediaStream([nextTrack])
+    applyMicrophoneState(nextTracks)
+    stopOutboundTracks(nextTracks)
+    outboundStream = new MediaStream(nextTracks)
     return outboundStream
+  }
+
+  function applyMicrophoneState(tracks: Iterable<MediaStreamTrack>) {
+    for (const track of tracks) {
+      if (track.kind === 'audio') track.enabled = microphoneEnabled
+    }
+  }
+
+  function syncMicrophoneState() {
+    applyMicrophoneState(outboundStream?.getTracks() ?? [])
+    applyMicrophoneState(pendingOutboundTracks)
+    for (const sender of mediaCall?.peerConnection?.getSenders() ?? []) {
+      if (sender.track?.kind === 'audio') sender.track.enabled = microphoneEnabled
+    }
   }
 
   function clearAnswerTimer() {
@@ -218,7 +236,7 @@ export async function createWebRtcBoothTransport(
 
     connection.on('stream', (stream) => {
       if (mediaCall !== connection) return
-      emitRemote(videoOnly(stream))
+      emitRemote(remoteMediaStream(stream))
     })
     connection.on('close', () => {
       if (mediaCall !== connection) return
@@ -236,7 +254,7 @@ export async function createWebRtcBoothTransport(
       emitRemote(null)
     })
 
-    if (connection.remoteStream) emitRemote(videoOnly(connection.remoteStream))
+    if (connection.remoteStream) emitRemote(remoteMediaStream(connection.remoteStream))
   }
 
   function tryStartMediaCall() {
@@ -251,26 +269,46 @@ export async function createWebRtcBoothTransport(
   }
 
   async function updateOutbound(source: MediaStream | null) {
-    const nextTrack = clonePreviewTrack(source)
-    if (!nextTrack) return
+    const nextTracks = cloneOutboundTracks(source)
+    if (!nextTracks) return
 
-    const sender = mediaCall?.peerConnection
-      ?.getSenders()
-      .find((item) => item.track?.kind === 'video' || item.track == null)
+    applyMicrophoneState(nextTracks)
+    for (const track of nextTracks) pendingOutboundTracks.add(track)
 
-    if (sender) {
+    try {
+      await replaceOutbound(nextTracks)
+    } finally {
+      for (const track of nextTracks) pendingOutboundTracks.delete(track)
+    }
+  }
+
+  async function replaceOutbound(nextTracks: MediaStreamTrack[]) {
+    const nextVideo = nextTracks.find((track) => track.kind === 'video') ?? null
+    const nextAudio = nextTracks.find((track) => track.kind === 'audio') ?? null
+    const senders = mediaCall?.peerConnection?.getSenders() ?? []
+    const videoSender = selectRtcSender(senders, 'video')
+    const audioSender = selectRtcSender(senders, 'audio')
+    const canReplace = Boolean(videoSender) && !(nextAudio && !audioSender)
+
+    if (canReplace) {
       try {
-        await sender.replaceTrack(nextTrack)
-        stopOutboundTracks(nextTrack)
-        outboundStream = new MediaStream([nextTrack])
+        await videoSender?.replaceTrack(nextVideo)
+        applyMicrophoneState(nextTracks)
+        await audioSender?.replaceTrack(nextAudio)
+        syncMicrophoneState()
+        if (disposed) return
+        stopOutboundTracks(nextTracks)
+        outboundStream = new MediaStream(nextTracks)
         return
       } catch {
         // Fall through and renegotiate from the guest side.
       }
     }
 
-    stopOutboundTracks(nextTrack)
-    outboundStream = new MediaStream([nextTrack])
+    if (disposed) return
+    applyMicrophoneState(nextTracks)
+    stopOutboundTracks(nextTracks)
+    outboundStream = new MediaStream(nextTracks)
     if (pendingIncoming) {
       maybeAnswerIncoming()
       return
@@ -287,6 +325,10 @@ export async function createWebRtcBoothTransport(
     mediaCall?.close()
     mediaCall = null
     stopOutboundTracks()
+    for (const track of pendingOutboundTracks) {
+      if (!isLocalCameraTrack(track)) track.stop()
+    }
+    pendingOutboundTracks.clear()
     emitRemote(null)
     remoteHandlers.clear()
   }
@@ -304,6 +346,11 @@ export async function createWebRtcBoothTransport(
       return () => handlers.delete(handler)
     },
     media: {
+      setMicrophoneEnabled(enabled) {
+        if (disposed) return
+        microphoneEnabled = enabled
+        syncMicrophoneState()
+      },
       attachLocalStream(stream) {
         if (disposed) return
         localStream = stream
@@ -336,8 +383,14 @@ export async function createWebRtcBoothTransport(
   }
 }
 
-function clonePreviewTrack(source: MediaStream | null): MediaStreamTrack | null {
-  const track = pickLiveVideoTrack(source)
+export function selectRtcSender<T extends { track?: { kind: string } | null }>(
+  senders: T[],
+  kind: 'audio' | 'video',
+): T | undefined {
+  return senders.find((item) => item.track?.kind === kind)
+}
+
+function cloneTrack(track: MediaStreamTrack | null): MediaStreamTrack | null {
   if (!track) return null
 
   try {
@@ -345,6 +398,22 @@ function clonePreviewTrack(source: MediaStream | null): MediaStreamTrack | null 
   } catch {
     return track
   }
+}
+
+function clonePreviewTrack(source: MediaStream | null): MediaStreamTrack | null {
+  return cloneTrack(pickLiveVideoTrack(source))
+}
+
+function cloneAudioTrack(source: MediaStream | null): MediaStreamTrack | null {
+  return cloneTrack(pickLiveAudioTrack(source))
+}
+
+function cloneOutboundTracks(source: MediaStream | null): MediaStreamTrack[] | null {
+  const video = clonePreviewTrack(source)
+  if (!video) return null
+
+  const audio = cloneAudioTrack(source)
+  return audio ? [video, audio] : [video]
 }
 
 async function openHostPeer(
@@ -497,6 +566,13 @@ export function decodeBoothWirePayload(data: unknown): BoothWireMessage | null {
 
   const message = data as BoothWireMessage
   if (!message.type) return null
+  if (
+    (message.type === 'still' ||
+      message.type === 'start-moment' ||
+      message.type === 'cancel-moment') &&
+    (typeof message.captureId !== 'string' || !message.captureId)
+  )
+    return null
 
   if (message.type === 'still') {
     const record = data as { bytes?: unknown; bytesBase64?: unknown }
@@ -523,6 +599,7 @@ function encodeFramedStill(message: Extract<BoothWireMessage, { type: 'still' }>
   const header = new TextEncoder().encode(
     JSON.stringify({
       type: 'still',
+      captureId: message.captureId,
       momentIndex: message.momentIndex,
       peerId: message.peerId,
       role: message.role,
@@ -570,9 +647,10 @@ function decodeFramedPayload(bytes: Uint8Array): BoothWireMessage | null {
   if (headerLength <= 0 || 4 + headerLength > bytes.byteLength) return null
 
   try {
-    const header = JSON.parse(
-      new TextDecoder().decode(bytes.subarray(4, 4 + headerLength)),
-    ) as { type?: string; [key: string]: unknown }
+    const header = JSON.parse(new TextDecoder().decode(bytes.subarray(4, 4 + headerLength))) as {
+      type?: string
+      [key: string]: unknown
+    }
     if (!header.type) return null
 
     const payload = bytes.subarray(4 + headerLength)
@@ -581,8 +659,10 @@ function decodeFramedPayload(bytes: Uint8Array): BoothWireMessage | null {
 
     if (header.type === 'still') {
       const stillHeader = header as Extract<BoothWireMessage, { type: 'still' }>
+      if (typeof stillHeader.captureId !== 'string' || !stillHeader.captureId) return null
       return {
         type: 'still',
+        captureId: stillHeader.captureId,
         momentIndex: stillHeader.momentIndex,
         peerId: stillHeader.peerId,
         role: stillHeader.role,

@@ -41,8 +41,8 @@ const steps = computed(() => {
 })
 
 const resolvedCurrent = computed(() => {
-  if (props.current === 'landing') return 'config'
-  if (props.current === 'render') return 'output'
+  if (props.compact && props.current === 'landing') return 'config'
+  if (props.compact && props.current === 'render') return 'output'
   return props.current
 })
 

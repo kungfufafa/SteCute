@@ -235,8 +235,11 @@ describe('booth protocol and compose stress', () => {
     const blue = stillFromColor([32, 64, 220, 255])
     const green = stillFromColor([16, 200, 64, 255])
 
+    host.startMoment(2)
     await Promise.all([host.submitStill(2, red), guest.submitStill(2, blue)])
+    host.startMoment(0)
     await Promise.all([host.submitStill(0, red), guest.submitStill(0, blue)])
+    host.startMoment(1)
     await Promise.all([host.submitStill(1, red), guest.submitStill(1, blue)])
     const first = await host.waitForComposed(0)
     await Promise.all([host.submitStill(0, green), guest.submitStill(0, green)])
@@ -269,12 +272,14 @@ describe('booth protocol and compose stress', () => {
       width: 8,
       height: 8,
     }
+    host.startMoment(0)
     const pending = host.waitForComposed(0)
     await Promise.allSettled([host.submitStill(0, garbage), guest.submitStill(0, garbage)])
     await expect(pending).rejects.toThrow(/Unable to decode booth still|Not a PNG image/)
 
     const red = stillFromColor([220, 24, 32, 255])
     const blue = stillFromColor([32, 64, 220, 255])
+    host.startMoment(1)
     await Promise.all([host.submitStill(1, red), guest.submitStill(1, blue)])
     await expect(host.waitForComposed(1)).resolves.toMatchObject({ width: 16, height: 8 })
 
@@ -336,6 +341,7 @@ describe('booth protocol and compose stress', () => {
     const blue = stillFromColor([32, 64, 220, 255])
 
     for (let moment = 0; moment < 6; moment++) {
+      host.startMoment(moment)
       await Promise.all([host.submitStill(moment, red), guest.submitStill(moment, blue)])
     }
 

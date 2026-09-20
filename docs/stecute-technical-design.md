@@ -118,7 +118,7 @@ Keputusan utama:
 - QR delivery berbasis server.
 - Server-side rendering.
 - Kustomisasi manual pasca-capture seperti frame color, sticker, date/time, dan logo text.
-- Audio, 3+ peserta, TURN berbayar sebagai syarat rilis, atau retensi still di server untuk Booth Bareng.
+- Rekaman audio, 3+ peserta, TURN berbayar sebagai syarat rilis, atau retensi still di server untuk Booth Bareng. Suara mikrofon live tersedia sebagai bagian preview WebRTC, tanpa direkam atau diekspor.
 
 ---
 
@@ -157,7 +157,7 @@ Penjelasan:
 - UI mengatur flow dan interaksi pengguna.
 - Pinia menyimpan state runtime.
 - Camera Controller mengelola preview, switch camera, dan permission.
-- Live Cam Controller merekam klip singkat per-shot secara lokal jika browser mendukung `MediaRecorder`.
+- Live Cam Controller merekam klip per-shot secara lokal dari awal countdown jika browser mendukung `MediaRecorder`.
 - Upload Controller mengelola file lokal sebagai source alternatif.
 - Session Orchestrator membaca layout aktif dan menjalankan sesi sesuai jumlah slot.
 - Render Worker menyusun hasil akhir dan visual template di background thread bila tersedia.
@@ -206,12 +206,20 @@ API internal utama:
 - `stopCamera()`
 - `captureFrame(videoEl)`
 
+#### Tata layar capture responsif
+
+- View kamera Solo dan ruang live Duet memakai grid dua kolom pada breakpoint `1024 px`, dengan kontainer maksimum `1600 px`. Kolom preview dan panel pengaturan harus dapat menyusut tanpa menimbulkan overflow horizontal.
+- Area preview tetap memakai rasio `4:3`, termasuk area gabungan dua peserta Duet; CSS tata layar tidak mengubah ukuran/crop sumber capture, mirror, transform overlay, atau komposisi still Duet. Overlay countdown tetap terikat pada area preview.
+- Panel kanan memisahkan area pengaturan yang dapat di-scroll pada desktop pendek dari aksi utama capture. Audio Duet ditempatkan dekat kontrol sesi, dan tersedia pula di tahap review/output tanpa mengubah layout tahap tersebut.
+- Di bawah breakpoint, panel kembali ke alur dokumen satu kolom: preview, aksi utama, lalu efek/pengaturan. Hindari tinggi tetap atau scroll bersarang pada ponsel/tablet agar kontrol tetap dapat dicapai dengan scroll halaman dan keyboard.
+- Perubahan layout berada di komponen tampilan. Session orchestrator, permission flow, capture gating, pipeline render, dan batas fitur Solo/Duet tetap memakai perilaku yang sama.
+
 ### 5.3 Live Cam Controller
 
 Tanggung jawab:
 
 - mendeteksi dukungan `MediaRecorder` untuk stream kamera aktif
-- merekam klip singkat lokal per-shot selama countdown/capture
+- merekam klip lokal per-shot dari awal countdown sampai capture, mengikuti timer sesi (`3`/`5`/`10` detik)
 - menyimpan metadata video seperti mime type, durasi, dimensi, dan status mirror kamera
 - menghentikan rekaman saat countdown dibatalkan, retake, reset, atau komponen kamera keluar
 - gagal secara lunak agar capture foto statis tetap berhasil
@@ -246,6 +254,15 @@ Tanggung jawab:
 - mendukung camera capture dan upload session
 - menyimpan raw frame dan optional Live Cam clip per-shot ke state dan database
 
+Pengaturan sesi di layar kamera:
+
+- Editor inline menyimpan draft frame/template, pose/layout, `countdownSeconds` (`3`/`5`/`10`), dan `autoCapture` terpisah dari konfigurasi aktif. Sebelum foto pertama, `Terapkan` mengubah sesi dan `Batal` membuang draft tanpa mutasi state aktif. Apply tidak digabung dengan penghapusan shot.
+- Setelah foto pertama, guard menolak perubahan seluruh konfigurasi sesi, termasuk template, layout, timer, Otomatis, filter, overlay, dan latar. Retake per-shot mempertahankan kunci konfigurasi meskipun slot yang diulang sedang dikosongkan.
+- Aksi terpisah `Ulang semua foto` memakai konfirmasi sebelum menghapus shot serta klip dan mengembalikan indeks pose ke awal. Setelah reset berhasil, pengaturan terbuka kembali. Pembatalan konfirmasi tidak mengubah state; reset mempertahankan konfigurasi aktif, asset latar, dan stream kamera.
+- Guard perubahan konfigurasi juga memblokir editor selama countdown/capture/pertukaran still dan memblokir capture selama apply. Pembaruan sesi atau reset seluruh foto tidak me-remount preview atau menjalankan ulang permission kamera.
+- Duet membatasi editor dan reset seluruh foto kepada host, menyinkronkan konfigurasi yang diterapkan ke tamu, serta mereset foto kedua peserta dalam ruang yang sama. Reset tidak membuat kode baru, menutup transport, atau memutus audio; pilihan mute pribadi tetap berlaku.
+- Filter, overlay, dan latar dikelola oleh kontrol efek yang sudah ada di luar editor sesi, dengan kunci konfigurasi yang sama. Kontrol audio pribadi tetap tersedia saat konfigurasi terkunci.
+
 State inti:
 
 - idle
@@ -273,6 +290,9 @@ Implementasi:
 - worker-based rendering untuk mengurangi blocking di main thread
 - fallback ke main thread jika worker atau OffscreenCanvas tidak tersedia
 - Live Cam render berbasis canvas capture stream dan `MediaRecorder`; jika gagal, PNG tetap disimpan
+- `renderSessionForOutput` mengembalikan artefak `Render`, status `persisted`, dan `storageWarning`. Kegagalan IndexedDB setelah render tidak menghilangkan Blob yang dapat diunduh. Duet dapat memasok shot komposit dari memori tanpa menyimpan ulang semua sumber terlebih dahulu.
+- Render Solo memiliki sinyal pembatalan sesuai lifecycle layar. Setelah pengguna meninggalkan render, job lama tidak boleh mengubah navigasi/store atau membersihkan draft yang sedang diedit. Job yang sudah dibatalkan tidak dipakai ulang ketika sesi dirender kembali.
+- Cache output hanya menahan satu hasil terbaru di memori. Hasil yang belum tersimpan dapat dibuka kembali selama aplikasi belum dimuat ulang; hasil yang pernah tersimpan harus tetap diperiksa keberadaannya di database agar penghapusan dari galeri berlaku.
 
 ### 5.7 Persistence Service
 
@@ -319,11 +339,13 @@ Tanggung jawab:
 - membangun URL undangan yang memuat kode yang sama sebagai identitas join
 - menolak kode kosong, rusak, atau tidak dikenal
 - menjalankan protokol 2 peer: start countdown, tukar still, compose pair-row `host | tamu`
+- membawa `captureId` unik per percobaan dari start sampai still dan pembatalan. Pesan serta penyelesaian komposisi dari percobaan lama tidak boleh mengisi retake baru; pembatalan menolak waiter percobaan terkait.
+- membedakan koneksi peserta, kesiapan kamera (`camera-ready`), kesiapan latar, dan fase capture (`idle`, `countdown`, `exchanging`). Tombol mulai tetap terkunci sampai kedua still selesai diterima/disusun atau percobaan dibatalkan.
 - menyinkronkan setup host termasuk `filterId`, `cameraEffectId`, `virtualBackgroundId`, dan `autoCapture` beserta asset gambar latar virtual kustom bila dipilih host; background pilihan host diterapkan ke kedua peserta
 - menyerahkan shot hasil compose ke `renderStrip` yang sudah ada
 - tidak menyimpan still di server dan tidak menyentuh session kamera/upload lokal
 
-Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. WebRTC media (video only) menampilkan preview kehadiran kedua peserta dalam dua kotak `host | tamu` dengan latar virtual lokal masing-masing yang sudah dikomposisikan sebelum ditransmisikan (stream peer diterima dan ditampilkan langsung tanpa segmentasi ulang); data channel dipakai untuk sinkronisasi still, setup, dan asset latar virtual. Preview dan still booth tidak di-mirror. Artefak capture adalah still, bukan rekaman panggilan. Alur kamera dan upload lokal tidak memuat modul ini.
+Transport signaling bersifat swappable: BroadcastChannel untuk tab yang sama, WebRTC/PeerJS dengan STUN (dan TURN publik bila dikonfigurasi), plus mailbox HTTPS ephemeral di origin aplikasi agar 4G vs Wi-Fi kantor tetap bertemu. Payload mailbox terenkripsi dengan kode booth dan tidak disimpan setelah sesi. Tes unit menyuntik dua peer in-process tanpa server publik. WebRTC media (video + suara mikrofon) menampilkan preview kehadiran kedua peserta dalam dua kotak `host | tamu` dengan latar virtual lokal masing-masing yang sudah dikomposisikan sebelum ditransmisikan (stream peer diterima dan ditampilkan langsung tanpa segmentasi ulang); data channel dipakai untuk sinkronisasi still, setup, dan asset latar virtual. Preview dan still booth tidak di-mirror. Artefak capture adalah still, bukan rekaman panggilan. Alur kamera dan upload lokal tidak memuat modul ini.
 
 ---
 
@@ -496,7 +518,7 @@ Contoh isi:
 | Field | Type | Keterangan |
 |---|---|---|
 | id | string | asset id |
-| type | string | frame, overlay, template-preview, future-sticker, filter-preview, virtual-background |
+| type | string | frame, overlay, template-preview, future-sticker, filter-preview, virtual-background, upload-source |
 | name | string | nama asset |
 | path | string | lokasi asset lokal (kosong jika berbasis blob IndexedDB) |
 | packId | string | grup asset |
@@ -504,6 +526,8 @@ Contoh isi:
 | updatedAt | number | epoch ms |
 | blob | Blob nullable | payload binary untuk asset dinamis sesi seperti gambar latar virtual unggahan pengguna |
 | sessionId | string nullable | relasi session untuk pembersihan otomatis (lifecycle scoped to session) |
+
+Draft upload memakai record `upload-source` dengan `packId` berisi ID sesi. Sumber asli menyimpan Blob, nama file, urutan slot, dimensi, dan framing awal. Perubahan framing berikutnya disimpan dalam record metadata kecil terpisah agar drag/zoom tidak menyalin ulang seluruh gambar. Object URL hanya dibuat untuk lifetime view, bukan disimpan ke database.
 
 #### `event_presets`
 
@@ -528,6 +552,7 @@ Catatan:
 - Session yang belum selesai lebih dari 24 jam dapat dibersihkan saat startup.
 - Raw shots yang sudah berhasil dirender dibersihkan setelah session selesai atau reset.
 - Asset gambar latar virtual (`virtual-background`) bersifat session-scoped: otomatis dihapus dari tabel `assets` saat session selesai, saat session di-reset, atau saat session kadaluarsa (> 24 jam) dibersihkan.
+- Draft foto asli dan framing (`upload-source`) mengikuti cleanup sesi yang sama. Jika penyimpanan hasil gagal atau render dibatalkan, sumber sesi tetap tersedia.
 
 ---
 
@@ -608,7 +633,7 @@ Layout dan template harus diperlakukan sebagai data, bukan logic hard-coded.
 - Untuk blanko PNG dengan lubang transparan di area foto, renderer menggambar foto lebih dulu lalu menggambar blanko sebagai `overlay`, agar dekorasi foreground tidak tertutup foto.
 - Custom blanko upload dibuat sebagai runtime template lokal. App membaca alpha channel untuk mendeteksi connected component transparan, mengabaikan area transparan yang menyentuh tepi artboard, lalu membuat native layout dengan `slotCount` dari jumlah window yang ditemukan.
 - Runtime custom template memakai object URL saat dirender, tetapi asset asli dan config template disimpan di IndexedDB sebagai template lokal reusable. Saat app dimuat ulang, asset Blob dibuat ulang menjadi object URL baru. Template ini tidak menjadi dependency backend dan tidak tersedia antar perangkat tanpa sinkronisasi terpisah.
-- Flow v1 memakai `Classic` sebagai default, tetapi boleh menampilkan pilihan template bundled sebelum capture selama tidak menambah langkah kustomisasi pasca-capture.
+- Flow v1 memakai `Classic` sebagai default. Pilihan template tersedia di Atur Sesi dan dapat diubah melalui `Pengaturan sesi` pada layar kamera sebelum foto pertama atau setelah `Ulang semua foto` dikonfirmasi, sesuai aturan Session Orchestrator; ini tidak menambah langkah kustomisasi setelah review.
 - Perubahan layout baru cukup menambah config dan asset.
 - Perubahan template baru cukup menambah config dan asset.
 - Font produksi harus self-hosted dan tidak boleh bergantung pada Google Fonts atau CDN lain.
@@ -818,6 +843,8 @@ Gunakan constraints adaptif, contoh:
 }
 ```
 
+Alur `Mulai Foto` dan preview hub tetap `audio: false`. Foto Duet meminta mikrofon bersama kamera (`echoCancellation`, `noiseSuppression`, `autoGainControl`); jika mikrofon ditolak, stream jatuh ke video-only tanpa membatalkan sesi. Mikrofon aktif secara default jika izin berhasil. Kontrol nyalakan mikrofon dapat mencoba lagi dengan request audio-only tanpa mengganti track video, mengulang setup kamera, atau membuang foto. Lifecycle guard juga berlaku pada request audio ini: hasil yang datang setelah keluar ruang harus dihentikan.
+
 ### 12.2 Fallback strategy
 
 - Jika `facingMode` gagal, enumerasi device dan tampilkan pilihan kamera.
@@ -826,6 +853,7 @@ Gunakan constraints adaptif, contoh:
 - Setelah izin diberikan, daftar `videoinput` dinormalisasi menjadi pilihan kamera yang jelas seperti `Depan`, `Belakang`, `Belakang 0.5x`, atau `Belakang Tele` bila label browser menyediakan sinyal lensa.
 - Preview dan capture hanya di-mirror untuk kamera depan pada alur `Mulai Foto`. Kamera belakang, termasuk ultrawide/0.5x dan tele, tidak boleh di-mirror.
 - Booth Bareng tidak memakai mirror pada preview lokal, stream teman, maupun still yang dikirim, agar dua kotak video dan pair-row hasil foto memakai arah yang sama.
+- Request kamera dan koneksi Duet memakai generation/lifecycle guard. Stream yang selesai setelah layar ditutup harus langsung dihentikan, dan transport yang terlambat tersambung harus di-dispose. Gagal mengganti kamera Solo harus melepas busy state sebelum setup fallback.
 
 ### 12.3 Upload constraints
 
@@ -835,6 +863,7 @@ Gunakan constraints adaptif, contoh:
 - metadata orientation harus dinormalisasi saat decode
 - sebelum masuk review, upload lokal menyediakan clip crop sederhana dengan auto crop awal, frame tetap sesuai slot, drag langsung di dalam frame, aksi foto aktif di panel crop, dan aksi semua foto di panel daftar foto agar file portrait, square, atau ultrawide tidak otomatis terkunci ke crop tengah
 - hasil framing ditulis sebagai Blob shot sesi dengan rasio yang sudah sesuai slot layout aktif
+- foto asli, urutan, dan framing draft dipulihkan saat kembali dari review atau reload. Penggantian per-shot di review juga memperbarui sumber draft. Navigasi keluar editor menunggu penulisan draft yang masih berjalan.
 
 ### 12.4 Capture pipeline
 
@@ -862,7 +891,7 @@ Pipeline latar virtual menggantikan latar fisik ruangan dengan warna studio (`pi
 Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcessor`:
 
 1. **Frame Ingestion**: Membaca frame dari elemen `<video>` kamera aktif.
-2. **Crop & Mirroring**: Melakukan center-crop frame ke rasio standar `4:3`. Mirror horizontal hanya diterapkan untuk kamera depan pada alur `Mulai Foto` (kamera belakang dan Booth Bareng tidak di-mirror).
+2. **Crop & Mirroring**: Melakukan center-crop frame ke rasio standar `4:3`. Bitmap preview/WebRTC tetap orientasi kamera asli agar tile teman Foto Duet bisa di-mirror CSS sama seperti latar Asli. Mirror horizontal untuk tampilan selfie dan still kamera depan diterapkan di CSS/`captureStill()`, bukan di-bake ke `canvas.captureStream`.
 3. **Inference & Masking**: Mengirimkan frame ke engine segmentasi untuk mendapatkan confidence mask person-vs-background.
 4. **Compositing**: Menggabungkan piksel subjek dengan latar yang dipilih:
    - Warna studio: fill warna RGB solid.
@@ -871,8 +900,8 @@ Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcess
    - Asli (`off`): bypass langsung tanpa segmentasi.
 5. **Output Stream & Still Capture**:
    - Preview UI: Canvas dirender langsung ke elemen canvas preview (`VirtualBackgroundCanvas.vue`).
-   - WebRTC Preview: Memakai `canvas.captureStream(15)` sehingga stream peer di Booth Bareng sudah memuat latar virtual lokal.
-   - Live Cam: Memakai elemen canvas langsung sebagai source stream perekaman klip lokal (`mirrored: false` untuk mencegah double-mirroring).
+   - WebRTC Preview: Memakai `canvas.captureStream(15)` untuk video komposit, lalu mencampur track mikrofon asli agar peer mendengar suara meski latar virtual aktif.
+   - Live Cam: Memakai elemen canvas langsung sebagai source stream perekaman klip lokal. Bitmap canvas camera-native, jadi flag `mirrored` sama dengan kamera mentah (bukan `false` khusus latar virtual).
    - Shutter Priority Capture (`captureStill()`): Saat shutter ditekan, segmentasi dan komposisi dieksekusi pada resolusi penuh frame kamera asli (bukan hasil downscale preview) agar still capture tetap beresolusi tinggi dan tajam.
 
 #### 12.6.2 Web Worker & Model Inference
@@ -887,13 +916,19 @@ Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcess
 
 - **Authoritative Host**: Pilihan latar virtual host (warna, blur, atau gambar unggahan) diterapkan ke kedua peserta (`host | tamu`).
 - **Tampilan Peer Tanpa Re-segmentasi**: Stream video peer yang diterima lewat WebRTC sudah merupakan video komposit dari perangkat masing-masing; penerima menampilkan stream langsung tanpa segmentasi ulang.
+- **Suara Live**: Track audio mikrofon ikut di-offer/answer WebRTC. Preview lokal tetap `muted` agar tidak echo; tile teman diputar bersuara, dengan ketuk-untuk-dengar jika autoplay diblokir browser.
+- **Kontrol Audio Lokal**: Host dan tamu masing-masing mengubah `enabled` pada track mikrofon sendiri untuk mute/unmute. Kontrol `Mikrofon aktif` / `Mikrofon mati` dan `Suara teman aktif` / `Suara teman mati` berada di level ruang sehingga tetap tersedia saat menunggu, capture, review, dan output. Kontrol suara teman hanya mengubah playback lokal. Tidak ada pesan protokol yang dapat memaksa mikrofon peer aktif.
+- **Mute pada Transport**: `BoothMediaSession.setMicrophoneEnabled` juga menerapkan pilihan pengguna ke clone track outbound dan sender WebRTC, termasuk track yang sedang diganti secara async. Fanout menyimpan pilihan tersebut untuk transport yang terlambat tersambung. Mute biasa tidak menghentikan kamera atau memulai negosiasi ulang panggilan.
+- **Pemulihan Audio**: Track mikrofon hasil retry audio-only dipasang ke stream preview WebRTC; pilihan mute lokal dipertahankan saat stream dibangun ulang atau koneksi pulih. Pemulihan autoplay memakai gesture pengguna dan tetap menghormati pilihan suara teman. Elemen playback teman tetap hidup sepanjang ruang agar pergantian tahap tidak memutus suara. Cleanup ruang menghentikan semua track audio yang dimiliki.
+- **Batas Rekaman**: Track mikrofon hanya masuk stream panggilan WebRTC. Pipeline still dan rekaman Live Cam tetap memakai video saja; audio tidak disimpan di IndexedDB maupun artefak hasil.
 - **Normalisasi Upload Host**: Gambar unggahan kustom dinormalisasi sebelum dikirim ke peer (JPEG, sisi terpanjang maksimal 1600px, ukuran maksimal 512 KiB, flattening ke background putih, dan kalkulasi SHA-256 hash).
 - **Protokol DataChannel**:
   - `background-asset`: Pengiriman binary chunk asset latar kustom terenkripsi AES-GCM dengan validasi SHA-256.
   - `background-asset-request`: Permintaan ulang asset dari tamu jika asset belum diterima atau corrupt (retry 2s dan 5s).
   - `background-status`: Pelaporan status kesiapan latar (`ready`, `loading`, `error`) antar peer.
-  - `cancel-moment`: Pembatalan countdown capture jika penyiapan latar gagal atau melebihi timeout 10 detik.
-- **Countdown Gating & Recovery**: Countdown otomatis ditahan sampai kedua perangkat melaporkan status `ready`. Jika terjadi kegagalan atau timeout 10 detik, dialog pemulihan muncul dengan opsi "Coba Lagi" atau "Gunakan Asli bersama".
+  - `camera-ready`: Kesiapan kamera lokal yang terpisah dari kehadiran peer dan kesiapan latar.
+  - `start-moment`, `still`, dan `cancel-moment`: Wajib menyertakan `captureId`; pembatalan juga menyertakan slot percobaan. Paket dari percobaan lama diabaikan.
+- **Countdown Gating & Recovery**: Countdown otomatis ditahan sampai kamera dan latar kedua perangkat siap. Jika persiapan latar gagal atau timeout 10 detik, dialog pemulihan muncul dengan opsi "Coba Lagi" atau "Gunakan Asli bersama". Capture berikutnya tetap terkunci selama encoding/pertukaran still.
 
 #### 12.6.4 Siklus Hidup Asset Dexie (`db.assets`)
 
@@ -977,7 +1012,7 @@ Aturan tambahan:
 - Content Security Policy ketat.
 - Hindari remote script pihak ketiga yang tidak penting.
 - Asset template dibundel atau divalidasi hash.
-- Gunakan `Permissions-Policy` untuk membatasi camera ke origin sendiri.
+- Gunakan `Permissions-Policy` untuk membatasi camera dan microphone ke origin sendiri.
 - Font produksi wajib self-hosted.
 - Jika input teks kustom diaktifkan pada fase berikutnya, teks harus disanitasi dan dibatasi maksimum 24 karakter.
 
