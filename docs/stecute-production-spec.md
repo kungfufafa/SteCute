@@ -615,6 +615,7 @@ Produk dianggap `production-ready` jika:
 
 ## 16. Changelog keputusan
 
+- 2026-09-20: Stream latar virtual Foto Duet tetap orientasi kamera asli; tile teman di-mirror CSS seperti latar Asli supaya tidak terbalik ganda.
 - 2026-09-20: Live Cam merekam dari awal countdown sampai shutter, bukan hanya 3 detik terakhir, agar timer `5`/`10` detik ikut ke video strip.
 - 2026-09-18: `Pengaturan sesi` dapat diedit langsung di kamera Solo dan oleh host di ruang Duet sebelum foto pertama, dengan draft `Terapkan`/`Batal`. Setelah foto pertama, semua konfigurasi sesi dan efek terkunci. Aksi terpisah `Ulang semua foto` dengan konfirmasi menghapus foto dan membuka pengaturan kembali, sambil mempertahankan konfigurasi, latar, kamera, ruang Duet, dan audio.
 - 2026-09-18: Layar capture Solo dan Duet memakai dua kolom mulai lebar `1024 px`, dengan area konten maksimum `1600 px`, preview `4:3` di kiri, dan kontrol di kanan. Pengaturan pada desktop pendek dapat di-scroll tanpa menghilangkan aksi utama; layar lebih sempit mempertahankan satu kolom dengan scroll alami.

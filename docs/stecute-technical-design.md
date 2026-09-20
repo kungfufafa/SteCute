@@ -891,7 +891,7 @@ Pipeline latar virtual menggantikan latar fisik ruangan dengan warna studio (`pi
 Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcessor`:
 
 1. **Frame Ingestion**: Membaca frame dari elemen `<video>` kamera aktif.
-2. **Crop & Mirroring**: Melakukan center-crop frame ke rasio standar `4:3`. Mirror horizontal hanya diterapkan untuk kamera depan pada alur `Mulai Foto` (kamera belakang dan Booth Bareng tidak di-mirror).
+2. **Crop & Mirroring**: Melakukan center-crop frame ke rasio standar `4:3`. Bitmap preview/WebRTC tetap orientasi kamera asli agar tile teman Foto Duet bisa di-mirror CSS sama seperti latar Asli. Mirror horizontal untuk tampilan selfie dan still kamera depan diterapkan di CSS/`captureStill()`, bukan di-bake ke `canvas.captureStream`.
 3. **Inference & Masking**: Mengirimkan frame ke engine segmentasi untuk mendapatkan confidence mask person-vs-background.
 4. **Compositing**: Menggabungkan piksel subjek dengan latar yang dipilih:
    - Warna studio: fill warna RGB solid.
@@ -901,7 +901,7 @@ Orkestrator latar virtual berjalan di client pada class `CameraBackgroundProcess
 5. **Output Stream & Still Capture**:
    - Preview UI: Canvas dirender langsung ke elemen canvas preview (`VirtualBackgroundCanvas.vue`).
    - WebRTC Preview: Memakai `canvas.captureStream(15)` untuk video komposit, lalu mencampur track mikrofon asli agar peer mendengar suara meski latar virtual aktif.
-   - Live Cam: Memakai elemen canvas langsung sebagai source stream perekaman klip lokal (`mirrored: false` untuk mencegah double-mirroring).
+   - Live Cam: Memakai elemen canvas langsung sebagai source stream perekaman klip lokal. Bitmap canvas camera-native, jadi flag `mirrored` sama dengan kamera mentah (bukan `false` khusus latar virtual).
    - Shutter Priority Capture (`captureStill()`): Saat shutter ditekan, segmentasi dan komposisi dieksekusi pada resolusi penuh frame kamera asli (bukan hasil downscale preview) agar still capture tetap beresolusi tinggi dan tajam.
 
 #### 12.6.2 Web Worker & Model Inference

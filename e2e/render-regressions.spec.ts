@@ -133,7 +133,7 @@ test('leaving a delayed render preserves the draft and renders the latest replac
   await expect(page).toHaveURL(outputUrl)
   await page.getByRole('button', { name: 'Kembali', exact: true }).click()
   await expect(page).toHaveURL('/gallery')
-  await expect(page.getByText('1 item', { exact: true })).toBeVisible()
+  await expect(page.getByText('1/10', { exact: true })).toBeVisible()
 })
 
 test('storage full still provides a downloadable PNG and an honest gallery status', async ({

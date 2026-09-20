@@ -177,39 +177,38 @@ function apply() {
     data-testid="capture-session-settings"
   >
     <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <h2 class="text-stc-text text-sm font-semibold">Pengaturan sesi</h2>
-        <p class="text-stc-text-soft mt-1 text-xs leading-relaxed" aria-live="polite">
-          {{ currentTemplateName }} · {{ modelValue.slotCount }} pose ·
-          {{ modelValue.countdownSeconds }} detik ·
-          {{ modelValue.autoCapture ? 'Otomatis' : 'Manual' }}
-        </p>
-      </div>
-      <button
-        v-if="!open"
-        type="button"
-        :class="ui.secondaryButton"
-        aria-label="Ubah pengaturan sesi"
-        :disabled="locked || disabled || busy || isUploadingTemplate"
-        @click="openEditor"
+      <p
+        class="text-stc-text-soft min-w-0 truncate text-xs leading-relaxed"
+        aria-live="polite"
+        :data-testid="locked ? 'capture-session-locked' : undefined"
       >
-        Ubah
-      </button>
-    </div>
-
-    <div v-if="locked" class="mt-3 space-y-3">
-      <p :class="ui.alertWarning" role="status" data-testid="capture-session-locked">
-        Pengaturan dikunci setelah foto pertama agar semua foto konsisten. Ulang semua foto untuk
-        mengubah pengaturan.
+        {{
+          locked
+            ? 'Terkunci setelah foto pertama'
+            : `${currentTemplateName} · ${modelValue.slotCount} pose`
+        }}
       </p>
-      <button
-        type="button"
-        :class="ui.secondaryButton"
-        :disabled="disabled || busy || isUploadingTemplate"
-        @click="emit('restart')"
-      >
-        Ulang semua foto
-      </button>
+      <div class="flex shrink-0 items-center gap-2">
+        <button
+          v-if="locked"
+          type="button"
+          :class="ui.ghostButton"
+          :disabled="disabled || busy || isUploadingTemplate"
+          @click="emit('restart')"
+        >
+          Ulang semua foto
+        </button>
+        <button
+          v-if="!open && !locked"
+          type="button"
+          :class="ui.secondaryButton"
+          aria-label="Ubah pengaturan sesi"
+          :disabled="disabled || busy || isUploadingTemplate"
+          @click="openEditor"
+        >
+          Ubah
+        </button>
+      </div>
     </div>
 
     <form
@@ -259,9 +258,6 @@ function apply() {
         </label>
       </fieldset>
 
-      <p class="text-stc-text-soft text-xs leading-relaxed">
-        Pengaturan bisa diubah sebelum foto pertama diambil.
-      </p>
       <div class="flex flex-wrap items-center gap-2">
         <button
           type="submit"

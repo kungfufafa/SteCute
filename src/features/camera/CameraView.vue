@@ -845,7 +845,7 @@ function startLiveCamClip() {
 
   try {
     activeLiveCamRecording = startLiveCamRecording(recordStream, {
-      mirrored: isBgActive ? false : shouldMirrorActiveCamera.value,
+      mirrored: shouldMirrorActiveCamera.value,
     })
     liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
   } catch (error) {
@@ -1340,7 +1340,6 @@ function goToUploadFallback() {
             @apply="applySessionSettings"
             @restart="restartSessionPhotos"
           />
-          <h2 class="text-stc-text mb-4 text-sm font-semibold">Tampilan foto</h2>
           <BoothDecorationPicker
             class="w-full"
             kind="all"

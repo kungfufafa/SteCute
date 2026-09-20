@@ -154,11 +154,26 @@ onBeforeUnmount(() => {
         </button>
         <h1 :class="ui.title">Galeri</h1>
       </div>
-      <span :class="ui.pinkBadge"> {{ galleryStore.recentRenders.length }} item </span>
+      <div class="flex shrink-0 items-center gap-2">
+        <span
+          :class="ui.pinkBadge"
+          :aria-label="`${galleryStore.recentRenders.length} dari ${GALLERY_RETENTION_LIMIT} strip`"
+        >
+          {{ galleryStore.recentRenders.length }}/{{ GALLERY_RETENTION_LIMIT }}
+        </span>
+        <button
+          v-if="galleryStore.recentRenders.length > 0"
+          :class="[ui.ghostButton, 'text-stc-error hover:bg-stc-error-soft']"
+          aria-label="Kosongkan galeri"
+          @click="handleClearAll"
+        >
+          Kosongkan
+        </button>
+      </div>
     </div>
 
     <div :class="ui.content">
-      <div :class="[ui.pageContentWide, 'flex flex-col gap-8']">
+      <div :class="[ui.pageContentWide, 'flex flex-col gap-6']">
         <div
           v-if="storageState?.shouldWarn || localDataMessage"
           :class="storageState?.shouldWarn ? ui.alertWarning : ui.alert"
@@ -174,26 +189,6 @@ onBeforeUnmount(() => {
           <template v-else>
             {{ localDataMessage }}
           </template>
-        </div>
-
-        <div class="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-          <div class="min-w-0">
-            <p :class="ui.sectionLabel">Tersimpan di perangkat</p>
-            <h2 :class="[ui.sectionTitle, 'mt-1']">Hasil terakhir</h2>
-            <p :class="[ui.sectionCopy, 'mt-1']">
-              Maksimal {{ GALLERY_RETENTION_LIMIT }} strip. Yang lama terhapus otomatis.
-            </p>
-          </div>
-          <button
-            v-if="galleryStore.recentRenders.length > 0"
-            :class="[
-              ui.ghostButton,
-              'text-stc-error hover:bg-stc-error-soft self-start sm:self-auto',
-            ]"
-            @click="handleClearAll"
-          >
-            Kosongkan Galeri
-          </button>
         </div>
 
         <div
@@ -218,7 +213,7 @@ onBeforeUnmount(() => {
           </div>
           <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil</h4>
           <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Strip yang sudah dirender akan muncul di sini dan tetap tersedia saat offline.
+            Hasil tersimpan di perangkat ini, maksimal {{ GALLERY_RETENTION_LIMIT }} strip.
           </p>
           <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
             <button :class="ui.primaryButton" @click="router.push('/')">Mulai Foto</button>

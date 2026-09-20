@@ -107,7 +107,7 @@ test.describe('real browser upload flow', () => {
     await page.getByRole('button', { name: 'Galeri', exact: true }).click()
 
     await expect(page).toHaveURL('/gallery')
-    await expect(page.getByText('1 item')).toBeVisible()
+    await expect(page.getByText('1/10')).toBeVisible()
     await expect(page.getByRole('img', { name: 'Render 1' })).toBeVisible()
     expect(consoleProblems).toEqual([])
   })

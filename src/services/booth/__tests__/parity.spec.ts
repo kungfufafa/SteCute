@@ -50,7 +50,9 @@ describe('booth bundled strip parity', () => {
     expect(source).toContain(':muted="remotePlaybackMuted"')
     expect(source).toContain('data-testid="booth-remote-audio-unlock"')
     expect(source).toContain('remoteMirrored: shouldMirrorLocalCamera.value')
+    expect(source).toContain('localMirrored: shouldMirrorLocalCamera.value')
     expect(source).toContain(':mirrored="shouldMirrorLocalCamera"')
+    expect(source).not.toContain('localMirrored: isBgActive ? false')
 
     const hub = readFileSync(
       fileURLToPath(new URL('../../../features/booth/BoothHubView.vue', import.meta.url)),

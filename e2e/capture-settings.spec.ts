@@ -145,7 +145,7 @@ async function releaseStill(page: Page) {
 }
 
 async function expectEditorLocked(page: Page) {
-  await expect(openSettingsButton(page)).toBeDisabled()
+  await expect(openSettingsButton(page)).toHaveCount(0)
   const gear = page.getByRole('button', { name: 'Ubah setup sesi', exact: true })
   await expect(gear).toBeDisabled()
   await gear.dispatchEvent('click')
@@ -195,8 +195,6 @@ async function confirmRestart(page: Page, accept: boolean) {
 async function expectPhotoSettingsLocked(page: Page) {
   await expect(page.getByTestId('capture-session-locked')).toBeVisible()
   await expectEditorLocked(page)
-  await openSettingsButton(page).dispatchEvent('click')
-  await expect(editor(page)).toBeHidden()
 }
 
 test.describe('capture settings lock after the first photo', () => {

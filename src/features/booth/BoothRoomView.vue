@@ -1019,7 +1019,7 @@ function startBoothLiveCamClip() {
       width: pairSlot.width,
       height: pairSlot.height,
       localOnLeft: role.value === 'host',
-      localMirrored: isBgActive ? false : shouldMirrorLocalCamera.value,
+      localMirrored: shouldMirrorLocalCamera.value,
       remoteMirrored: shouldMirrorLocalCamera.value,
     })
     liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
@@ -2139,9 +2139,6 @@ onUnmounted(() => {
             <p v-if="sessionConfigError" :class="[ui.alertError, 'mb-4']" role="alert">
               {{ sessionConfigError }}
             </p>
-            <h2 class="text-stc-text mb-4 text-sm font-semibold">
-              {{ role === 'host' ? 'Tampilan foto' : 'Sesi bersama' }}
-            </h2>
             <BoothDecorationPicker
               v-if="role === 'host'"
               class="w-full min-w-0"
@@ -2156,19 +2153,13 @@ onUnmounted(() => {
               @select-background="handleBackgroundChange"
               @custom-file="handleCustomBackground"
             />
-            <div v-else class="text-stc-text-soft space-y-3 text-sm leading-relaxed">
+            <div v-else class="text-stc-text-soft space-y-2 text-sm leading-relaxed">
               <p class="text-stc-text font-medium" data-testid="booth-session-summary">
                 {{ activeTemplate?.name ?? 'Frame pilihan host' }} · {{ slotCount }} foto ·
                 {{ countdownSeconds }} detik · {{ boothSetup.autoCapture ? 'Otomatis' : 'Manual' }}
               </p>
-              <p>
-                Frame dan efek mengikuti pilihan host. Kamu bisa mengatur mikrofon dan suara teman
-                sendiri.
-              </p>
-              <p>Siapkan posemu. Countdown muncul bersamaan saat host mulai.</p>
               <p v-if="capturedCount > 0" data-testid="capture-session-locked">
-                Pengaturan terkunci setelah foto pertama. Host perlu memilih Ulang semua foto untuk
-                mengubah pengaturan.
+                Terkunci setelah foto pertama
               </p>
             </div>
           </template>

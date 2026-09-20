@@ -31,12 +31,12 @@ const speakerOff = computed(() => props.speakerMuted || props.playbackBlocked)
       <button
         type="button"
         :class="[
-          ui.secondaryButton,
-          '!h-10 !rounded-full !px-4',
-          microphoneEnabled ? 'ring-stc-success/30 ring-1' : '',
+          ui.iconButton,
+          'rounded-full',
+          microphoneEnabled ? 'text-stc-text' : 'text-stc-text-soft',
         ]"
         :aria-label="microphoneAction"
-        :title="microphoneAction"
+        :title="microphoneLabel"
         :aria-pressed="!microphoneEnabled"
         :disabled="microphoneBusy || !cameraReady"
         data-testid="booth-microphone-toggle"
@@ -57,13 +57,18 @@ const speakerOff = computed(() => props.speakerMuted || props.playbackBlocked)
           <path d="M5 10v2a7 7 0 0 0 14 0v-2M12 19v3M8 22h8" />
           <path v-if="!microphoneEnabled" d="m3 3 18 18" />
         </svg>
-        {{ microphoneLabel }}
       </button>
       <button
         type="button"
-        :class="[ui.secondaryButton, '!h-10 !rounded-full !px-4']"
+        :class="[ui.iconButton, 'rounded-full', speakerOff ? 'text-stc-text-soft' : 'text-stc-text']"
         :aria-label="speakerOff ? 'Nyalakan suara teman' : 'Matikan suara teman'"
-        :title="speakerOff ? 'Nyalakan suara teman' : 'Matikan suara teman'"
+        :title="
+          playbackBlocked && !speakerMuted
+            ? 'Ketuk untuk dengar'
+            : speakerOff
+              ? 'Suara teman mati'
+              : 'Suara teman aktif'
+        "
         :aria-pressed="speakerOff"
         data-testid="booth-speaker-toggle"
         @click="$emit('toggleSpeaker')"
@@ -83,13 +88,6 @@ const speakerOff = computed(() => props.speakerMuted || props.playbackBlocked)
           <path v-if="speakerOff" d="m17 9 5 6m0-6-5 6" />
           <path v-else d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />
         </svg>
-        {{
-          playbackBlocked && !speakerMuted
-            ? 'Ketuk untuk dengar'
-            : speakerOff
-              ? 'Suara teman mati'
-              : 'Suara teman aktif'
-        }}
       </button>
     </div>
     <p
