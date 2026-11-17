@@ -13,6 +13,8 @@
   --color-stc-pink: var(--primary-500);
   --color-stc-pink-strong: var(--primary-600);
   --color-stc-pink-soft: var(--primary-100);
+  --color-stc-pink-paper: var(--primary-50);
+  --color-stc-dark: var(--grey-950);
   --color-stc-error: var(--red-500);
   --color-stc-error-strong: var(--red-800);
   --color-stc-error-soft: var(--red-100);
@@ -128,6 +130,7 @@
   --grey-900: #171717;
   --grey-950: #0a0a0a;
 
+  --primary-50: #fff7fa;
   --primary-100: #fde8ef;
   --primary-200: #f9c5d6;
   --primary-300: #f49ab8;

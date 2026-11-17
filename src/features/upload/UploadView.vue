@@ -105,7 +105,7 @@ const activeCropStyle = computed(() => {
 
   if (item.adjustment.fit === 'contain') {
     return {
-      backgroundColor: '#fff7fa',
+      backgroundColor: 'var(--primary-50)',
       backgroundImage: `url("${item.url}")`,
       backgroundPosition: '50% 50%',
       backgroundSize: 'contain',
@@ -406,7 +406,7 @@ async function replaceActiveFile() {
 async function processUpload() {
   if (isBusy.value) return
   if (!isReadyToProcess.value) {
-    errors.value = [`Layout ini membutuhkan tepat ${sessionStore.slotCount} foto.`]
+    errors.value = [`Layout ini membutuhkan tepat ${sessionStore.slotCount} foto`]
     return
   }
 
@@ -550,7 +550,7 @@ onBeforeUnmount(() => resetUploadItems())
         <div class="min-w-0">
           <h3 :class="ui.title">Upload Foto</h3>
           <p :class="ui.subtitle">
-            Pilih tepat {{ sessionStore.slotCount }} foto untuk strip Anda.
+            Pilih tepat {{ sessionStore.slotCount }} foto untuk strip kamu
           </p>
         </div>
       </div>
@@ -571,7 +571,7 @@ onBeforeUnmount(() => resetUploadItems())
         <section class="min-w-0 space-y-6">
           <div :class="[ui.sectionIntro, 'max-w-2xl']">
             <p :class="ui.sectionLabel">Upload Lokal</p>
-            <h2 :class="ui.sectionTitle">Masukkan foto sesuai slot.</h2>
+            <h2 :class="ui.sectionTitle">Masukkan foto sesuai slot</h2>
             <p :class="ui.sectionCopy">
               JPG, PNG, atau WebP maksimal 10 MB per file. Semua foto diproses lokal di perangkat
               ini untuk menjaga privasi.
@@ -585,7 +585,7 @@ onBeforeUnmount(() => resetUploadItems())
             @click="handleFileSelect"
           >
             <h4 class="text-stc-text text-[15px] font-medium">
-              {{ isPreparing ? 'Menyiapkan...' : 'Pilih Foto Lokal' }}
+              {{ isPreparing ? 'Menyiapkan…' : 'Pilih Foto Lokal' }}
             </h4>
             <p class="text-stc-text-faint mt-1 text-[13px]">
               {{ `${sessionStore.slotCount} file untuk sekali render` }}
@@ -614,7 +614,7 @@ onBeforeUnmount(() => resetUploadItems())
                 @wheel="zoomPhotoWheel"
               >
                 <div
-                  class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-[background-size,background-position] duration-150"
+                  class="absolute inset-0 bg-cover bg-center bg-no-repeat"
                   :style="activeCropStyle"
                 ></div>
                 <div
@@ -638,7 +638,7 @@ onBeforeUnmount(() => resetUploadItems())
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2.4"
+                    stroke-width="2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true"
@@ -659,7 +659,7 @@ onBeforeUnmount(() => resetUploadItems())
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    stroke-width="2.4"
+                    stroke-width="2"
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     aria-hidden="true"
@@ -693,7 +693,7 @@ onBeforeUnmount(() => resetUploadItems())
                   <img
                     :src="item.url"
                     :alt="`Upload ${index + 1}`"
-                    class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    class="h-full w-full object-cover"
                     decoding="async"
                   />
                   <span
@@ -717,7 +717,7 @@ onBeforeUnmount(() => resetUploadItems())
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2.4"
+                      stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       aria-hidden="true"
@@ -740,7 +740,7 @@ onBeforeUnmount(() => resetUploadItems())
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      stroke-width="2.4"
+                      stroke-width="2"
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       aria-hidden="true"
@@ -765,7 +765,7 @@ onBeforeUnmount(() => resetUploadItems())
                   :disabled="isBusy || !isReadyToProcess"
                   @click="processUpload"
                 >
-                  {{ isProcessing ? 'Menyiapkan Preview...' : 'Lanjut ke Preview' }}
+                  {{ isProcessing ? 'Menyiapkan Preview…' : 'Lanjut ke Preview' }}
                 </button>
               </div>
             </div>

@@ -115,9 +115,9 @@ onMounted(async () => {
         <div
           class="border-stc-border border-t-stc-pink mx-auto mb-3 size-6 animate-spin rounded-full border-2"
         ></div>
-        <h3 class="text-stc-text text-[15px] font-medium">Memproses Strip...</h3>
+        <h3 class="text-stc-text text-[15px] font-medium">Memproses Strip…</h3>
         <p class="text-stc-text-soft mt-1 text-[13px] leading-normal">
-          Menggabungkan tangkapan kamu ke format akhir.
+          Menggabungkan tangkapan kamu ke format akhir
         </p>
         <div class="bg-stc-bg-3 relative mt-6 h-1 w-full overflow-hidden rounded-full">
           <div

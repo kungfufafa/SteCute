@@ -95,7 +95,7 @@ async function handleClearAllLocalData() {
     galleryStore.recentRenders = []
     revokeRenderUrls()
     storageState.value = await getStorageState()
-    localDataMessage.value = 'Semua data lokal berhasil dihapus.'
+    localDataMessage.value = 'Semua data lokal berhasil dihapus'
   } catch (error) {
     console.error('Failed to clear local data:', error)
     localDataMessage.value = 'Gagal menghapus semua data lokal. Coba lagi dari pengaturan browser.'
@@ -213,7 +213,7 @@ onBeforeUnmount(() => {
           </div>
           <h4 class="text-stc-text text-[15px] font-medium">Belum Ada Hasil</h4>
           <p class="text-stc-text-soft mx-auto mt-1 max-w-sm text-[13px] leading-normal">
-            Hasil tersimpan di perangkat ini, maksimal {{ GALLERY_RETENTION_LIMIT }} strip.
+            Hasil tersimpan di perangkat ini, maksimal {{ GALLERY_RETENTION_LIMIT }} strip
           </p>
           <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
             <button :class="ui.primaryButton" @click="router.push('/')">Mulai Foto</button>
@@ -225,7 +225,7 @@ onBeforeUnmount(() => {
           <article
             v-for="(render, index) in galleryStore.recentRenders"
             :key="render.id"
-            class="border-stc-border group shadow-stc-xs hover:shadow-stc-sm overflow-hidden rounded-lg border bg-white transition duration-150 hover:-translate-y-0.5"
+            class="border-stc-border group shadow-stc-xs hover:shadow-stc-sm overflow-hidden rounded-lg border bg-white transition-colors duration-150"
           >
             <div class="relative">
               <button
@@ -248,8 +248,8 @@ onBeforeUnmount(() => {
                   @click="handleDownload(render.id)"
                 >
                   <svg
-                    width="14"
-                    height="14"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -270,8 +270,8 @@ onBeforeUnmount(() => {
                   @click="handleDownloadLive(render.id)"
                 >
                   <svg
-                    width="14"
-                    height="14"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -288,8 +288,8 @@ onBeforeUnmount(() => {
                   @click="handleDelete(render.id)"
                 >
                   <svg
-                    width="14"
-                    height="14"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -321,7 +321,7 @@ onBeforeUnmount(() => {
             <div class="min-w-0">
               <p class="text-stc-text text-[13px] font-medium">Data lokal aplikasi</p>
               <p class="text-stc-text-soft mt-0.5 text-[13px] leading-normal">
-                Reset cache offline, sesi, blanko upload, dan setting.
+                Reset cache offline, sesi, blanko upload, dan setting
               </p>
             </div>
             <button
