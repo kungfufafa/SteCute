@@ -37,7 +37,7 @@ withDefaults(
     </span>
     <span
       :class="[
-        'w-full text-center text-[10px] font-medium leading-none',
+        'w-full text-center text-xs font-medium leading-none',
         selected ? 'text-stc-pink-strong' : 'text-stc-text-soft',
         label ? '' : 'invisible',
       ]"

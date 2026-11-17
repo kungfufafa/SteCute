@@ -166,8 +166,8 @@ test('a deleted gallery result is not restored from the output cache', async ({ 
   await page.getByRole('button', { name: 'Kembali', exact: true }).click()
   await expect(page).toHaveURL('/gallery')
 
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Hapus render 1', exact: true }).click()
+  await page.getByTestId('confirm-dialog-confirm').click()
   await expect(page.getByText('Belum Ada Hasil')).toBeVisible()
   await page.goBack()
 

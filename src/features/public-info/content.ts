@@ -60,10 +60,10 @@ export const publicPages = {
           'Preferensi seperti layout, template, konfigurasi sesi, dan hasil render terakhir dapat disimpan lokal agar aplikasi tetap cepat di perangkat yang sama.',
         ],
         bullets: [
-          'Sumber foto: kamera browser atau file lokal.',
-          'Format upload: JPG, PNG, atau WebP.',
-          'Batas upload: 10 MB per file.',
-          'Output utama: PNG.',
+          'Sumber foto: kamera browser atau file lokal',
+          'Format upload: JPG, PNG, atau WebP',
+          'Batas upload: 10 MB per file',
+          'Output utama: PNG',
         ],
       },
       {
@@ -82,10 +82,10 @@ export const publicPages = {
           'Jika analytics, cloud, atau integrasi pihak ketiga ditambahkan nanti, kebijakan privasi harus diperbarui sebelum fitur dipakai.',
         ],
         bullets: [
-          'Tidak ada upload otomatis untuk foto inti.',
-          'Tidak ada login wajib.',
-          'Tidak ada iklan atau pixel tracking bawaan pada rilis awal.',
-          'Tidak menjual foto atau data gambar pengguna.',
+          'Tidak ada upload otomatis untuk foto inti',
+          'Tidak ada login wajib',
+          'Tidak ada iklan atau pixel tracking bawaan pada rilis awal',
+          'Tidak menjual foto atau data gambar pengguna',
         ],
       },
       {
@@ -276,10 +276,10 @@ export const publicPages = {
           'Offline penuh tersedia setelah initial load dan cache berhasil.',
         ],
         bullets: [
-          'Tanpa login untuk flow inti.',
-          'Foto dan hasil final lokal secara default.',
-          'Download PNG sebagai output utama.',
-          'Share, save, dan print berbasis capability browser.',
+          'Tanpa login untuk flow inti',
+          'Foto dan hasil final lokal secara default',
+          'Download PNG sebagai output utama',
+          'Share, save, dan print berbasis capability browser',
         ],
       },
       {

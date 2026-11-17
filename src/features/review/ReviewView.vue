@@ -27,6 +27,7 @@ import { useSessionStore } from '@/app/store/useSessionStore'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 interface ReplacementUpload {
   file: File
@@ -99,7 +100,7 @@ const replacementCropStyle = computed(() => {
 
   if (item.adjustment.fit === 'contain') {
     return {
-      backgroundColor: '#fff7fa',
+      backgroundColor: 'var(--primary-50)',
       backgroundImage: `url("${item.url}")`,
       backgroundPosition: '50% 50%',
       backgroundSize: 'contain',
@@ -282,9 +283,14 @@ function endReplacementDrag(event: globalThis.PointerEvent) {
   replacementDragState.value = null
 }
 
-async function retakeAll() {
-  if (!window.confirm('Apakah Anda yakin ingin mengulang semua foto? Sesi ini akan dihapus.'))
-    return
+const retakeAllConfirmOpen = ref(false)
+
+function retakeAll() {
+  retakeAllConfirmOpen.value = true
+}
+
+async function confirmRetakeAll() {
+  retakeAllConfirmOpen.value = false
 
   const previousSource = sessionStore.captureSource ?? 'camera'
   if (sessionStore.sessionId) {
@@ -303,7 +309,7 @@ async function prepareUploadReplacement(index: number) {
   const validation = validateFile(file)
 
   if (!validation.valid) {
-    reviewError.value = validation.errors[0] ?? 'File tidak valid.'
+    reviewError.value = validation.errors[0] ?? 'File tidak valid'
     return
   }
 
@@ -474,7 +480,7 @@ function goBack() {
             @wheel="zoomReplacementWheel"
           >
             <div
-              class="absolute inset-0 bg-cover bg-center bg-no-repeat transition-[background-size,background-position] duration-150"
+              class="absolute inset-0 bg-cover bg-center bg-no-repeat"
               :style="replacementCropStyle"
             ></div>
             <div class="pointer-events-none absolute inset-0 ring-1 ring-white/70 ring-inset"></div>
@@ -510,7 +516,7 @@ function goBack() {
               :disabled="isSavingReplacement"
               @click="saveUploadReplacement"
             >
-              {{ isSavingReplacement ? 'Menyimpan...' : 'Simpan Foto Pengganti' }}
+              {{ isSavingReplacement ? 'Menyimpan…' : 'Simpan Foto Pengganti' }}
             </button>
           </div>
         </div>
@@ -532,5 +538,14 @@ function goBack() {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="retakeAllConfirmOpen"
+      title="Ulang semua foto?"
+      message="Sesi ini akan dihapus"
+      confirm-label="Ulang Semua"
+      @confirm="void confirmRetakeAll()"
+      @cancel="retakeAllConfirmOpen = false"
+    />
   </div>
 </template>

@@ -8,7 +8,9 @@ test.describe('Stecute app smoke', () => {
   test('loads landing with final CTA and desktop-friendly hero', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Bikin photo strip langsung di perangkat' }),
+    ).toBeVisible()
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
     await expect(cta(page, 'Foto Duet')).toBeVisible()

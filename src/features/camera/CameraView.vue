@@ -69,6 +69,7 @@ import CaptureSessionSettings from '@/components/common/CaptureSessionSettings.v
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from '@/features/booth/BoothDecorationPicker.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const router = useRouter()
 const cameraStore = useCameraStore()
@@ -179,7 +180,7 @@ const unavailableCopy = computed(() => {
   if (unavailableKind.value === 'constraint') {
     return 'Browser tidak bisa membuka kamera dengan pengaturan saat ini. Coba ganti kamera atau muat ulang halaman.'
   }
-  return 'Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain.'
+  return 'Perangkat ini tidak memiliki kamera atau sedang dipakai aplikasi lain'
 })
 
 watch(sessionSettingsOpen, (open) => {
@@ -240,21 +241,25 @@ async function applySessionSettings(config: CaptureSessionConfig) {
   }
 }
 
-async function restartSessionPhotos() {
-  const sessionId = sessionStore.sessionId
+const restartConfirmOpen = ref(false)
+const restartConfirmMessage = ref('')
+
+function restartSessionPhotos() {
   if (
-    !sessionId ||
+    !sessionStore.sessionId ||
     capturedCount.value === 0 ||
     sessionSettingsDisabled.value ||
     isApplyingSessionSettings.value
   )
     return
-  if (
-    !window.confirm(
-      `Ulang semua foto? ${capturedCount.value} foto yang sudah diambil akan dihapus. Kamera dan pengaturan sesi tetap digunakan.`,
-    )
-  )
-    return
+  restartConfirmMessage.value = `${capturedCount.value} foto yang sudah diambil akan dihapus. Kamera dan pengaturan sesi tetap digunakan.`
+  restartConfirmOpen.value = true
+}
+
+async function confirmRestartSessionPhotos() {
+  restartConfirmOpen.value = false
+  const sessionId = sessionStore.sessionId
+  if (!sessionId) return
 
   const generation = setupGeneration
   isApplyingSessionSettings.value = true
@@ -299,7 +304,8 @@ function handleGlobalKeydown(event: Event) {
     cameraStore.permissionState === 'granted' &&
     !cameraPickerOpen.value &&
     !sessionSettingsOpen.value &&
-    !isApplyingSessionSettings.value
+    !isApplyingSessionSettings.value &&
+    !restartConfirmOpen.value
   ) {
     event.preventDefault()
     runCountdownAndCapture()
@@ -650,7 +656,7 @@ async function handleCustomBackground(file: File) {
 
   const validation = validateCustomBackgroundFile(file)
   if (!validation.valid) {
-    backgroundError.value = validation.errors[0] ?? 'Gambar latar tidak valid.'
+    backgroundError.value = validation.errors[0] ?? 'Gambar latar tidak valid'
     return
   }
 
@@ -703,7 +709,7 @@ function setupBackgroundProcessor() {
     mirrored: shouldMirrorActiveCamera.value,
     onStatusChange: (status, error) => {
       if (status === 'error') {
-        backgroundError.value = error ?? 'Segmentasi latar belakang gagal.'
+        backgroundError.value = error ?? 'Segmentasi latar belakang gagal'
       } else if (status === 'ready' || status === 'off') {
         backgroundError.value = null
       }
@@ -1217,7 +1223,7 @@ function goToUploadFallback() {
 
             <div
               v-if="countdownActive"
-              class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-all"
+              class="bg-stc-text/60 absolute inset-0 z-30 flex flex-col items-center justify-center text-center text-white transition-colors"
               data-testid="camera-countdown"
             >
               <div
@@ -1252,7 +1258,7 @@ function goToUploadFallback() {
                 @click="runCountdownAndCapture"
               >
                 <span
-                  class="bg-stc-pink inline-flex size-[52px] rounded-full shadow-inner transition-transform duration-200 group-hover:scale-95 group-active:scale-90 sm:size-[56px]"
+                  class="bg-stc-pink inline-flex size-[52px] rounded-full shadow-inner transition-transform duration-200 group-active:scale-[0.98] sm:size-[56px]"
                 ></span>
               </button>
 
@@ -1263,12 +1269,12 @@ function goToUploadFallback() {
                 @click="handleSwitchCamera"
               >
                 <svg
-                  width="22"
-                  height="22"
+                  width="16"
+                  height="16"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  stroke-width="2.5"
+                  stroke-width="2"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 >
@@ -1283,7 +1289,7 @@ function goToUploadFallback() {
               v-if="isSwitchingCamera"
               class="text-stc-text-soft max-w-full text-center text-xs font-medium"
             >
-              Mengganti kamera...
+              Mengganti kamera…
             </div>
 
             <div class="flex items-center justify-center gap-1.5">
@@ -1357,6 +1363,15 @@ function goToUploadFallback() {
       </CaptureWorkspace>
     </main>
 
+    <ConfirmDialog
+      :open="restartConfirmOpen"
+      title="Ulang semua foto?"
+      :message="restartConfirmMessage"
+      confirm-label="Ulang Semua"
+      @confirm="void confirmRestartSessionPhotos()"
+      @cancel="restartConfirmOpen = false"
+    />
+
     <div
       v-if="cameraPickerOpen"
       class="fixed inset-0 z-[70] flex items-end justify-center bg-black/35 px-4 py-5 sm:items-center"
@@ -1381,12 +1396,12 @@ function goToUploadFallback() {
             @click="closeCameraPicker"
           >
             <svg
-              width="20"
-              height="20"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
-              stroke-width="2.5"
+              stroke-width="2"
               stroke-linecap="round"
               stroke-linejoin="round"
             >

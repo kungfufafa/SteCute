@@ -34,7 +34,7 @@ const emit = defineEmits<{
   retake: [index: number]
 }>()
 
-const placeholderTones = ['#fde8f0', '#fef3c7', '#dbeafe', '#ccfbf1', '#ede9fe', '#fee2e2']
+const placeholderTone = '#ededed'
 
 const previewLayout = computed(() => {
   if (!props.layout || !props.templateConfig) return null
@@ -139,18 +139,17 @@ function backingStyle(slot: SlotConfig) {
   }
 }
 
-function slotStyle(slot: SlotConfig, index: number) {
+function slotStyle(slot: SlotConfig) {
   const layout = previewLayout.value
   if (!layout) return {}
 
-  const fallback = placeholderTones[index % placeholderTones.length]
   const style: Record<string, string> = {
     left: percent(slot.x, layout.canvas.width),
     top: percent(slot.y, layout.canvas.height),
     width: percent(slot.width, layout.canvas.width),
     height: percent(slot.height, layout.canvas.height),
     borderRadius: radiusPercent(slot.radius, slot.width, slot.height),
-    backgroundColor: fallback,
+    backgroundColor: placeholderTone,
   }
 
   return style
@@ -158,9 +157,8 @@ function slotStyle(slot: SlotConfig, index: number) {
 
 function slotPhotoStyle(index: number) {
   const url = props.shotUrls[index]
-  const fallback = placeholderTones[index % placeholderTones.length]
   const style: Record<string, string> = {
-    backgroundColor: fallback,
+    backgroundColor: placeholderTone,
     backgroundPosition: 'center',
     backgroundSize: 'cover',
     filter: photoFilter.value,
@@ -260,7 +258,7 @@ function footerLogoStyle() {
       <button
         v-if="interactive"
         class="group bg-stc-bg-3 hover:ring-stc-pink/35 focus-visible:ring-stc-pink/60 absolute overflow-hidden text-left transition-shadow duration-150 hover:ring-2 focus-visible:ring-2 focus-visible:outline-none"
-        :style="slotStyle(slot, index)"
+        :style="slotStyle(slot)"
         :aria-label="`Ganti foto ${index + 1}`"
         @click="emit('retake', index)"
       >
@@ -290,7 +288,7 @@ function footerLogoStyle() {
         </span>
       </button>
 
-      <div v-else class="bg-stc-bg-3 absolute overflow-hidden" :style="slotStyle(slot, index)">
+      <div v-else class="bg-stc-bg-3 absolute overflow-hidden" :style="slotStyle(slot)">
         <span
           class="absolute inset-0 bg-cover bg-center bg-no-repeat"
           :style="slotPhotoStyle(index)"

@@ -29,14 +29,14 @@ function joinRoom() {
 
   if (!result.ok) {
     if (result.reason === 'missing') {
-      joinError.value = 'Masukkan kode booth.'
+      joinError.value = 'Masukkan kode booth'
       return
     }
     if (result.reason === 'malformed') {
-      joinError.value = 'Kode booth tidak valid.'
+      joinError.value = 'Kode booth tidak valid'
       return
     }
-    joinError.value = 'Booth tidak ditemukan.'
+    joinError.value = 'Booth tidak ditemukan'
     return
   }
 
@@ -168,7 +168,7 @@ onUnmounted(() => {
       >
         <div class="grid aspect-[4/3] grid-cols-2 grid-rows-1">
           <article
-            class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+            class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
             data-testid="booth-hub-local-tile"
           >
             <video
@@ -182,10 +182,10 @@ onUnmounted(() => {
             />
             <div
               v-if="!cameraLive"
-              class="absolute inset-0 flex items-center justify-center bg-zinc-950 px-3 text-center"
+              class="absolute inset-0 flex items-center justify-center bg-stc-dark px-3 text-center"
             >
-              <p class="text-[11px] leading-normal text-white/70">
-                Izinkan kamera untuk preview live.
+              <p class="text-xs leading-normal text-white/70">
+                Izinkan kamera untuk preview live
               </p>
             </div>
             <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">
@@ -193,7 +193,7 @@ onUnmounted(() => {
             </p>
           </article>
           <article
-            class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+            class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
             data-testid="booth-hub-remote-tile"
           >
             <p class="absolute bottom-2 left-2 text-xs font-semibold text-white drop-shadow">

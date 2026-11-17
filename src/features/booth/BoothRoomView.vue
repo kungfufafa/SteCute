@@ -74,6 +74,7 @@ import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from './BoothDecorationPicker.vue'
 import BoothAudioControls from './BoothAudioControls.vue'
@@ -303,7 +304,7 @@ const pageTitle = computed(() => {
 })
 const countdownSeconds = computed(() => Math.round(boothSetup.value.countdownMs / 1000))
 const pageSubtitle = computed(() => {
-  if (joinError.value) return 'Booth tidak bisa dibuka.'
+  if (joinError.value) return 'Booth tidak bisa dibuka'
   if (!friendJoined.value) {
     return role.value === 'host'
       ? 'Menunggu teman'
@@ -339,7 +340,7 @@ watch(stage, (next) => {
 async function copyValue(value: string, label: string) {
   try {
     await navigator.clipboard.writeText(value)
-    copyNotice.value = `${label} disalin.`
+    copyNotice.value = `${label} disalin`
   } catch {
     copyNotice.value = `Gagal menyalin. Salin ${label.toLowerCase()} secara manual.`
   }
@@ -373,10 +374,10 @@ function readPeerId(code: string): string {
 }
 
 function errorCopy(reason: BoothJoinError | 'full') {
-  if (reason === 'missing') return 'Masukkan kode booth.'
-  if (reason === 'malformed') return 'Kode booth tidak valid.'
+  if (reason === 'missing') return 'Masukkan kode booth'
+  if (reason === 'malformed') return 'Kode booth tidak valid'
   if (reason === 'full') return 'Booth sudah penuh. Maksimal 2 orang.'
-  return 'Booth tidak ditemukan atau host belum online.'
+  return 'Booth tidak ditemukan atau host belum online'
 }
 
 function firstMissingMoment() {
@@ -591,12 +592,12 @@ async function handleCustomBackground(file: File) {
   if (!canChangeSetup.value) return
   const validation = validateCustomBackgroundFile(file)
   if (!validation.valid) {
-    cameraError.value = validation.errors[0] ?? 'Gambar latar tidak valid.'
+    cameraError.value = validation.errors[0] ?? 'Gambar latar tidak valid'
     return
   }
 
   try {
-    statusMessage.value = 'Mengompres gambar latar...'
+    statusMessage.value = 'Mengompres gambar latar…'
     const normalized = await normalizeHostCustomBackground(file)
     activeBackgroundBlob = normalized.blob
     const frame = await loadCustomVirtualBackgroundFrame(normalized.blob)
@@ -627,7 +628,7 @@ async function handleCustomBackground(file: File) {
       syncLocalBackgroundStatus()
       updateTransportStream()
     }
-    statusMessage.value = 'Latar virtual diterapkan.'
+    statusMessage.value = 'Latar virtual diterapkan'
   } catch (err) {
     console.error('Failed to process custom background:', err)
     cameraError.value = 'Gambar latar gagal diproses. Gunakan JPG, PNG, atau WebP.'
@@ -679,7 +680,7 @@ function setupBackgroundProcessor() {
     onStatusChange: (status, error) => {
       localBackgroundStatus.value = status
       if (status === 'error') {
-        backgroundError.value = error ?? 'Segmentasi latar belakang gagal.'
+        backgroundError.value = error ?? 'Segmentasi latar belakang gagal'
         if (role.value === 'guest') {
           guestBackgroundStatus.value = 'error'
           peerSession?.reportBackgroundError(
@@ -1109,7 +1110,7 @@ async function captureCurrentMoment(
     ) {
       stopAutoCapture()
       stage.value = 'review'
-      statusMessage.value = 'Strip siap ditinjau.'
+      statusMessage.value = 'Strip siap ditinjau'
     } else {
       stage.value = 'live'
       statusMessage.value =
@@ -1339,6 +1340,9 @@ function retakeShot(index: number) {
   peerSession.startMoment(index, boothSetup.value.countdownMs)
 }
 
+const retakeAllConfirmOpen = ref(false)
+const retakeAllConfirmMessage = ref('')
+
 function retakeAll() {
   if (
     role.value !== 'host' ||
@@ -1349,13 +1353,13 @@ function retakeAll() {
   )
     return
   stopAutoCapture()
-  if (
-    !window.confirm(
-      `Ulang semua foto? ${capturedCount.value} foto akan dihapus untuk kedua peserta. Pengaturan sesi bisa diubah kembali; ruang dan audio tetap aktif.`,
-    )
-  ) {
-    return
-  }
+  retakeAllConfirmMessage.value = `${capturedCount.value} foto akan dihapus untuk kedua peserta. Pengaturan sesi bisa diubah kembali; ruang dan audio tetap aktif.`
+  retakeAllConfirmOpen.value = true
+}
+
+function confirmRetakeAll() {
+  retakeAllConfirmOpen.value = false
+  if (!peerSession) return
   peerSession.resetCapture()
   applyCaptureReset()
 }
@@ -1458,7 +1462,7 @@ async function renderBoothStrip() {
     outputNotice.value = result.storageWarning ?? ''
     stage.value = 'output'
     statusMessage.value = result.persisted
-      ? 'Photo strip siap diunduh dan tersimpan di galeri.'
+      ? 'Photo strip siap diunduh dan tersimpan di galeri'
       : 'Photo strip siap diunduh. Hasil belum tersimpan di galeri.'
   } catch (error) {
     if (disposed || generation !== connectionGeneration || revision !== reviewRevision) return
@@ -1485,7 +1489,7 @@ async function handleDownload() {
         getExtensionForMimeType(outputBlob.type),
       ),
     )
-    outputNotice.value = 'Unduhan dimulai.'
+    outputNotice.value = 'Unduhan dimulai'
   } catch {
     outputError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
   } finally {
@@ -1507,7 +1511,7 @@ async function handleShare() {
       outputError.value =
         'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
     } else if (shared === 'shared') {
-      outputNotice.value = 'Lembar bagikan dibuka.'
+      outputNotice.value = 'Lembar bagikan dibuka'
     }
   } catch {
     outputError.value = 'Gagal membuka share sheet. Gunakan download sebagai fallback.'
@@ -1527,7 +1531,7 @@ async function handleSave() {
       generateFilename(boothSetup.value.layoutId, boothSetup.value.templateId, 'png'),
     )
     outputNotice.value = saved
-      ? 'Hasil berhasil disimpan.'
+      ? 'Hasil berhasil disimpan'
       : 'Simpan ke perangkat tidak tersedia atau dibatalkan. Unduh tetap bisa dipakai.'
     if (!saved) outputError.value = outputNotice.value
     if (!saved) outputNotice.value = ''
@@ -1553,7 +1557,7 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
 
   if (peerSession.getRejectedReason() === 'full') {
     joinError.value = 'full'
-    statusMessage.value = 'Booth sudah penuh.'
+    statusMessage.value = 'Booth sudah penuh'
     disposeSession()
     return
   }
@@ -1576,7 +1580,7 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
 
   if (shotsComplete.value) {
     stage.value = 'review'
-    statusMessage.value = 'Strip siap ditinjau.'
+    statusMessage.value = 'Strip siap ditinjau'
     return
   }
 
@@ -1714,7 +1718,7 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
       if (reason === 'background_error' || reason === 'timeout') {
         showBackgroundErrorModal.value = true
       } else {
-        statusMessage.value = 'Pose dibatalkan.'
+        statusMessage.value = 'Pose dibatalkan'
       }
     })
 
@@ -1899,7 +1903,7 @@ onUnmounted(() => {
     >
       <section v-if="joinError" :class="[ui.emptyPanel, 'max-w-lg']">
         <p class="text-stc-text text-lg font-semibold" role="alert">{{ errorCopy(joinError) }}</p>
-        <p class="text-stc-text-soft mt-2 text-sm leading-normal">Minta link baru.</p>
+        <p class="text-stc-text-soft mt-2 text-sm leading-normal">Minta link baru</p>
         <button
           class="mt-6"
           :class="[ui.secondaryButton, 'sm:w-auto sm:self-center']"
@@ -1954,7 +1958,7 @@ onUnmounted(() => {
               </div>
               <div class="grid h-full grid-cols-2">
                 <article
-                  class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+                  class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
                   :class="role === 'host' ? 'order-1' : 'order-2'"
                   data-testid="booth-local-tile"
                 >
@@ -2002,7 +2006,7 @@ onUnmounted(() => {
                   />
                   <div
                     v-if="!cameraReady"
-                    class="absolute inset-0 flex items-center justify-center bg-zinc-950 px-3 text-center"
+                    class="absolute inset-0 flex items-center justify-center bg-stc-dark px-3 text-center"
                   >
                     <p class="text-xs font-medium text-white/80">
                       {{ cameraError || 'Izinkan kamera dan mikrofon' }}
@@ -2016,7 +2020,7 @@ onUnmounted(() => {
                 </article>
 
                 <article
-                  class="relative min-h-0 min-w-0 overflow-hidden bg-zinc-950"
+                  class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
                   :class="role === 'host' ? 'order-2' : 'order-1'"
                   data-testid="booth-remote-tile"
                 >
@@ -2035,7 +2039,7 @@ onUnmounted(() => {
                   />
                   <div
                     v-if="!friendJoined || !remoteVideoReady"
-                    class="absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/70"
+                    class="absolute inset-0 z-10 flex items-center justify-center bg-stc-dark/70"
                   >
                     <p class="text-xs font-medium text-white/80">Menunggu</p>
                   </div>
@@ -2191,7 +2195,7 @@ onUnmounted(() => {
               :disabled="rendering"
               @click="renderBoothStrip"
             >
-              {{ rendering ? 'Merender...' : 'Buat Hasil Akhir' }}
+              {{ rendering ? 'Merender…' : 'Buat Hasil Akhir' }}
             </button>
           </div>
         </div>
@@ -2223,7 +2227,7 @@ onUnmounted(() => {
             </figure>
           </div>
           <p v-if="savedToGallery" class="text-stc-text-soft text-center text-sm">
-            Tersimpan di galeri.
+            Tersimpan di galeri
           </p>
           <div
             v-if="outputError || outputNotice"
@@ -2287,38 +2291,49 @@ onUnmounted(() => {
       </template>
     </main>
 
+    <ConfirmDialog
+      :open="retakeAllConfirmOpen"
+      title="Ulang semua foto?"
+      :message="retakeAllConfirmMessage"
+      confirm-label="Ulang Semua"
+      @confirm="confirmRetakeAll"
+      @cancel="retakeAllConfirmOpen = false"
+    />
+
     <div
       v-if="showBackgroundErrorModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     >
-      <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl">
-        <div
-          class="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-rose-100 text-rose-600"
-        >
+      <div
+        class="w-full max-w-sm rounded-lg border border-stc-border bg-white p-6 text-center shadow-stc-md"
+      >
+        <div :class="[ui.statusIcon, 'bg-stc-error-soft text-stc-error']">
           <svg
-            width="24"
-            height="24"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
           >
             <circle cx="12" cy="12" r="10" />
             <line x1="12" y1="8" x2="12" y2="12" />
             <line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
         </div>
-        <h3 class="text-stc-text text-base font-bold">Latar Virtual Gagal Disiapkan</h3>
+        <h3 class="text-stc-text text-base font-semibold">Latar Virtual Gagal Disiapkan</h3>
         <p class="text-stc-text-soft mt-2 text-xs leading-relaxed">
-          Terjadi kendala saat menyinkronkan atau memproses latar virtual bersama. Anda bisa mencoba
-          lagi atau menggunakan latar asli bersama.
+          Terjadi kendala saat menyinkronkan atau memproses latar virtual bersama. Kamu bisa mencoba
+          lagi atau memakai latar asli untuk semua.
         </p>
         <div class="mt-6 flex flex-col gap-2">
           <button type="button" :class="ui.primaryButton" @click="retryBackground">
             Coba Lagi
           </button>
           <button type="button" :class="ui.secondaryButton" @click="fallbackToNormalBackground">
-            Gunakan Asli bersama
+            Pakai latar asli untuk semua
           </button>
         </div>
       </div>

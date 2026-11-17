@@ -219,7 +219,7 @@ function createBlankoPackage(option: BlankoOption): BlankoPackage {
     title: option.title,
     subtitle:
       option.kind === 'standard'
-        ? (option.template.description ?? 'Frame fleksibel untuk format standar.')
+        ? (option.template.description ?? 'Frame fleksibel untuk format standar')
         : option.subtitle,
   }
 }
@@ -358,14 +358,14 @@ async function handleUploadTemplate() {
     const layout = uploaded.template.nativeLayout
 
     if (!layout) {
-      throw new Error('Blanko custom tidak punya layout valid.')
+      throw new Error('Blanko custom tidak punya layout valid')
     }
 
     await customTemplateStore.saveTemplate(uploaded)
     selectBlankoOption(createBlankoOption(layout, uploaded.template, 'custom'))
   } catch (error) {
     customTemplateError.value =
-      error instanceof Error ? error.message : 'Gagal membaca blanko custom.'
+      error instanceof Error ? error.message : 'Gagal membaca blanko custom'
   } finally {
     isUploadingTemplate.value = false
   }
@@ -415,7 +415,7 @@ async function handleUploadTemplate() {
                 type="button"
                 :aria-label="`${selectedTemplate?.name ?? 'Classic'} ${layout.slotCount} foto`"
                 :class="[
-                  'focus-visible:ring-stc-pink/40 flex items-center justify-center rounded-lg border p-3.5 text-center transition-all outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stc-pink/40 flex items-center justify-center rounded-lg border p-4 text-center transition-colors outline-none focus-visible:ring-2',
                   selectedLayoutId === layout.id && !selectedTemplate?.nativeLayout
                     ? ui.selectedCard
                     : ui.card,
@@ -438,7 +438,7 @@ async function handleUploadTemplate() {
                 type="button"
                 :aria-label="`${blankoPackage.title}, ${packageSlotLabel(blankoPackage)}`"
                 :class="[
-                  'focus-visible:ring-stc-pink/40 flex min-h-24 cursor-pointer items-center gap-3.5 rounded-lg border p-3 text-left transition-all outline-none focus-visible:ring-2',
+                  'focus-visible:ring-stc-pink/40 flex min-h-24 cursor-pointer items-center gap-4 rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-2',
                   isPackageSelected(blankoPackage) ? ui.selectedCard : ui.card,
                 ]"
                 @click="selectBlankoPackage(blankoPackage)"
@@ -473,7 +473,7 @@ async function handleUploadTemplate() {
                 :disabled="isUploadingTemplate"
                 @click="handleUploadTemplate"
               >
-                {{ isUploadingTemplate ? 'Membaca...' : 'Upload Frame' }}
+                {{ isUploadingTemplate ? 'Membaca…' : 'Upload Frame' }}
               </button>
             </div>
           </div>

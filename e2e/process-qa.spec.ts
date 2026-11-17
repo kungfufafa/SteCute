@@ -14,7 +14,9 @@ function cta(page: Page, name: string) {
 test.describe('process QA empty and entry states', () => {
   test('landing exposes local and booth entries without login', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
+    await expect(
+      page.getByRole('heading', { name: 'Bikin photo strip langsung di perangkat' }),
+    ).toBeVisible()
     await expect(cta(page, 'Mulai Foto')).toBeVisible()
     await expect(cta(page, 'Upload Lokal')).toBeVisible()
     await expect(cta(page, 'Foto Duet')).toBeVisible()

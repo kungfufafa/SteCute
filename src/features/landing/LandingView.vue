@@ -18,11 +18,11 @@ const sessionStore = useSessionStore()
 const installFeedback = ref('')
 const canPromptInstall = computed(() => appStore.installPromptAvailable && !appStore.installedMode)
 const offlineStatusText = computed(() => {
-  if (appStore.offlineReady) return appStore.offlineMode ? '100% Offline.' : 'Siap Offline.'
-  if (appStore.serviceWorkerStatus === 'unsupported') return 'Offline terbatas.'
-  if (appStore.serviceWorkerStatus === 'error') return 'Cache offline perlu dicek.'
+  if (appStore.offlineReady) return appStore.offlineMode ? '100% offline' : 'Siap offline'
+  if (appStore.serviceWorkerStatus === 'unsupported') return 'Offline terbatas'
+  if (appStore.serviceWorkerStatus === 'error') return 'Cache offline perlu dicek'
 
-  return 'Menyiapkan offline.'
+  return 'Menyiapkan offline'
 })
 const showcaseImages = [
   {
@@ -31,7 +31,7 @@ const showcaseImages = [
     width: 204,
     height: 612,
     priority: 'low',
-    baseClass: 'absolute top-6 -left-2 w-[48%] -rotate-12 hover:-rotate-6 z-10 sm:-left-4 sm:top-8',
+    baseClass: 'absolute top-6 -left-2 w-[48%] -rotate-12 z-10 sm:-left-4 sm:top-8',
   },
   {
     src: '/images/mono-strip-preview.webp',
@@ -39,8 +39,7 @@ const showcaseImages = [
     width: 204,
     height: 612,
     priority: 'low',
-    baseClass:
-      'absolute top-10 -right-2 w-[48%] rotate-12 hover:rotate-6 z-10 sm:-right-4 sm:top-12',
+    baseClass: 'absolute top-10 -right-2 w-[48%] rotate-12 z-10 sm:-right-4 sm:top-12',
   },
   {
     src: '/images/youth-strip-preview.webp',
@@ -106,9 +105,10 @@ async function installApp() {
         />
       </div>
       <div class="flex items-center gap-2">
-        <div class="hidden md:block">
-          <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
-        </div>
+        <button v-if="canPromptInstall" :class="ui.ghostButton" @click="installApp">
+          Pasang App
+        </button>
+        <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
         <button
           :class="ui.iconButton"
           aria-label="Buka galeri"
@@ -135,37 +135,31 @@ async function installApp() {
     </nav>
 
     <main
-      class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)] lg:items-center lg:gap-10"
+      class="mx-auto grid w-full max-w-5xl flex-1 content-start grid-cols-1 items-start gap-8 px-4 py-8 sm:px-5 sm:py-10 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.9fr)] lg:content-center lg:items-center lg:gap-10"
     >
       <section class="flex min-w-0 flex-col">
         <p :class="ui.sectionLabel">Photo booth lokal</p>
         <h1
-          class="text-stc-text mt-2 max-w-[14ch] text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
+          class="text-stc-text mt-2 max-w-[16ch] text-3xl leading-tight font-semibold sm:text-4xl"
         >
-          Stecute Photo Booth
+          Bikin photo strip langsung di perangkat
         </h1>
 
         <p class="text-stc-text-soft mt-3 max-w-[38em] text-[13px] leading-normal sm:text-sm">
-          Buka kamera, ambil beberapa pose, lalu simpan photo strip langsung di perangkat.
+          Buka kamera, ambil beberapa pose, lalu simpan hasilnya.
           {{ offlineStatusText }}
         </p>
 
         <div class="mt-6 flex flex-wrap items-center gap-2">
           <button :class="ui.primaryButton" @click="startWithCamera">Mulai Foto</button>
           <button :class="ui.secondaryButton" @click="startBoothBareng">Foto Duet</button>
-          <button v-if="canPromptInstall" :class="ui.ghostButton" @click="installApp">
-            Pasang App
-          </button>
-          <div class="md:hidden">
-            <button :class="ui.ghostButton" @click="startWithUpload">Upload Lokal</button>
-          </div>
         </div>
         <p v-if="installFeedback" class="text-stc-text-soft mt-2 max-w-[32rem] text-[13px]">
           {{ installFeedback }}
         </p>
 
         <p class="text-stc-text-faint mt-4 text-[13px]">
-          Tanpa Login · Privasi Terjaga · Hasil Lokal
+          Tanpa login · Privasi terjaga · Hasil lokal
         </p>
       </section>
 

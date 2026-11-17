@@ -182,14 +182,14 @@ async function captureDuet(host: Page, guest: Page) {
 }
 
 async function confirmRestart(page: Page, accept: boolean) {
-  let confirmation = ''
-  page.once('dialog', async (dialog) => {
-    confirmation = dialog.message()
-    if (accept) await dialog.accept()
-    else await dialog.dismiss()
-  })
   await page.getByRole('button', { name: 'Ulang semua foto', exact: true }).click()
-  expect(confirmation).toContain('Ulang semua foto?')
+  const dialog = page.getByTestId('confirm-dialog')
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('Ulang semua foto?')
+  await dialog
+    .getByTestId(accept ? 'confirm-dialog-confirm' : 'confirm-dialog-cancel')
+    .click()
+  await expect(dialog).toBeHidden()
 }
 
 async function expectPhotoSettingsLocked(page: Page) {

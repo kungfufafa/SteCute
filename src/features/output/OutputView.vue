@@ -85,7 +85,7 @@ async function handleDownload() {
       getExtensionForMimeType(blob.type),
     )
     await downloadBlob(blob, filename)
-    outputActionNotice.value = 'Unduhan dimulai.'
+    outputActionNotice.value = 'Unduhan dimulai'
   } catch (error) {
     console.error('Download failed:', error)
     outputActionError.value = 'Gagal menyiapkan download. Coba buka hasil dari galeri.'
@@ -103,7 +103,7 @@ async function handleDownloadLive() {
     const extension = getExtensionForMimeType(liveOutputMimeType.value ?? blob.type)
     const filename = generateFilename(sessionStore.layoutId, sessionStore.templateId, extension)
     await downloadBlob(blob, filename)
-    outputActionNotice.value = 'Unduhan Live Cam dimulai.'
+    outputActionNotice.value = 'Unduhan Live Cam dimulai'
   } catch (error) {
     console.error('Live Cam download failed:', error)
     outputActionError.value = 'Live Cam belum tersedia. Download foto tetap bisa dipakai.'
@@ -128,7 +128,7 @@ async function handleShare() {
       outputActionError.value =
         'Browser ini belum mendukung share file photo strip. Gunakan download sebagai fallback.'
     } else if (shared === 'shared') {
-      outputActionNotice.value = 'Lembar bagikan dibuka.'
+      outputActionNotice.value = 'Lembar bagikan dibuka'
     }
   } catch (error) {
     console.error('Share failed:', error)
@@ -151,7 +151,7 @@ async function handleSave() {
     )
     const saved = await saveBlob(blob, filename)
     if (saved) {
-      outputActionNotice.value = 'Hasil berhasil disimpan.'
+      outputActionNotice.value = 'Hasil berhasil disimpan'
     } else {
       outputActionError.value =
         'Simpan ke perangkat tidak tersedia atau dibatalkan. Unduh tetap bisa dipakai.'
@@ -239,7 +239,7 @@ async function loadOutputRender() {
 
     if (!render) {
       if (inMemory) clearSessionOutput()
-      outputError.value = 'Hasil akhir tidak ditemukan di penyimpanan lokal.'
+      outputError.value = 'Hasil akhir tidak ditemukan di penyimpanan lokal'
       return
     }
 
@@ -337,7 +337,7 @@ onBeforeUnmount(() => {
           {{ storageWarning }}
         </p>
         <p v-else-if="savedToGallery" :class="ui.sectionLabel">
-          Tersimpan di galeri perangkat ini.
+          Tersimpan di galeri perangkat ini
         </p>
         <div
           class="flex w-full flex-wrap items-start justify-center gap-6"
@@ -413,7 +413,7 @@ onBeforeUnmount(() => {
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                stroke-width="2.5"
+                stroke-width="2"
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="transition-transform duration-200"
@@ -436,8 +436,8 @@ onBeforeUnmount(() => {
               @click="handleShare"
             >
               <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -458,8 +458,8 @@ onBeforeUnmount(() => {
               @click="handleSave"
             >
               <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -480,8 +480,8 @@ onBeforeUnmount(() => {
               @click="handlePrint"
             >
               <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -499,8 +499,8 @@ onBeforeUnmount(() => {
             </button>
             <button :class="ui.actionTile" @click="handleGallery">
               <svg
-                width="20"
-                height="20"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
