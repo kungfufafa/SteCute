@@ -9,7 +9,9 @@ const uploadFixtures = [
 
 async function warmOfflineCache(page: Page) {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Stecute Photo Booth' })).toBeVisible()
+  await expect(
+    page.getByRole('heading', { name: 'Bikin photo strip langsung di perangkat' }),
+  ).toBeVisible()
   await page.waitForFunction(
     async () => {
       if (!('serviceWorker' in navigator) || !('caches' in window)) return false
@@ -42,7 +44,7 @@ test.describe('offline behavior', () => {
     await context.setOffline(true)
 
     const routes = [
-      { path: '/', text: 'Stecute Photo Booth' },
+      { path: '/', text: 'Bikin photo strip langsung di perangkat' },
       { path: '/config?source=upload', text: 'Atur Sesi' },
       { path: '/upload', text: 'Upload Foto' },
       { path: '/review', text: 'Preview' },

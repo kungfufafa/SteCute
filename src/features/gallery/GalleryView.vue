@@ -13,6 +13,7 @@ import { downloadBlob, generateFilename, getExtensionForMimeType } from '@/servi
 import { clearAllLocalData, getStorageState, type StorageState } from '@/services/storage'
 import { formatBytes, formatGalleryDate } from '@/utils/format'
 import { ui } from '@/ui/styles'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
@@ -42,15 +43,33 @@ function hasLiveCam(render: Render) {
   return Boolean(render.liveBlob)
 }
 
+const pendingConfirm = ref<{
+  title: string
+  message?: string
+  confirmLabel: string
+  action: () => void
+} | null>(null)
+
+function runPendingConfirm() {
+  const action = pendingConfirm.value?.action
+  pendingConfirm.value = null
+  action?.()
+}
+
 function handleDelete(id: string) {
-  if (confirm('Hapus photo strip ini?')) {
-    void removeAndReload(id)
+  pendingConfirm.value = {
+    title: 'Hapus photo strip ini?',
+    confirmLabel: 'Hapus',
+    action: () => void removeAndReload(id),
   }
 }
 
 function handleClearAll() {
-  if (confirm('Kosongkan galeri? Semua photo strip tersimpan akan dihapus.')) {
-    void clearAndReload()
+  pendingConfirm.value = {
+    title: 'Kosongkan galeri?',
+    message: 'Semua photo strip tersimpan akan dihapus',
+    confirmLabel: 'Kosongkan',
+    action: () => void clearAndReload(),
   }
 }
 
@@ -80,13 +99,17 @@ async function clearAndReload() {
   storageState.value = await getStorageState()
 }
 
-async function handleClearAllLocalData() {
-  const confirmed = confirm(
-    'Bersihkan semua data lokal Stecute? Galeri, sesi, blanko upload, setting, dan cache offline akan dihapus. Aplikasi perlu internet lagi untuk cache ulang.',
-  )
+function handleClearAllLocalData() {
+  pendingConfirm.value = {
+    title: 'Bersihkan semua data lokal Stecute?',
+    message:
+      'Galeri, sesi, blanko upload, setting, dan cache offline akan dihapus. Aplikasi perlu internet lagi untuk cache ulang.',
+    confirmLabel: 'Bersihkan',
+    action: () => void clearLocalDataConfirmed(),
+  }
+}
 
-  if (!confirmed) return
-
+async function clearLocalDataConfirmed() {
   try {
     await clearAllLocalData()
     sessionStore.reset()
@@ -353,5 +376,14 @@ onBeforeUnmount(() => {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="pendingConfirm !== null"
+      :title="pendingConfirm?.title ?? ''"
+      :message="pendingConfirm?.message"
+      :confirm-label="pendingConfirm?.confirmLabel ?? ''"
+      @confirm="runPendingConfirm"
+      @cancel="pendingConfirm = null"
+    />
   </div>
 </template>

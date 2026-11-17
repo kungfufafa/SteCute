@@ -140,13 +140,13 @@ async function installApp() {
       <section class="flex min-w-0 flex-col">
         <p :class="ui.sectionLabel">Photo booth lokal</p>
         <h1
-          class="text-stc-text mt-2 max-w-[14ch] text-3xl leading-tight font-semibold sm:text-4xl"
+          class="text-stc-text mt-2 max-w-[16ch] text-3xl leading-tight font-semibold sm:text-4xl"
         >
-          Stecute Photo Booth
+          Bikin photo strip langsung di perangkat
         </h1>
 
         <p class="text-stc-text-soft mt-3 max-w-[38em] text-[13px] leading-normal sm:text-sm">
-          Buka kamera, ambil beberapa pose, lalu simpan photo strip langsung di perangkat.
+          Buka kamera, ambil beberapa pose, lalu simpan hasilnya.
           {{ offlineStatusText }}
         </p>
 

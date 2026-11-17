@@ -27,6 +27,7 @@ import { useSessionStore } from '@/app/store/useSessionStore'
 import { ui } from '@/ui/styles'
 import { getLayoutById } from '@/layouts'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 interface ReplacementUpload {
   file: File
@@ -282,9 +283,14 @@ function endReplacementDrag(event: globalThis.PointerEvent) {
   replacementDragState.value = null
 }
 
-async function retakeAll() {
-  if (!window.confirm('Apakah kamu yakin ingin mengulang semua foto? Sesi ini akan dihapus.'))
-    return
+const retakeAllConfirmOpen = ref(false)
+
+function retakeAll() {
+  retakeAllConfirmOpen.value = true
+}
+
+async function confirmRetakeAll() {
+  retakeAllConfirmOpen.value = false
 
   const previousSource = sessionStore.captureSource ?? 'camera'
   if (sessionStore.sessionId) {
@@ -532,5 +538,14 @@ function goBack() {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="retakeAllConfirmOpen"
+      title="Ulang semua foto?"
+      message="Sesi ini akan dihapus"
+      confirm-label="Ulang Semua"
+      @confirm="void confirmRetakeAll()"
+      @cancel="retakeAllConfirmOpen = false"
+    />
   </div>
 </template>

@@ -69,6 +69,7 @@ import CaptureSessionSettings from '@/components/common/CaptureSessionSettings.v
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from '@/features/booth/BoothDecorationPicker.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 
 const router = useRouter()
 const cameraStore = useCameraStore()
@@ -240,21 +241,25 @@ async function applySessionSettings(config: CaptureSessionConfig) {
   }
 }
 
-async function restartSessionPhotos() {
-  const sessionId = sessionStore.sessionId
+const restartConfirmOpen = ref(false)
+const restartConfirmMessage = ref('')
+
+function restartSessionPhotos() {
   if (
-    !sessionId ||
+    !sessionStore.sessionId ||
     capturedCount.value === 0 ||
     sessionSettingsDisabled.value ||
     isApplyingSessionSettings.value
   )
     return
-  if (
-    !window.confirm(
-      `Ulang semua foto? ${capturedCount.value} foto yang sudah diambil akan dihapus. Kamera dan pengaturan sesi tetap digunakan.`,
-    )
-  )
-    return
+  restartConfirmMessage.value = `${capturedCount.value} foto yang sudah diambil akan dihapus. Kamera dan pengaturan sesi tetap digunakan.`
+  restartConfirmOpen.value = true
+}
+
+async function confirmRestartSessionPhotos() {
+  restartConfirmOpen.value = false
+  const sessionId = sessionStore.sessionId
+  if (!sessionId) return
 
   const generation = setupGeneration
   isApplyingSessionSettings.value = true
@@ -299,7 +304,8 @@ function handleGlobalKeydown(event: Event) {
     cameraStore.permissionState === 'granted' &&
     !cameraPickerOpen.value &&
     !sessionSettingsOpen.value &&
-    !isApplyingSessionSettings.value
+    !isApplyingSessionSettings.value &&
+    !restartConfirmOpen.value
   ) {
     event.preventDefault()
     runCountdownAndCapture()
@@ -1356,6 +1362,15 @@ function goToUploadFallback() {
         </template>
       </CaptureWorkspace>
     </main>
+
+    <ConfirmDialog
+      :open="restartConfirmOpen"
+      title="Ulang semua foto?"
+      :message="restartConfirmMessage"
+      confirm-label="Ulang Semua"
+      @confirm="void confirmRestartSessionPhotos()"
+      @cancel="restartConfirmOpen = false"
+    />
 
     <div
       v-if="cameraPickerOpen"

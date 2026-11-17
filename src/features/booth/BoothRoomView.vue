@@ -74,6 +74,7 @@ import { ui } from '@/ui/styles'
 import CameraEffectCanvas from '@/components/common/CameraEffectCanvas.vue'
 import FaceTrackingOverlay from '@/components/common/FaceTrackingOverlay.vue'
 import StripCanvasPreview from '@/components/common/StripCanvasPreview.vue'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import VirtualBackgroundCanvas from '@/components/common/VirtualBackgroundCanvas.vue'
 import BoothDecorationPicker from './BoothDecorationPicker.vue'
 import BoothAudioControls from './BoothAudioControls.vue'
@@ -1339,6 +1340,9 @@ function retakeShot(index: number) {
   peerSession.startMoment(index, boothSetup.value.countdownMs)
 }
 
+const retakeAllConfirmOpen = ref(false)
+const retakeAllConfirmMessage = ref('')
+
 function retakeAll() {
   if (
     role.value !== 'host' ||
@@ -1349,13 +1353,13 @@ function retakeAll() {
   )
     return
   stopAutoCapture()
-  if (
-    !window.confirm(
-      `Ulang semua foto? ${capturedCount.value} foto akan dihapus untuk kedua peserta. Pengaturan sesi bisa diubah kembali; ruang dan audio tetap aktif.`,
-    )
-  ) {
-    return
-  }
+  retakeAllConfirmMessage.value = `${capturedCount.value} foto akan dihapus untuk kedua peserta. Pengaturan sesi bisa diubah kembali; ruang dan audio tetap aktif.`
+  retakeAllConfirmOpen.value = true
+}
+
+function confirmRetakeAll() {
+  retakeAllConfirmOpen.value = false
+  if (!peerSession) return
   peerSession.resetCapture()
   applyCaptureReset()
 }
@@ -2286,6 +2290,15 @@ onUnmounted(() => {
         </section>
       </template>
     </main>
+
+    <ConfirmDialog
+      :open="retakeAllConfirmOpen"
+      title="Ulang semua foto?"
+      :message="retakeAllConfirmMessage"
+      confirm-label="Ulang Semua"
+      @confirm="confirmRetakeAll"
+      @cancel="retakeAllConfirmOpen = false"
+    />
 
     <div
       v-if="showBackgroundErrorModal"
