@@ -22,7 +22,8 @@ watch(
   () => props.open,
   async (open) => {
     if (open) {
-      previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null
+      previouslyFocused =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null
       await nextTick()
       cancelButton.value?.focus()
     } else {
