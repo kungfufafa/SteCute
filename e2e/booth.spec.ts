@@ -2,11 +2,9 @@ import { expect, test, type Page } from '@playwright/test'
 import { startHostBooth } from './booth-flow'
 
 test.use({
-  baseURL: process.env.QA_BASE_URL ?? 'http://localhost:4173',
-  launchOptions: {
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
-  },
+  baseURL: process.env.QA_BASE_URL ?? 'http://127.0.0.1:4173',
 })
+
 
 function cta(page: Page, name: string) {
   return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
@@ -69,7 +67,8 @@ test.describe('Booth Bareng join paths', () => {
     }
   })
 
-  test('host sees a room code and invite URL after creating a booth', async ({ page }) => {
+  test('host sees a room code and invite URL after creating a booth', async ({ page, browserName }) => {
+    test.skip(browserName !== 'chromium', 'WebKit mock camera produces no frames; camera-ready UI needs Chromium fake video')
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
 
@@ -77,9 +76,12 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByRole('heading', { name: 'Foto Duet' })).toBeVisible()
     await expect(page.getByText(/hotspot|4G vs Wi-Fi kantor sering gagal/i)).toHaveCount(0)
     await expect(page.getByText(/Perangkat bisa beda jaringan/)).toBeVisible()
-    await expect(page.getByTestId('booth-hub-local-video')).toHaveClass(/scale-x-\[-1\]/, {
-      timeout: 15_000,
-    })
+// Selfie mirror only asserted on Chromium; WebKit's mock camera exposes no facing mode.
+    if (browserName === 'chromium') {
+      await expect(page.getByTestId('booth-hub-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+        timeout: 15_000,
+      })
+    }
     await expectSideBySideTiles(page, 'booth-hub-local-tile', 'booth-hub-remote-tile')
 
     await page.getByRole('button', { name: 'Buat Booth' }).click()
@@ -117,9 +119,12 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByTestId('booth-stage')).toBeVisible()
     await expect(page.getByTestId('booth-local-tile')).toContainText('Kamu')
     await expect(page.getByTestId('booth-remote-tile')).toContainText('Teman')
-    await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
-      timeout: 15_000,
-    })
+// Selfie mirror only asserted on Chromium; WebKit's mock camera exposes no facing mode.
+    if (browserName === 'chromium') {
+      await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+        timeout: 15_000,
+      })
+    }
     // No peer yet: remote facing mode is unknown, so the remote tile must not mirror.
     await expect(page.getByTestId('booth-remote-video')).not.toHaveClass(/scale-x-\[-1\]/)
     await expectSideBySideTiles(page)
@@ -167,7 +172,9 @@ test.describe('Booth Bareng join paths', () => {
 
   test('guest on a separate browser profile joins without a shared tab channel', async ({
     browser,
+    browserName,
   }) => {
+    test.skip(browserName !== 'chromium', 'WebKit mock camera produces no frames; camera-ready UI needs Chromium fake video')
     const hostContext = await browser.newContext()
     const guestContext = await browser.newContext()
     const host = await hostContext.newPage()
@@ -187,9 +194,12 @@ test.describe('Booth Bareng join paths', () => {
     await expect(host.getByRole('button', { name: 'Mulai pose' })).toBeVisible({ timeout: 15_000 })
     await expect(guest.getByText('Menunggu host', { exact: true })).toBeVisible({ timeout: 15_000 })
     // Guest uses a front (fake) camera: the host's remote tile mirrors per the REMOTE facing mode.
-    await expect(host.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/, {
-      timeout: 15_000,
-    })
+    // Chromium only: WebKit's mock camera exposes no facing mode.
+    if (browserName === 'chromium') {
+      await expect(host.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/, {
+        timeout: 15_000,
+      })
+    }
 
     await hostContext.close()
     await guestContext.close()
@@ -211,7 +221,7 @@ test.describe('Booth Bareng join paths', () => {
     await expect(guest.getByText('Booth tidak ditemukan')).toHaveCount(0)
   })
 
-  test('keeps Kamu and Teman side by side on a narrow phone viewport', async ({ page }) => {
+  test('keeps Kamu and Teman side by side on a narrow phone viewport', async ({ page, browserName }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/')
     await cta(page, 'Foto Duet').click()
@@ -219,9 +229,12 @@ test.describe('Booth Bareng join paths', () => {
     await startHostBooth(page)
 
     await expect(page.getByTestId('booth-stage')).toBeVisible()
-    await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
-      timeout: 15_000,
-    })
+// Selfie mirror only asserted on Chromium; WebKit's mock camera exposes no facing mode.
+    if (browserName === 'chromium') {
+      await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
+        timeout: 15_000,
+      })
+    }
     // No peer yet: remote facing mode is unknown, so the remote tile must not mirror.
     await expect(page.getByTestId('booth-remote-video')).not.toHaveClass(/scale-x-\[-1\]/)
     await expectSideBySideTiles(page)

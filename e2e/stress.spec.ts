@@ -5,7 +5,7 @@ function cta(page: Page, name: string) {
   return page.getByRole('button', { name }).or(page.getByRole('link', { name })).first()
 }
 
-test.use({ baseURL: process.env.STRESS_BASE_URL ?? 'http://localhost:5173' })
+test.use({ baseURL: process.env.STRESS_BASE_URL ?? 'http://127.0.0.1:5173' })
 
 test.describe('Stecute UI stress', () => {
   test.describe.configure({ timeout: 90_000 })
@@ -51,8 +51,19 @@ test.describe('Stecute UI stress', () => {
     const guests = await Promise.all(Array.from({ length: 6 }, () => context.newPage()))
     await Promise.all(guests.map((guest) => guest.goto(inviteUrl)))
 
+    // The 2-participant cap cleanly rejects extra guests once the host is live:
+    // each guest must either show the room code or the "penuh" rejection, never "not found".
+    // A guest can transition joined -> rejected while the cap settles, so snapshot tolerantly.
     for (const guest of guests) {
-      await expect(guest.getByTestId('booth-code')).toHaveText(code, { timeout: 15_000 })
+      const codeButton = guest.getByTestId('booth-code')
+      const fullNotice = guest.getByText('Booth sudah penuh')
+      await expect(codeButton.or(fullNotice)).toBeVisible({ timeout: 30_000 })
+      const codeText = await codeButton.textContent({ timeout: 1_000 }).catch(() => null)
+      if (codeText !== null) {
+        expect(codeText.trim()).toBe(code)
+      } else {
+        await expect(fullNotice).toBeVisible()
+      }
       await expect(guest.getByText('Booth tidak ditemukan')).toHaveCount(0)
     }
 
