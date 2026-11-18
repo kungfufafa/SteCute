@@ -3,7 +3,8 @@ import type { FaceBounds } from '@/services/face-tracking'
 const THUMBNAIL_URLS = {
   hearts: new URL('../../assets/camera-effects/thumbnails/hearts.png', import.meta.url).href,
   bluebirds: new URL('../../assets/camera-effects/thumbnails/bluebirds.png', import.meta.url).href,
-  'kicau-mania': new URL('../../assets/camera-effects/thumbnails/kicau-mania.png', import.meta.url).href,
+  'kicau-mania': new URL('../../assets/camera-effects/thumbnails/kicau-mania.png', import.meta.url)
+    .href,
   windut: new URL('../../assets/camera-effects/thumbnails/windut.png', import.meta.url).href,
 } as const
 
@@ -68,7 +69,7 @@ const KICAU_MANIA_SOURCE_LOOP_MS = KICAU_MANIA_FRAME_DURATIONS_MS.reduce(
 const WINDUT_FRAME_DURATION_MS = 100
 const WINDUT_DIZZY_ORBIT_COUNT = 2
 
-export interface CameraEffectConfig {
+interface CameraEffectConfig {
   id: string
   label: string
   shortLabel?: string
@@ -136,7 +137,7 @@ interface EffectMark {
   phase?: number
 }
 
-export type CameraEffectAssetKey =
+type CameraEffectAssetKey =
   | 'heart-small'
   | 'heart-medium'
   | 'heart-large'
@@ -155,9 +156,7 @@ export type CameraEffectAssetKey =
   | `kicau-mania-${number}`
   | `windut-${number}`
 
-export type PhotoBoothAssetKey = CameraEffectAssetKey
-
-export interface CameraEffectAsset {
+interface CameraEffectAsset {
   key: CameraEffectAssetKey
   url?: string
   loadUrl?: () => Promise<string>
@@ -223,7 +222,7 @@ export function isFaceTrackingEffect(effectId?: string | null): boolean {
   return effect.faceTracking === true
 }
 
-export function getCameraEffectLoopMs(effectId?: string | null): number {
+function getCameraEffectLoopMs(effectId?: string | null): number {
   return normalizeCameraEffectId(effectId) === 'windut'
     ? WINDUT_SOURCE_LOOP_MS
     : CAMERA_EFFECT_LOOP_MS
@@ -262,7 +261,7 @@ export function resolveFaceTrackingEffectFaces(
   return []
 }
 
-export function getCoverCropRect(
+function getCoverCropRect(
   sourceWidth: number,
   sourceHeight: number,
   targetWidth: number,
@@ -715,7 +714,7 @@ function drawHeartEcho(ctx: CameraEffectContext, size: number, opacity: number) 
  * Uses a simple heuristic: assumes a face is centered horizontally
  * in the upper third of the photo frame.
  */
-export function estimateFaceBoundsForStaticRender(width: number, height: number): FaceBounds[] {
+function estimateFaceBoundsForStaticRender(width: number, height: number): FaceBounds[] {
   const faceWidth = 0.35
   const faceHeight = faceWidth * (width / height) * 1.2
   return [

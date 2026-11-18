@@ -20,7 +20,7 @@ export const WORKER_MAX_PREVIEW_SIDE = 720
 export const WORKER_MIN_FRAME_INTERVAL_MS = 1000 / 15 // 15 fps (~66.6 ms)
 export const MAIN_THREAD_MAX_PREVIEW_SIDE = 480
 export const MAIN_THREAD_MIN_FRAME_INTERVAL_MS = 1000 / 10 // 10 fps (100 ms)
-export const WORKER_SEGMENT_TIMEOUT_MS = 1500
+const WORKER_SEGMENT_TIMEOUT_MS = 1500
 
 let imageSegmenter: ImageSegmenter | null = null
 let initPromise: Promise<ImageSegmenter | null> | null = null
@@ -141,7 +141,7 @@ function destroyWorker() {
   }
 }
 
-export async function ensurePersonSegmenter(): Promise<ImageSegmenter | null> {
+async function ensurePersonSegmenter(): Promise<ImageSegmenter | null> {
   if (imageSegmenter) return imageSegmenter
   if (initPromise) return initPromise
 

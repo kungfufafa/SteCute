@@ -1,6 +1,4 @@
-export type OutputAction = 'download' | 'save' | 'share' | 'print'
-
-export interface OutputCapabilities {
+interface OutputCapabilities {
   canDownload: boolean
   canSave: boolean
   canShare: boolean
@@ -97,7 +95,7 @@ export async function saveBlob(blob: Blob, filename: string): Promise<boolean> {
   }
 }
 
-export type ShareBlobResult = 'shared' | 'cancelled' | 'unsupported'
+type ShareBlobResult = 'shared' | 'cancelled' | 'unsupported'
 
 export async function shareBlob(blob: Blob, filename: string): Promise<ShareBlobResult> {
   if (!navigator.share) return 'unsupported'

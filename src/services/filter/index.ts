@@ -1,4 +1,4 @@
-export interface PhotoFilterConfig {
+interface PhotoFilterConfig {
   id: string
   label: string
   cssFilter: string

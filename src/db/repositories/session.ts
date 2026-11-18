@@ -16,10 +16,6 @@ export class SessionRepository {
     return db.sessions.get(id)
   }
 
-  async getRecent(limit: number = 20): Promise<Session[]> {
-    return db.sessions.orderBy('startedAt').reverse().limit(limit).toArray()
-  }
-
   async updateStatus(id: string, status: Session['status']): Promise<void> {
     await db.sessions.update(id, {
       status,

@@ -1,6 +1,6 @@
 export type PublicPageId = 'privacy' | 'terms' | 'faq' | 'about'
 
-export type PublicNavItem = {
+type PublicNavItem = {
   id: PublicPageId
   label: string
   path: string
@@ -34,7 +34,7 @@ export type PublicPage = {
   sections: (StandardSection | FaqSection)[]
 }
 
-export const supportEmail = 'developer@rizqis.com'
+const supportEmail = 'developer@rizqis.com'
 
 export const publicNavItems: PublicNavItem[] = [
   { id: 'privacy', label: 'Kebijakan Privasi', path: '/privacy' },

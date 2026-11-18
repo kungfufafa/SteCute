@@ -1,6 +1,6 @@
 export const BOOTH_AUTO_CAPTURE_GAP_MS = 800
 
-export type BoothAutoCaptureAction = 'start' | 'wait' | 'stop'
+type BoothAutoCaptureAction = 'start' | 'wait' | 'stop'
 
 export function nextBoothAutoCaptureAction(input: {
   enabled: boolean

@@ -8,7 +8,7 @@ const GUEST_CONNECT_TIMEOUT_MS = 20_000
 const GUEST_RETRY_DELAY_MS = 1_200
 const HOST_ID_RETRY_DELAY_MS = 1_000
 
-export function boothHostPeerId(normalizedCode: string): string {
+function boothHostPeerId(normalizedCode: string): string {
   return `stc-${normalizedCode.toLowerCase()}`
 }
 

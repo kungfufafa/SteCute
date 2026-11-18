@@ -48,7 +48,7 @@ export function createDefaultBoothSetup(): BoothSessionSetup {
   }
 }
 
-export function normalizeBoothCountdownMs(countdownMs?: number | null): number {
+function normalizeBoothCountdownMs(countdownMs?: number | null): number {
   const seconds = Math.round((countdownMs ?? DEFAULT_BOOTH_COUNTDOWN_SECONDS * 1000) / 1000)
   if ((BOOTH_COUNTDOWN_SECONDS as readonly number[]).includes(seconds)) {
     return seconds * 1000

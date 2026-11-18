@@ -45,16 +45,15 @@ Peta rute (`src/app/router/index.ts`):
 | `/` | Landing, tiga entri utama |
 | `/camera` | Preview + capture solo (pengaturan sesi inline) |
 | `/upload` | Upload foto lokal |
-| `/config` | Konfigurasi sesi lama (SessionConfigView) |
-| `/capture` | Capture legacy |
+| `/config` | Konfigurasi sesi (SessionConfigView) — entri dari landing |
+| `/capture` | Redirect lama → `/camera` |
 | `/review` | Review + retake per pose + dekorasi |
 | `/render` | Compositing strip |
 | `/output` | Aksi output (unduh/share/save/print/Live Cam) |
 | `/gallery` | Galeri lokal (retensi 10) |
 | `/booth` | Hub Duet (buat/gabung room) |
 | `/j/:code` | Join room Duet via kode |
-| `/reset` | Reset sesi — yatim, tidak ada navigasi ke sini |
-| `/privacyscreen` | Layar privasi |
+| `/privacyscreen` | Redirect lama → `/privacy` |
 | `/privacy`, `/terms`, `/faq`, `/about` | Halaman publik (SEO) |
 | `*` | Not found |
 
@@ -68,7 +67,7 @@ Peta rute (`src/app/router/index.ts`):
 6. `/output` — unduh ke perangkat, share/save bila didukung, print, unduh Live Cam.
 7. Hasil masuk galeri; sesi selesai.
 
-`/config` (SessionConfigView) dan `/capture` (capture-legacy) adalah rute konfigurasi/capture lama yang masih ada di router. Rute `/reset` terdaftar tetapi yatim — tidak ada navigasi ke sana.
+`/capture` → `/camera` dan `/privacyscreen` → `/privacy` adalah redirect kompatibilitas lama (terdaftar di `legacyNoindexPaths` SEO dan header noindex).
 
 ### 2.2 Upload lokal
 
@@ -220,7 +219,7 @@ src/
 ├── db/             # schema.ts (Dexie), blob.ts (fallback ArrayBuffer), repositories/
 ├── features/       # layar per fitur: landing, camera, upload, session-config,
 │                   # review, renderer, output, gallery, booth (hub+room),
-│                   # reset-session, public-info
+│                   # public-info
 ├── layouts/        # strip-2 / strip-3 / strip-4 / strip-6 (config statis)
 ├── services/       # logika non-UI: booth, camera, camera-effects, face-tracking,
 │                   # filter, live-cam, output, pwa, render, session, storage,
@@ -268,7 +267,7 @@ Tidak ada folder `services/cache`, `services/capability`, atau `features/countdo
 
 `public/`:
 
-- `icons/` — ikon PWA: `icon-192x192.png/.svg`, `icon-512x512.png/.svg`, `icon-512x512-maskable.png`, `apple-touch-icon.png`.
+- `icons/` — ikon PWA: `icon-192x192.png`, `icon-512x512.png`, `icon-512x512-maskable.png`, `apple-touch-icon.png`.
 - `images/` — preview strip template: `classic-strip-preview.webp`, `mono-strip-preview.webp`, `youth-strip-preview.webp`.
 - `vendor/mediapipe/` — WASM tasks-vision + model `blaze_face_short_range` (face detector) dan `selfie_segmenter` (float16, `.tflite`), semuanya lokal.
 - `favicon.svg`, `icons.svg`, `_headers`, `_redirects`, `netlify.toml`, `robots.txt`, `sitemap.xml`.

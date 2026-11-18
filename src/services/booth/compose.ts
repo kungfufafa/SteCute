@@ -4,7 +4,7 @@ import { decodePng, encodeRgbaPng, isPng, type RgbaImage } from './png'
 
 export const DEFAULT_PAIR_SLOT = { width: 1080, height: 810 } as const
 
-export type BoothFaceBounds = {
+type BoothFaceBounds = {
   x: number
   y: number
   width: number
@@ -59,7 +59,7 @@ export async function composePairRow(
   }
 }
 
-export async function decodeStill(blob: Blob): Promise<RgbaImage> {
+async function decodeStill(blob: Blob): Promise<RgbaImage> {
   const bytes = new Uint8Array(await blob.arrayBuffer())
 
   if (isPng(bytes)) {

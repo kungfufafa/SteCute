@@ -4,9 +4,9 @@ const PENDING_BOOTH_SETUP_KEY = 'stecute.pendingBoothSetup'
 const RETAKE_INDEX_KEY = 'stecute.retakeIndex'
 const CAMERA_FLOW_KEY = 'stecute.cameraFlow'
 
-export type PendingSessionSource = 'camera' | 'upload'
+type PendingSessionSource = 'camera' | 'upload'
 
-export type PendingCameraConfig = {
+type PendingCameraConfig = {
   layoutId: string
   templateId: string
   slotCount: number
@@ -15,16 +15,16 @@ export type PendingCameraConfig = {
   source?: PendingSessionSource
 }
 
-export type PendingSessionConfig = PendingCameraConfig & {
+type PendingSessionConfig = PendingCameraConfig & {
   source: PendingSessionSource
 }
 
-export type StoredCameraFlow = {
+type StoredCameraFlow = {
   countdownSeconds: number
   autoCapture: boolean
 }
 
-export type PendingBoothSetup = {
+type PendingBoothSetup = {
   code: string
   layoutId: string
   templateId: string
@@ -84,13 +84,6 @@ export function persistActiveSessionId(id: string | null): void {
   }
 }
 
-export function writePendingCameraConfig(config: PendingCameraConfig): void {
-  writePendingSessionConfig({
-    ...config,
-    source: config.source ?? 'camera',
-  })
-}
-
 export function writePendingSessionConfig(config: PendingSessionConfig): void {
   writeJson(PENDING_CAMERA_CONFIG_KEY, config)
 }
@@ -123,7 +116,9 @@ function parsePendingSessionConfig(
 export function readPendingSessionConfig(
   source: PendingSessionSource,
 ): PendingSessionConfig | null {
-  const parsed = parsePendingSessionConfig(readJson<PendingSessionConfig>(PENDING_CAMERA_CONFIG_KEY))
+  const parsed = parsePendingSessionConfig(
+    readJson<PendingSessionConfig>(PENDING_CAMERA_CONFIG_KEY),
+  )
   if (!parsed || parsed.source !== source) return null
   return parsed
 }
@@ -143,10 +138,6 @@ export function consumePendingSessionConfig(
 
   writeJson(PENDING_CAMERA_CONFIG_KEY, null)
   return parsed
-}
-
-export function consumePendingCameraConfig(): PendingCameraConfig | null {
-  return consumePendingSessionConfig('camera')
 }
 
 export function persistRetakeIndex(index: number | null): void {

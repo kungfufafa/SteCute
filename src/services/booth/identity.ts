@@ -1,8 +1,8 @@
-export const BOOTH_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-export const BOOTH_CODE_LENGTH = 6
-export const BOOTH_INVITE_PREFIX = '/j/'
-export const BOOTH_STORAGE_KEY = 'stecute.booth.rooms.v1'
-export const BOOTH_ROLE_STORAGE_PREFIX = 'stecute.booth.role'
+const BOOTH_CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+const BOOTH_CODE_LENGTH = 6
+const BOOTH_INVITE_PREFIX = '/j/'
+const BOOTH_STORAGE_KEY = 'stecute.booth.rooms.v1'
+const BOOTH_ROLE_STORAGE_PREFIX = 'stecute.booth.role'
 export const BOOTH_TTL_MS = 30 * 60 * 1000
 
 export type BoothIdentity = {
@@ -13,18 +13,15 @@ export type BoothIdentity = {
 
 export type BoothJoinError = 'missing' | 'malformed' | 'unknown'
 
-export type BoothJoinResult =
-  | { ok: true; identity: BoothIdentity }
-  | { ok: false; reason: BoothJoinError }
+type BoothJoinResult = { ok: true; identity: BoothIdentity } | { ok: false; reason: BoothJoinError }
 
-export interface BoothRegistry {
+interface BoothRegistry {
   save(identity: BoothIdentity): void
   findByNormalizedCode(normalized: string): BoothIdentity | undefined
 }
 
 type StoredBooth = BoothIdentity & { createdAt: number }
 
-let registryOverride: BoothRegistry | null = null
 let memoryFallback: BoothRegistry | null = null
 
 export function normalizeBoothCode(input: string | null | undefined): string | null {
@@ -38,7 +35,7 @@ export function normalizeBoothCode(input: string | null | undefined): string | n
   return normalized
 }
 
-export function formatBoothCode(normalized: string): string {
+function formatBoothCode(normalized: string): string {
   const code = normalizeBoothCode(normalized)
   if (!code) {
     throw new Error('Cannot format an invalid booth code.')
@@ -58,11 +55,11 @@ export function persistBoothHostRole(code: string): void {
   }
 }
 
-export function buildInvitePath(code: string): string {
+function buildInvitePath(code: string): string {
   return `${BOOTH_INVITE_PREFIX}${formatBoothCode(normalizeBoothCode(code) ?? code)}`
 }
 
-export function parseInviteCode(urlOrPath: string | null | undefined): string | null {
+function parseInviteCode(urlOrPath: string | null | undefined): string | null {
   if (urlOrPath == null) return null
 
   const trimmed = urlOrPath.trim()
@@ -151,18 +148,12 @@ export function createLocalStorageRegistry(storage: Storage): BoothRegistry {
 }
 
 export function getBoothRegistry(): BoothRegistry {
-  if (registryOverride) return registryOverride
-
   if (typeof localStorage !== 'undefined') {
     return createLocalStorageRegistry(localStorage)
   }
 
   memoryFallback ??= createMemoryRegistry()
   return memoryFallback
-}
-
-export function setBoothRegistry(registry: BoothRegistry | null) {
-  registryOverride = registry
 }
 
 export function createBooth(
@@ -186,7 +177,7 @@ export function createBooth(
   return identity
 }
 
-export function identityFromNormalizedCode(normalized: string): BoothIdentity {
+function identityFromNormalizedCode(normalized: string): BoothIdentity {
   return {
     boothId: `booth-${normalized}`,
     code: formatBoothCode(normalized),

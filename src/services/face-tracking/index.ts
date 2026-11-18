@@ -11,7 +11,7 @@ export interface FaceBounds {
   height: number
 }
 
-export interface FaceTrackingResult {
+interface FaceTrackingResult {
   faces: FaceBounds[]
   timestamp: number
 }

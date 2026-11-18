@@ -1,13 +1,13 @@
 import { readBlobAsArrayBuffer } from '@/utils/blob'
 import { openHiddenFilePicker } from '@/utils/file-picker'
 
-export interface UploadConstraints {
+interface UploadConstraints {
   maxFileSize: number // bytes
   maxFiles: number
   acceptedTypes: string[]
 }
 
-export const DEFAULT_UPLOAD_CONSTRAINTS: UploadConstraints = {
+const DEFAULT_UPLOAD_CONSTRAINTS: UploadConstraints = {
   maxFileSize: 10 * 1024 * 1024, // 10 MB
   maxFiles: 6,
   acceptedTypes: ['image/jpeg', 'image/png', 'image/webp'],
@@ -17,7 +17,10 @@ const ACCEPTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp']
 const JPEG_MIME_ALIASES = new Set(['image/jpeg', 'image/jpg', 'image/pjpeg'])
 
 export function isAcceptedUploadType(file: Pick<File, 'name' | 'type'>): boolean {
-  if (DEFAULT_UPLOAD_CONSTRAINTS.acceptedTypes.includes(file.type) || JPEG_MIME_ALIASES.has(file.type)) {
+  if (
+    DEFAULT_UPLOAD_CONSTRAINTS.acceptedTypes.includes(file.type) ||
+    JPEG_MIME_ALIASES.has(file.type)
+  ) {
     return true
   }
 
@@ -29,7 +32,7 @@ const HEADER_READ_BYTES = 256 * 1024
 const DEFAULT_ADJUSTED_IMAGE_TYPE = 'image/jpeg'
 const DEFAULT_ADJUSTED_IMAGE_QUALITY = 0.92
 
-export interface ValidationResult {
+interface ValidationResult {
   valid: boolean
   errors: string[]
 }
@@ -41,7 +44,7 @@ export interface UploadImageAdjustment {
   offsetY: number
 }
 
-export interface AdjustedImageOptions {
+interface AdjustedImageOptions {
   targetWidth: number
   targetHeight: number
   adjustment: UploadImageAdjustment
@@ -49,7 +52,7 @@ export interface AdjustedImageOptions {
   quality?: number
 }
 
-export interface CropRect {
+interface CropRect {
   sx: number
   sy: number
   sw: number
@@ -63,7 +66,7 @@ interface DecodedUploadImage {
   cleanup: () => void
 }
 
-export const DEFAULT_UPLOAD_IMAGE_ADJUSTMENT: UploadImageAdjustment = {
+const DEFAULT_UPLOAD_IMAGE_ADJUSTMENT: UploadImageAdjustment = {
   fit: 'cover',
   zoom: 1,
   offsetX: 0,
@@ -163,14 +166,6 @@ async function getImageDimensionsFromDecode(
   }
 
   return null
-}
-
-export async function createStoredImageBlob(file: File): Promise<Blob> {
-  try {
-    return new Blob([await readBlobAsArrayBuffer(file)], { type: file.type })
-  } catch {
-    return file.slice(0, file.size, file.type)
-  }
 }
 
 export function clampUploadImageAdjustment(
@@ -583,30 +578,5 @@ export function openImagePicker(multiple: boolean = true): Promise<FileList | nu
   return openHiddenFilePicker({
     accept: 'image/jpeg,image/jpg,image/png,image/webp,.jpg,.jpeg,.png,.webp',
     multiple,
-  })
-}
-
-export function loadImageAsBitmap(
-  file: File,
-): Promise<{ bitmap: ImageBitmap; width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file)
-    const img = new Image()
-    img.onload = () => {
-      createImageBitmap(img)
-        .then((bitmap) => {
-          URL.revokeObjectURL(url)
-          resolve({ bitmap, width: img.naturalWidth, height: img.naturalHeight })
-        })
-        .catch((err) => {
-          URL.revokeObjectURL(url)
-          reject(err)
-        })
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error(`Failed to load image: ${file.name}`))
-    }
-    img.src = url
   })
 }

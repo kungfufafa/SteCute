@@ -7,16 +7,6 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(i > 0 ? 1 : 0)} ${units[i]}`
 }
 
-export function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(timestamp))
-}
-
 export function formatGalleryDate(timestamp: number): string {
   const date = new Date(timestamp)
   const time = new Intl.DateTimeFormat('id-ID', {

@@ -34,7 +34,7 @@ export function shouldNotifyBackgroundStatus(options: {
   return Boolean(options.errorChanged)
 }
 
-export interface CameraBackgroundProcessorOptions {
+interface CameraBackgroundProcessorOptions {
   video: HTMLVideoElement
   rawStream?: MediaStream | null
   mirrored?: boolean
