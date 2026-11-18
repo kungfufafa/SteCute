@@ -1,45 +1,20 @@
 # Stecute Docs Index
 
-Dokumentasi utama proyek Stecute ada di folder ini. Paket dokumen ini sudah disusun untuk saling melengkapi dari level produk sampai readiness rilis.
+Dokumentasi proyek sengaja dijaga minimal: satu spesifikasi, satu prototype.
 
-## Urutan baca yang disarankan
+## Isi folder
 
-1. [stecute-prd.md](./stecute-prd.md)
-2. [stecute-technical-design.md](./stecute-technical-design.md)
-3. [stecute-production-spec.md](./stecute-production-spec.md)
-4. [stecute-asset-spec.md](./stecute-asset-spec.md)
-5. [stecute-release-checklist.md](./stecute-release-checklist.md)
-6. [stecute-qa-findings.md](./stecute-qa-findings.md)
-7. [stecute-prototype.html](./stecute-prototype.html)
+- [stecute-spec.md](./stecute-spec.md) — **satu-satunya sumber kebenaran tertulis**: produk, alur inti, aturan fungsional yang benar-benar diimplementasikan, arsitektur teknis, inventaris aset, dan roadmap yang belum dibangun.
+- [stecute-prototype.html](./stecute-prototype.html) — referensi visual UI. Bukan sumber kebenaran perilaku; spec menang bila berbeda.
 
-## Fungsi tiap dokumen
+## Konvensi drift report
 
-- [stecute-prd.md](./stecute-prd.md): definisi produk, scope fitur, journey, requirement, dan prioritas rilis.
-- [stecute-technical-design.md](./stecute-technical-design.md): arsitektur teknis, data model, offline strategy, security, testing, dan deployment.
-- [stecute-production-spec.md](./stecute-production-spec.md): keputusan final lintas fungsi agar implementasi bisa diarahkan ke production-ready.
-- [stecute-asset-spec.md](./stecute-asset-spec.md): inventory asset, format, budget ukuran, bundling offline, dan aturan lisensi.
-- [stecute-release-checklist.md](./stecute-release-checklist.md): checklist go/no-go sebelum rilis.
-- [stecute-qa-findings.md](./stecute-qa-findings.md): catatan hasil QA real browser dan status perbaikan.
-- [stecute-prototype.html](./stecute-prototype.html): referensi visual dan flow UI.
-- [stecute-user-flow.md](./stecute-user-flow.md): rancangan UX target Solo/Duet, diagram alur, kesetaraan fitur, koordinasi peserta, dan recovery. Belum diimplementasikan; perluasan dari baseline ditandai eksplisit.
+- Audit docs-vs-code menghasilkan file `YYYY-MM-DD_DRIFT_REPORT.md` di root repo (mis. `2026-11-18_DRIFT_REPORT.md`).
+- Report adalah artefak audit bertanggal, bukan dokumen living; jangan dijadikan acuan implementasi jangka panjang.
+- Setelah temuan audit dibereskan (kode atau spec diperbaiki), update `stecute-spec.md` agar kembali mencerminkan realitas kode.
 
-## Source of truth
+## Aturan main
 
-- Produk: [stecute-prd.md](./stecute-prd.md)
-- Engineering: [stecute-technical-design.md](./stecute-technical-design.md)
-- Production decisions: [stecute-production-spec.md](./stecute-production-spec.md)
-- Asset rules: [stecute-asset-spec.md](./stecute-asset-spec.md)
-- Release gate: [stecute-release-checklist.md](./stecute-release-checklist.md)
-
-## Status saat ini
-
-- Baseline dokumentasi sudah siap untuk implementasi production-ready.
-- Scope v1 sudah dikunci.
-- Asset baseline sudah didefinisikan.
-- Prototype sudah diselaraskan dengan keputusan v1.
-- Rancangan penyederhanaan Solo/Duet terbaru ada di [stecute-user-flow.md](./stecute-user-flow.md). Status target dan selisih implementasi dicatat di sana; baseline produksi dan prototype belum mencerminkan seluruh rancangan tersebut.
-
-## Catatan penggunaan
-
-- Jika ada konflik antar dokumen, prioritaskan dokumen yang lebih spesifik untuk domainnya.
-- Jika ada perubahan produk atau teknis, update dokumen terkait dan pertahankan konsistensi silang.
+- Perubahan perilaku produk/teknis → update `stecute-spec.md` di perubahan yang sama.
+- Jangan menambah dokumen spekulatif baru; masukkan rancangan yang belum dibangun ke bagian Roadmap di spec.
+- Jika spec dan kode berbeda, kode adalah realitas — perbaiki spec (atau kodenya bila itu bug), dan catat lewat drift report berikutnya.
