@@ -5,7 +5,13 @@ import type { Shot } from '@/db/schema'
 import { getLayoutById } from '@/layouts'
 import { getTemplateById } from '@/templates'
 import { useCameraStore } from '@/app/store/useCameraStore'
-import { captureCoverFrame, initCamera, shouldMirrorCamera, stopCamera } from '@/services/camera'
+import {
+  captureCoverFrame,
+  initCamera,
+  shouldMirrorCamera,
+  stopCamera,
+  type CameraFacingMode,
+} from '@/services/camera'
 import {
   isLiveStripRenderingSupported,
   startPairLiveCamRecording,
@@ -112,6 +118,7 @@ const copyNotice = ref('')
 const cameraLive = ref(false)
 const localVideoReady = ref(false)
 const remoteCameraReady = ref(false)
+const remoteFacingMode = ref<CameraFacingMode>('unknown')
 const capturePhase = ref<BoothCapturePhase>('idle')
 const videoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
@@ -266,6 +273,7 @@ const canStart = computed(
 const localTileLabel = computed(() => 'Kamu')
 const remoteTileLabel = computed(() => 'Teman')
 const shouldMirrorLocalCamera = computed(() => shouldMirrorCamera(cameraStore.activeFacingMode))
+const shouldMirrorRemoteCamera = computed(() => shouldMirrorCamera(remoteFacingMode.value))
 
 const activeLayout = computed(() => getLayoutById(boothSetup.value.layoutId))
 const activeTemplate = computed(() => getTemplateById(boothSetup.value.templateId))
@@ -840,6 +848,13 @@ watch(cameraReady, (ready) => {
     peerSession?.cancelMoment(currentMoment.value, 'camera_unavailable')
 })
 
+watch(
+  () => cameraStore.activeFacingMode,
+  (facingMode) => {
+    peerSession?.setCameraFacingMode(facingMode)
+  },
+)
+
 function stopRemoteReadyPoll() {
   if (!remoteReadyTimer) return
   clearInterval(remoteReadyTimer)
@@ -1021,7 +1036,7 @@ function startBoothLiveCamClip() {
       height: pairSlot.height,
       localOnLeft: role.value === 'host',
       localMirrored: shouldMirrorLocalCamera.value,
-      remoteMirrored: shouldMirrorLocalCamera.value,
+      remoteMirrored: shouldMirrorRemoteCamera.value,
     })
     liveCamRecordingActive.value = Boolean(activeLiveCamRecording)
     liveCamAvailable.value = liveCamRecordingActive.value || liveCamAvailable.value
@@ -1371,6 +1386,7 @@ function disposeSession() {
   activeCaptureId = null
   capturePhase.value = 'idle'
   remoteCameraReady.value = false
+  remoteFacingMode.value = 'unknown'
   stopCountdown()
   finishCountdownWaiter()
   stopAutoCapture()
@@ -1568,6 +1584,7 @@ function updatePresenceStatus(nextRole: BoothPeerRole) {
     participantCount.value = 1
   }
   remoteCameraReady.value = peerSession.getRemoteCameraReady()
+  remoteFacingMode.value = peerSession.getRemoteCameraFacingMode()
   refreshLocalVideoReady()
 
   if (rendering.value || stage.value === 'output') return
@@ -1642,6 +1659,7 @@ async function connectSession(next: BoothIdentity, nextRole: BoothPeerRole) {
       setup: boothSetup.value,
     })
     peerSession.setCameraReady(cameraReady.value)
+    peerSession.setCameraFacingMode(cameraStore.activeFacingMode)
     listenForRemoteCountdown(peerSession)
     listenForRemoteSetup(peerSession)
     listenForRemoteReset(peerSession)
@@ -1958,7 +1976,7 @@ onUnmounted(() => {
               </div>
               <div class="grid h-full grid-cols-2">
                 <article
-                  class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
+                  class="bg-stc-dark relative min-h-0 min-w-0 overflow-hidden"
                   :class="role === 'host' ? 'order-1' : 'order-2'"
                   data-testid="booth-local-tile"
                 >
@@ -2006,7 +2024,7 @@ onUnmounted(() => {
                   />
                   <div
                     v-if="!cameraReady"
-                    class="absolute inset-0 flex items-center justify-center bg-stc-dark px-3 text-center"
+                    class="bg-stc-dark absolute inset-0 flex items-center justify-center px-3 text-center"
                   >
                     <p class="text-xs font-medium text-white/80">
                       {{ cameraError || 'Izinkan kamera dan mikrofon' }}
@@ -2020,14 +2038,14 @@ onUnmounted(() => {
                 </article>
 
                 <article
-                  class="relative min-h-0 min-w-0 overflow-hidden bg-stc-dark"
+                  class="bg-stc-dark relative min-h-0 min-w-0 overflow-hidden"
                   :class="role === 'host' ? 'order-2' : 'order-1'"
                   data-testid="booth-remote-tile"
                 >
                   <video
                     ref="remoteVideoRef"
                     class="absolute inset-0 h-full w-full object-cover"
-                    :class="shouldMirrorLocalCamera ? 'scale-x-[-1]' : ''"
+                    :class="shouldMirrorRemoteCamera ? 'scale-x-[-1]' : ''"
                     data-testid="booth-remote-video"
                     autoplay
                     :muted="remotePlaybackMuted"
@@ -2039,7 +2057,7 @@ onUnmounted(() => {
                   />
                   <div
                     v-if="!friendJoined || !remoteVideoReady"
-                    class="absolute inset-0 z-10 flex items-center justify-center bg-stc-dark/70"
+                    class="bg-stc-dark/70 absolute inset-0 z-10 flex items-center justify-center"
                   >
                     <p class="text-xs font-medium text-white/80">Menunggu</p>
                   </div>
@@ -2305,7 +2323,7 @@ onUnmounted(() => {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
     >
       <div
-        class="w-full max-w-sm rounded-lg border border-stc-border bg-white p-6 text-center shadow-stc-md"
+        class="border-stc-border shadow-stc-md w-full max-w-sm rounded-lg border bg-white p-6 text-center"
       >
         <div :class="[ui.statusIcon, 'bg-stc-error-soft text-stc-error']">
           <svg

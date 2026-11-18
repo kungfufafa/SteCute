@@ -120,7 +120,8 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
       timeout: 15_000,
     })
-    await expect(page.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/)
+    // No peer yet: remote facing mode is unknown, so the remote tile must not mirror.
+    await expect(page.getByTestId('booth-remote-video')).not.toHaveClass(/scale-x-\[-1\]/)
     await expectSideBySideTiles(page)
     await expect(page.getByText('Host', { exact: true })).toBeVisible()
     await expect(page.getByTestId('booth-remote-tile')).not.toContainText('Menunggu teman gabung')
@@ -185,6 +186,10 @@ test.describe('Booth Bareng join paths', () => {
     await expect(guest.getByTestId('booth-code')).toHaveText(roomCode)
     await expect(host.getByRole('button', { name: 'Mulai pose' })).toBeVisible({ timeout: 15_000 })
     await expect(guest.getByText('Menunggu host', { exact: true })).toBeVisible({ timeout: 15_000 })
+    // Guest uses a front (fake) camera: the host's remote tile mirrors per the REMOTE facing mode.
+    await expect(host.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/, {
+      timeout: 15_000,
+    })
 
     await hostContext.close()
     await guestContext.close()
@@ -217,7 +222,8 @@ test.describe('Booth Bareng join paths', () => {
     await expect(page.getByTestId('booth-local-video')).toHaveClass(/scale-x-\[-1\]/, {
       timeout: 15_000,
     })
-    await expect(page.getByTestId('booth-remote-video')).toHaveClass(/scale-x-\[-1\]/)
+    // No peer yet: remote facing mode is unknown, so the remote tile must not mirror.
+    await expect(page.getByTestId('booth-remote-video')).not.toHaveClass(/scale-x-\[-1\]/)
     await expectSideBySideTiles(page)
   })
 })

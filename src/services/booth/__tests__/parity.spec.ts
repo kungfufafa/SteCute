@@ -42,16 +42,19 @@ describe('booth bundled strip parity', () => {
     expect(source).toContain('shouldMirrorCamera')
     expect(source).toContain('grid-cols-2')
     expect(source).not.toContain('grid-rows-2')
-    expect(source.match(/shouldMirrorLocalCamera \? 'scale-x-\[-1\]' : ''/g)).toHaveLength(2)
+    expect(source.match(/shouldMirrorLocalCamera \? 'scale-x-\[-1\]' : ''/g)).toHaveLength(1)
+    expect(source.match(/shouldMirrorRemoteCamera \? 'scale-x-\[-1\]' : ''/g)).toHaveLength(1)
     expect(source).toContain('data-testid="booth-local-video"')
     expect(source).toContain('data-testid="booth-remote-video"')
     expect(source).toContain('initCamera({ audio: true })')
     expect(source).toContain('composeBoothMediaStream')
     expect(source).toContain(':muted="remotePlaybackMuted"')
     expect(source).toContain('data-testid="booth-remote-audio-unlock"')
-    expect(source).toContain('remoteMirrored: shouldMirrorLocalCamera.value')
+    expect(source).toContain('remoteMirrored: shouldMirrorRemoteCamera.value')
     expect(source).toContain('localMirrored: shouldMirrorLocalCamera.value')
     expect(source).toContain(':mirrored="shouldMirrorLocalCamera"')
+    expect(source).toContain('setCameraFacingMode(cameraStore.activeFacingMode)')
+    expect(source).toContain('getRemoteCameraFacingMode()')
     expect(source).not.toContain('localMirrored: isBgActive ? false')
 
     const hub = readFileSync(
@@ -246,7 +249,8 @@ describe('booth bundled strip parity', () => {
 
     host.dispose()
     guest.dispose()
-  })
+    // Software-renders two full 4-slot strips; 5s default flakes under parallel CPU load.
+  }, 20_000)
 
   it('replaces one composed moment on per-shot retake and re-renders a different strip', async () => {
     const setup = normalizeBoothSetup({

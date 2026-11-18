@@ -1,3 +1,4 @@
+import type { CameraFacingMode } from '@/services/camera'
 import { composePairRow, type BoothStill, type ComposedPairShot } from './compose'
 import { normalizeBoothSetup, pairSlotForLayout, type BoothSessionSetup } from './setup'
 import type { BoothPeerRole, BoothTransport, BoothWireMessage } from './transport'
@@ -24,6 +25,8 @@ export type BoothPeerSession = {
   isCaptureActive(momentIndex: number, captureId: string): boolean
   setCameraReady(ready: boolean): void
   getRemoteCameraReady(): boolean
+  setCameraFacingMode(facingMode: CameraFacingMode): void
+  getRemoteCameraFacingMode(): CameraFacingMode
   waitForCountdown(momentIndex: number): Promise<number>
   waitForStart(): Promise<BoothStartEvent>
   waitForSetup(): Promise<BoothSessionSetup>
@@ -130,6 +133,8 @@ export function createBoothPeerSession(options: {
   let remotePeerId: string | null = null
   let localCameraReady = false
   let remoteCameraReady = false
+  let localFacingMode: CameraFacingMode = 'unknown'
+  let remoteFacingMode: CameraFacingMode = 'unknown'
   let remoteRole: BoothPeerRole | null = null
   let lastRemoteAt = 0
   let rejectedReason: 'full' | null = null
@@ -191,6 +196,7 @@ export function createBoothPeerSession(options: {
       if (message.peerId === remotePeerId) {
         remotePeerId = null
         remoteCameraReady = false
+        remoteFacingMode = 'unknown'
         remoteRole = null
         lastRemoteAt = 0
       }
@@ -212,13 +218,17 @@ export function createBoothPeerSession(options: {
         return
       }
       const isNewRemote = remotePeerId !== message.peerId
-      if (isNewRemote) remoteCameraReady = false
+      if (isNewRemote) {
+        remoteCameraReady = false
+        remoteFacingMode = 'unknown'
+      }
       remotePeerId = message.peerId
       remoteRole = message.role === 'host' || message.role === 'guest' ? message.role : remoteRole
       lastRemoteAt = Date.now()
       if (message.type === 'hello') {
         options.transport.send({ type: 'welcome', peerId: options.peerId, role: options.role })
         publishCameraReady()
+        publishCameraFacing()
         if (isNewRemote) {
           replaySetup()
           replayStartedMoments()
@@ -230,6 +240,16 @@ export function createBoothPeerSession(options: {
     if (message.type === 'camera-ready') {
       if (message.peerId !== remotePeerId) return
       remoteCameraReady = message.ready
+      lastRemoteAt = Date.now()
+      return
+    }
+
+    if (message.type === 'camera-facing') {
+      if (message.peerId !== remotePeerId) return
+      remoteFacingMode =
+        message.facingMode === 'user' || message.facingMode === 'environment'
+          ? message.facingMode
+          : 'unknown'
       lastRemoteAt = Date.now()
       return
     }
@@ -451,6 +471,14 @@ export function createBoothPeerSession(options: {
       type: 'camera-ready',
       peerId: options.peerId,
       ready: localCameraReady,
+    })
+  }
+
+  function publishCameraFacing() {
+    options.transport.send({
+      type: 'camera-facing',
+      peerId: options.peerId,
+      facingMode: localFacingMode,
     })
   }
 
@@ -1011,6 +1039,7 @@ export function createBoothPeerSession(options: {
       if (remotePeerId && lastRemoteAt > 0 && Date.now() - lastRemoteAt > REMOTE_TIMEOUT_MS) {
         remotePeerId = null
         remoteCameraReady = false
+        remoteFacingMode = 'unknown'
         remoteRole = null
       }
       return remotePeerId
@@ -1022,6 +1051,7 @@ export function createBoothPeerSession(options: {
       if (disposed) return
       options.transport.send({ type: 'hello', peerId: options.peerId, role: options.role })
       publishCameraReady()
+      publishCameraFacing()
     },
     isCaptureActive,
     setCameraReady(ready) {
@@ -1031,6 +1061,14 @@ export function createBoothPeerSession(options: {
     },
     getRemoteCameraReady() {
       return Boolean(session.getRemotePeerId()) && remoteCameraReady
+    },
+    setCameraFacingMode(facingMode) {
+      if (disposed) return
+      localFacingMode = facingMode
+      publishCameraFacing()
+    },
+    getRemoteCameraFacingMode() {
+      return session.getRemotePeerId() ? remoteFacingMode : 'unknown'
     },
     dispose() {
       if (!disposed) {
