@@ -182,7 +182,7 @@ export interface AssetRecord {
   updatedAt: number
 }
 
-export interface EventPreset {
+interface EventPreset {
   id: string
   name: string
   layoutId: string

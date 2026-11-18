@@ -22,7 +22,7 @@ export interface VirtualBackgroundSpec {
   customImage?: RgbaFrame | null
 }
 
-export interface ComposeVirtualBackgroundOptions {
+interface ComposeVirtualBackgroundOptions {
   blurRadius?: number
 }
 
@@ -46,7 +46,9 @@ export function composeVirtualBackground(
   const personLookup = buildPersonLookup(mask)
   const blurRadius = Math.max(1, Math.round(options.blurRadius ?? DEFAULT_BLUR_RADIUS))
   const blurred =
-    background.mode === 'blur' ? boxBlur(source.data, source.width, source.height, blurRadius) : null
+    background.mode === 'blur'
+      ? boxBlur(source.data, source.width, source.height, blurRadius)
+      : null
 
   for (let y = 0; y < source.height; y++) {
     for (let x = 0; x < source.width; x++) {

@@ -1,6 +1,6 @@
 import { db } from '@/db/schema'
 
-export const STORAGE_SOFT_WARNING_BYTES = 70 * 1024 * 1024
+const STORAGE_SOFT_WARNING_BYTES = 70 * 1024 * 1024
 const STORAGE_QUOTA_WARNING_RATIO = 0.8
 
 export interface StorageState {
@@ -78,7 +78,7 @@ export async function requestPersistentStorage(): Promise<boolean | null> {
   }
 }
 
-export async function clearApplicationCaches(): Promise<void> {
+async function clearApplicationCaches(): Promise<void> {
   if (!('caches' in globalThis)) return
 
   const cacheKeys = await caches.keys()

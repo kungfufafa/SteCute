@@ -27,9 +27,5 @@ Jika IP Wi-Fi berubah, jalankan ulang `npm run dev:https`; sertifikat server aka
 
 Dokumen utama:
 
-- [PRD](./docs/stecute-prd.md)
-- [Technical Design](./docs/stecute-technical-design.md)
-- [Production Spec](./docs/stecute-production-spec.md)
-- [Asset Spec](./docs/stecute-asset-spec.md)
-- [Release Checklist](./docs/stecute-release-checklist.md)
+- [Spec tunggal (produk + teknis)](./docs/stecute-spec.md)
 - [Prototype](./docs/stecute-prototype.html)

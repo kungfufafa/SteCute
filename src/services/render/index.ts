@@ -19,7 +19,7 @@ import { getPhotoFilterCanvas } from '@/services/filter'
 import { getShotForSlot } from '@/services/render/shots'
 import { loadTemplateAssetBlob } from '@/services/template-upload'
 
-export interface RenderJob {
+interface RenderJob {
   layout: LayoutConfig
   template: TemplateConfig
   shots: Shot[]
@@ -28,7 +28,7 @@ export interface RenderJob {
   quality?: number
 }
 
-export interface RenderResult {
+interface RenderResult {
   blob: Blob
   width: number
   height: number
@@ -390,7 +390,12 @@ async function drawBlankoImage(
   }
 
   const image = await decodeImageBlob(blob)
-  drawImageFit(ctx, image, { x: 0, y: 0, width, height, radius: 0 }, template.blanko.imageFit ?? 'cover')
+  drawImageFit(
+    ctx,
+    image,
+    { x: 0, y: 0, width, height, radius: 0 },
+    template.blanko.imageFit ?? 'cover',
+  )
   image.close?.()
 }
 

@@ -15,7 +15,7 @@ import { renderLiveStrip } from '@/services/live-cam'
 import { renderStrip } from '@/services/render'
 import { getStorageErrorMessage } from '@/services/storage'
 
-export interface SessionFlowConfig {
+interface SessionFlowConfig {
   layoutId: string
   templateId: string
   slotCount: number
@@ -28,7 +28,7 @@ const shotRepo = new ShotRepository()
 const renderRepo = new RenderRepository()
 const assetRepo = new AssetRepository()
 
-export interface SessionSnapshot {
+interface SessionSnapshot {
   session: Session
   shots: Shot[]
 }
@@ -77,7 +77,7 @@ function sessionMatchesFlow(session: Session, config: SessionFlowConfig): boolea
   )
 }
 
-export async function createSession(config: SessionFlowConfig): Promise<string> {
+async function createSession(config: SessionFlowConfig): Promise<string> {
   return sessionRepo.create({
     status: 'idle',
     captureSource: config.captureSource,
@@ -206,25 +206,6 @@ export async function getReviewSessionSnapshot(
   return null
 }
 
-export async function getLatestIncompleteCameraSnapshot(): Promise<SessionSnapshot | null> {
-  const sessions = await sessionRepo.getRecent()
-
-  for (const session of sessions) {
-    if (session.captureSource !== 'camera') continue
-    if (session.status === 'discarded' || session.status === 'completed' || session.finalRenderId) {
-      continue
-    }
-
-    const shots = await getSessionShots(session.id)
-
-    if (shots.length > 0 && !isSessionComplete(shots, session.slotCount)) {
-      return { session, shots }
-    }
-  }
-
-  return null
-}
-
 export async function abandonIncompleteSession(sessionId: string | null): Promise<void> {
   if (!sessionId) return
 
@@ -256,11 +237,7 @@ export async function getSessionBackgroundAsset(assetId: string): Promise<Blob |
   return assetRepo.getSessionBackgroundAsset(assetId)
 }
 
-export async function deleteSessionBackgroundAssets(sessionId: string): Promise<void> {
-  await assetRepo.deleteBySessionId(sessionId)
-}
-
-export interface SessionRenderParams {
+interface SessionRenderParams {
   sessionId: string
   // Duet already owns its composed snapshots in memory; rendering must not require
   // storing a second copy of every source image first.
@@ -455,13 +432,6 @@ async function createSessionOutput(params: SessionRenderParams): Promise<Session
 
   assertActive()
   return { render, persisted: true, storageWarning }
-}
-
-// Compatibility for callers that explicitly require a persisted render ID.
-export async function renderAndStoreSession(params: SessionRenderParams): Promise<string> {
-  const output = await renderSessionForOutput(params)
-  if (!output.persisted) throw new Error(output.storageWarning ?? 'Gagal menyimpan hasil.')
-  return output.render.id
 }
 
 export async function getRenderById(renderId: string): Promise<Render | null> {

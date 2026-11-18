@@ -1,4 +1,4 @@
-export type BoothIceServer = {
+type BoothIceServer = {
   urls: string | string[]
   username?: string
   credential?: string

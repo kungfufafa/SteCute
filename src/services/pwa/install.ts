@@ -8,7 +8,7 @@ interface BeforeInstallPromptEvent extends Event {
   }>
 }
 
-export interface PwaInstallState {
+interface PwaInstallState {
   installPromptAvailable: boolean
   installedMode: boolean
 }
@@ -22,7 +22,7 @@ function isIosStandalone() {
   return Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
 }
 
-export function isInstalledPwaMode() {
+function isInstalledPwaMode() {
   if (typeof window.matchMedia !== 'function') return isIosStandalone()
   return window.matchMedia('(display-mode: standalone)').matches || isIosStandalone()
 }

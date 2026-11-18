@@ -2,7 +2,7 @@ import { isAcceptedUploadType } from '@/services/upload'
 
 export const CUSTOM_BACKGROUND_MAX_BYTES = 10 * 1024 * 1024
 
-export type VirtualBackgroundMode = 'off' | 'color' | 'blur' | 'custom'
+type VirtualBackgroundMode = 'off' | 'color' | 'blur' | 'custom'
 
 export interface VirtualBackgroundConfig {
   id: string
@@ -89,14 +89,12 @@ const BACKGROUND_BY_ID = new Map(
   VIRTUAL_BACKGROUNDS.map((background) => [background.id, background]),
 )
 
-export interface CustomBackgroundValidation {
+interface CustomBackgroundValidation {
   valid: boolean
   errors: string[]
 }
 
-export function getVirtualBackgroundById(
-  backgroundId?: string | null,
-): VirtualBackgroundConfig {
+export function getVirtualBackgroundById(backgroundId?: string | null): VirtualBackgroundConfig {
   return BACKGROUND_BY_ID.get(backgroundId ?? '') ?? VIRTUAL_BACKGROUNDS[0]
 }
 

@@ -18,35 +18,26 @@ Current stack:
 
 Current repository status:
 
-- Product and technical documentation are substantially more complete than the current app implementation.
-- The `src/` app is still close to scaffold level and should not be treated as feature-complete.
-- The canonical product and technical direction lives in `docs/`.
+- The canonical product and technical source of truth is `docs/stecute-spec.md`.
+- The spec documents implemented behavior; unbuilt designs live only in its Roadmap section.
 
 ## Source Of Truth
 
 Read these in order before making substantial changes:
 
 1. `docs/README.md`
-2. `docs/stecute-prd.md`
-3. `docs/stecute-technical-design.md`
-4. `docs/stecute-production-spec.md`
-5. `docs/stecute-asset-spec.md`
-6. `docs/stecute-release-checklist.md`
-7. `docs/stecute-prototype.html`
+2. `docs/stecute-spec.md`
+3. `docs/stecute-prototype.html` (visual reference only)
 
 Document ownership:
 
-- Product scope: `docs/stecute-prd.md`
-- Engineering architecture: `docs/stecute-technical-design.md`
-- Production decisions: `docs/stecute-production-spec.md`
-- Asset rules: `docs/stecute-asset-spec.md`
-- Release gates: `docs/stecute-release-checklist.md`
+- Product scope, engineering architecture, production decisions, asset rules, and release criteria: `docs/stecute-spec.md` (single consolidated spec).
 
-If documents appear to conflict:
+If the spec and the code disagree:
 
-- Prefer the more specific document for that domain.
-- Prefer `stecute-production-spec.md` for finalized production decisions.
-- Do not silently invent behavior that contradicts the docs.
+- The code is the reality; fix the spec (or the code, if it is a bug).
+- Do not silently invent behavior that contradicts the spec.
+- Designs that are not built yet belong in the spec's Roadmap section, not described as current behavior.
 
 ## Working Rules
 

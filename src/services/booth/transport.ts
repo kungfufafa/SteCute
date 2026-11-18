@@ -1,3 +1,5 @@
+import type { CameraFacingMode } from '@/services/camera'
+
 export type BoothPeerRole = 'host' | 'guest'
 
 export type BoothWireMessage =
@@ -5,6 +7,7 @@ export type BoothWireMessage =
   | { type: 'welcome'; peerId: string; role: BoothPeerRole }
   | { type: 'bye'; peerId: string }
   | { type: 'camera-ready'; peerId: string; ready: boolean }
+  | { type: 'camera-facing'; peerId: string; facingMode: CameraFacingMode }
   | { type: 'reject'; peerId: string; toPeerId: string; reason: 'full' }
   | {
       type: 'session-setup'

@@ -6,11 +6,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/__tests__/**/*.{test,spec}.ts'],
-    coverage: {
-      provider: 'v8',
-      include: ['src/**/*.{ts,vue}'],
-      exclude: ['src/**/*.d.ts', 'src/**/__tests__/**'],
-    },
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx', '.vue', '.json'],

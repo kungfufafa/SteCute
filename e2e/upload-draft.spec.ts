@@ -1,11 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { resolve } from 'node:path'
 
-test.use({
-  launchOptions: {
-    args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
-  },
-})
 
 const photos = ['1759243291185.png', '1769149454852.png', '1770039834020.png'].map((name) =>
   resolve('e2e/fixtures/images', name),

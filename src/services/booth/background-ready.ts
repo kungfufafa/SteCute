@@ -1,4 +1,4 @@
-export type BoothLocalBackgroundStatus = 'off' | 'loading' | 'ready' | 'error'
+type BoothLocalBackgroundStatus = 'off' | 'loading' | 'ready' | 'error'
 
 export function shouldConfirmGuestBackgroundReady(options: {
   role: 'host' | 'guest'
@@ -27,7 +27,8 @@ export function isBoothCaptureBackgroundReady(options: {
   if (!options.friendJoined) return true
   if (options.role === 'host') {
     return (
-      options.peerStatus?.status === 'ready' && options.peerStatus.revision === options.setupRevision
+      options.peerStatus?.status === 'ready' &&
+      options.peerStatus.revision === options.setupRevision
     )
   }
   return options.guestStatus === 'ready'

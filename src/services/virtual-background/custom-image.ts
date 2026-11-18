@@ -1,10 +1,10 @@
 import type { RgbaFrame, VirtualBackgroundSpec } from './compose'
 import { normalizeVirtualBackgroundId } from './catalog'
 
-export const MAX_HOST_BACKGROUND_DIMENSION = 1600
-export const MAX_HOST_BACKGROUND_BYTES = 512 * 1024 // 512 KiB
+const MAX_HOST_BACKGROUND_DIMENSION = 1600
+const MAX_HOST_BACKGROUND_BYTES = 512 * 1024 // 512 KiB
 
-export interface NormalizedCustomBackground {
+interface NormalizedCustomBackground {
   blob: Blob
   width: number
   height: number
@@ -12,10 +12,6 @@ export interface NormalizedCustomBackground {
 }
 
 let customBackgroundFrame: RgbaFrame | null = null
-
-export function getCustomVirtualBackgroundFrame(): RgbaFrame | null {
-  return customBackgroundFrame
-}
 
 export function setCustomVirtualBackgroundFrame(frame: RgbaFrame | null): void {
   customBackgroundFrame = frame
@@ -25,17 +21,25 @@ export function clearCustomVirtualBackgroundFrame(): void {
   customBackgroundFrame = null
 }
 
-export async function calculateBlobSha256(blob: Blob): Promise<string> {
+async function calculateBlobSha256(blob: Blob): Promise<string> {
   const buffer = await blob.arrayBuffer()
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-export async function normalizeHostCustomBackground(file: Blob): Promise<NormalizedCustomBackground> {
+export async function normalizeHostCustomBackground(
+  file: Blob,
+): Promise<NormalizedCustomBackground> {
   let sourceWidth = 0
   let sourceHeight = 0
-  let drawSource: (ctx: CanvasRenderingContext2D, dx: number, dy: number, dw: number, dh: number) => void
+  let drawSource: (
+    ctx: CanvasRenderingContext2D,
+    dx: number,
+    dy: number,
+    dw: number,
+    dh: number,
+  ) => void
 
   if (typeof createImageBitmap === 'function') {
     const bitmap = await createImageBitmap(file)
@@ -162,7 +166,11 @@ export async function loadCustomVirtualBackgroundFrame(file: Blob): Promise<Rgba
         el.onerror = () => reject(new Error('Browser tidak bisa membaca gambar latar.'))
         el.src = url
       })
-      return frameFromImageSource(img, img.naturalWidth || img.width, img.naturalHeight || img.height)
+      return frameFromImageSource(
+        img,
+        img.naturalWidth || img.width,
+        img.naturalHeight || img.height,
+      )
     } finally {
       URL.revokeObjectURL(url)
     }
@@ -171,11 +179,7 @@ export async function loadCustomVirtualBackgroundFrame(file: Blob): Promise<Rgba
   throw new Error('Browser tidak bisa membaca gambar latar.')
 }
 
-function frameFromImageSource(
-  source: CanvasImageSource,
-  width: number,
-  height: number,
-): RgbaFrame {
+function frameFromImageSource(source: CanvasImageSource, width: number, height: number): RgbaFrame {
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(width))
   canvas.height = Math.max(1, Math.round(height))
@@ -199,4 +203,3 @@ export function resolveVirtualBackgroundSpec(
     customImage: customImage ?? customBackgroundFrame,
   }
 }
-

@@ -34,7 +34,6 @@
     "@tailwindcss/vite": "^4.1.8",
     "@types/node": "^25.5.0",
     "@vitejs/plugin-vue": "^6.0.5",
-    "@vue/tsconfig": "^0.9.0",
     "eslint": "^9.28.0",
     "eslint-plugin-vue": "^10.4.0",
     "prettier": "^3.5.3",

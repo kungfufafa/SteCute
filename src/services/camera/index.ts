@@ -1,13 +1,11 @@
 import { useCameraStore } from '@/app/store/useCameraStore'
 import { getObjectCoverCrop } from './cover-crop'
 
-export { getObjectCoverCrop } from './cover-crop'
-
 export type FacingMode = 'user' | 'environment'
 export type CameraFacingMode = FacingMode | 'unknown'
 export type CameraLensKind = 'standard' | 'ultrawide' | 'telephoto' | 'macro' | 'unknown'
 
-export interface CameraOptions {
+interface CameraOptions {
   facingMode?: FacingMode
   deviceId?: string
   width?: { ideal: number }
@@ -33,7 +31,7 @@ export interface CapturedFrame {
   height: number
 }
 
-export interface CaptureFrameOptions {
+interface CaptureFrameOptions {
   mirrored?: boolean
   processCanvas?: (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => void
 }
@@ -276,7 +274,7 @@ export async function initCamera(options?: CameraOptions): Promise<MediaStream> 
   }
 }
 
-export async function enumerateDevices(): Promise<MediaDeviceInfo[]> {
+async function enumerateDevices(): Promise<MediaDeviceInfo[]> {
   if (!navigator.mediaDevices?.enumerateDevices) return []
 
   const devices = await navigator.mediaDevices.enumerateDevices()

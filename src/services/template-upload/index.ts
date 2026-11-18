@@ -11,9 +11,9 @@ const MAX_DETECTED_WINDOWS = 12
 const LOCAL_TEMPLATE_ASSET_URL = 'indexeddb://local-template-asset'
 
 const templateRepo = new TemplateRepository()
-export const CUSTOM_TEMPLATE_ID = 'custom-strip'
+const CUSTOM_TEMPLATE_ID = 'custom-strip'
 
-export interface TransparentWindow {
+interface TransparentWindow {
   x: number
   y: number
   width: number
@@ -248,13 +248,17 @@ export function findTransparentWindows(
     const edgeCount =
       Number(touchesLeft) + Number(touchesRight) + Number(touchesTop) + Number(touchesBottom)
     const areaRatio = area / (width * height)
-    const isThinHorizontalWash =
-      touchesLeft && touchesRight && windowHeight / height <= 0.15
+    const isThinHorizontalWash = touchesLeft && touchesRight && windowHeight / height <= 0.15
     const isThinVerticalWash = touchesTop && touchesBottom && windowWidth / width <= 0.15
     const isBackgroundWash =
       edgeCount === 4 || areaRatio >= 0.5 || isThinHorizontalWash || isThinVerticalWash
 
-    if (!isBackgroundWash && area >= minArea && windowWidth >= minWidth && windowHeight >= minHeight) {
+    if (
+      !isBackgroundWash &&
+      area >= minArea &&
+      windowWidth >= minWidth &&
+      windowHeight >= minHeight
+    ) {
       windows.push({
         x: minX,
         y: minY,

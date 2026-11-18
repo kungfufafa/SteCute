@@ -3,7 +3,7 @@ import type { BoothWireMessage } from './transport'
 
 const SEAL_INFO = 'stecute.booth.v1'
 
-export type SealedBoothPayload = {
+type SealedBoothPayload = {
   v: 1
   iv: string
   data: string

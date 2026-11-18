@@ -26,13 +26,21 @@ describe('booth pair live cam', () => {
   it('flips processed live-cam frames with the same selfie flag as raw camera', () => {
     const camera = readSource('../../../features/camera/CameraView.vue')
     const booth = readSource('../../../features/booth/BoothRoomView.vue')
-    const cameraClip = functionBody(camera, 'function startLiveCamClip()', 'async function stopActiveLiveCamRecording')
-    const boothClip = functionBody(booth, 'function startBoothLiveCamClip()', 'async function stopBoothLiveCamClip')
+    const cameraClip = functionBody(
+      camera,
+      'function startLiveCamClip()',
+      'async function stopActiveLiveCamRecording',
+    )
+    const boothClip = functionBody(
+      booth,
+      'function startBoothLiveCamClip()',
+      'async function stopBoothLiveCamClip',
+    )
 
     expect(cameraClip).toContain('mirrored: shouldMirrorActiveCamera.value')
     expect(cameraClip).not.toContain('isBgActive ? false')
     expect(boothClip).toContain('localMirrored: shouldMirrorLocalCamera.value')
-    expect(boothClip).toContain('remoteMirrored: shouldMirrorLocalCamera.value')
+    expect(boothClip).toContain('remoteMirrored: shouldMirrorRemoteCamera.value')
     expect(boothClip).not.toContain('isBgActive ? false')
   })
 
@@ -43,13 +51,15 @@ describe('booth pair live cam', () => {
       readyState: 0,
     } as HTMLVideoElement
 
-    expect(startPairLiveCamRecording({
-      localVideo: video,
-      remoteVideo: null,
-      width: 1080,
-      height: 810,
-      localOnLeft: true,
-    })).toBeNull()
+    expect(
+      startPairLiveCamRecording({
+        localVideo: video,
+        remoteVideo: null,
+        width: 1080,
+        height: 810,
+        localOnLeft: true,
+      }),
+    ).toBeNull()
   })
 
   it('reports live-strip support from the real environment APIs', () => {

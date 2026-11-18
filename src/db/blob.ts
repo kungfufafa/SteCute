@@ -1,12 +1,12 @@
 import { readBlobAsArrayBuffer } from '@/utils/blob'
 
-export interface IndexedDbBlobFallback {
+interface IndexedDbBlobFallback {
   __stecuteBlobFallback: 'array-buffer'
   type: string
   data: ArrayBuffer
 }
 
-export type IndexedDbBlobValue = Blob | IndexedDbBlobFallback
+type IndexedDbBlobValue = Blob | IndexedDbBlobFallback
 
 function isIndexedDbBlobFallback(value: unknown): value is IndexedDbBlobFallback {
   return (

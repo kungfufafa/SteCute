@@ -77,7 +77,7 @@ export async function createHttpBoothTransport(
   }
 }
 
-export function boothRelayUrl(normalizedCode: string): string {
+function boothRelayUrl(normalizedCode: string): string {
   return `/api/booth-relay/${encodeURIComponent(normalizedCode)}`
 }
 

@@ -70,8 +70,5 @@
 /j/*
   X-Robots-Tag: noindex, nofollow
 
-/reset
-  X-Robots-Tag: noindex, nofollow
-
 /privacyscreen
   X-Robots-Tag: noindex, nofollow
