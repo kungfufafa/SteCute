@@ -145,7 +145,11 @@ async function releaseStill(page: Page) {
 }
 
 async function expectEditorLocked(page: Page) {
-  await expect(openSettingsButton(page)).toHaveCount(0)
+  // During countdown the button stays rendered but disabled; it disappears once a still exists.
+  const openButton = openSettingsButton(page)
+  if ((await openButton.count()) > 0) {
+    await expect(openButton).toBeDisabled()
+  }
   const gear = page.getByRole('button', { name: 'Ubah setup sesi', exact: true })
   await expect(gear).toBeDisabled()
   await gear.dispatchEvent('click')
